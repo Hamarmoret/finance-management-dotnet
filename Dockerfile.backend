@@ -1,0 +1,31 @@
+# Build stage
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+WORKDIR /src
+
+# Copy project file and restore
+COPY backend/FinanceManagement.Api/FinanceManagement.Api.csproj ./backend/FinanceManagement.Api/
+RUN dotnet restore backend/FinanceManagement.Api/FinanceManagement.Api.csproj
+
+# Copy source and build
+COPY backend/FinanceManagement.Api/ ./backend/FinanceManagement.Api/
+RUN dotnet publish backend/FinanceManagement.Api/FinanceManagement.Api.csproj \
+    -c Release -o /app/publish --no-restore
+
+# Runtime stage
+FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
+WORKDIR /app
+
+# Create non-root user
+RUN addgroup --gid 1001 appgroup && \
+    adduser --uid 1001 --ingroup appgroup --disabled-password --gecos "" appuser
+
+COPY --from=build /app/publish .
+
+USER appuser
+
+EXPOSE 3001
+
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD wget --no-verbose --tries=1 --spider http://localhost:3001/health || exit 1
+
+ENTRYPOINT ["dotnet", "FinanceManagement.Api.dll"]

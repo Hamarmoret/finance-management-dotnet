@@ -1,0 +1,16 @@
+steps:
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '-f'
+      - 'Dockerfile.backend'
+      - '-t'
+      - 'gcr.io/$PROJECT_ID/finance-backend-dotnet:$BUILD_ID'
+      - '-t'
+      - 'gcr.io/$PROJECT_ID/finance-backend-dotnet:latest'
+      - '.'
+
+images:
+  - 'gcr.io/$PROJECT_ID/finance-backend-dotnet:$BUILD_ID'
+  - 'gcr.io/$PROJECT_ID/finance-backend-dotnet:latest'
+timeout: '600s'

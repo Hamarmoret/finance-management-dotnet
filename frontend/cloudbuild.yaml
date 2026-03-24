@@ -1,0 +1,15 @@
+steps:
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '--build-arg'
+      - 'VITE_API_URL=https://finance-backend-h557d2wbtq-zf.a.run.app/api'
+      - '-t'
+      - 'gcr.io/$PROJECT_ID/finance-frontend:$BUILD_ID'
+      - '-t'
+      - 'gcr.io/$PROJECT_ID/finance-frontend:latest'
+      - '.'
+
+images:
+  - 'gcr.io/$PROJECT_ID/finance-frontend:$BUILD_ID'
+  - 'gcr.io/$PROJECT_ID/finance-frontend:latest'

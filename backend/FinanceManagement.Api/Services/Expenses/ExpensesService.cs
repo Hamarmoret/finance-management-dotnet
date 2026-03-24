@@ -1,0 +1,647 @@
+using System.Text.Json;
+using Dapper;
+using FinanceManagement.Api.Database;
+using FinanceManagement.Api.Middleware;
+using FinanceManagement.Api.Models.Expenses;
+
+namespace FinanceManagement.Api.Services.Expenses;
+
+public class ExpensesService
+{
+    private readonly DbContext _db;
+    private readonly ILogger<ExpensesService> _logger;
+
+    public ExpensesService(DbContext db, ILogger<ExpensesService> logger)
+    {
+        _db = db;
+        _logger = logger;
+    }
+
+    // =============================================
+    // Mappers
+    // =============================================
+
+    private static ExpenseCategoryDto MapCategory(CategoryRow row) => new()
+    {
+        Id = row.Id.ToString(),
+        Name = row.Name,
+        Type = row.Type,
+        ParentId = row.ParentId?.ToString(),
+        IsActive = row.IsActive,
+    };
+
+    private static ExpenseAllocationDto MapAllocation(AllocationRow row) => new()
+    {
+        Id = row.Id.ToString(),
+        PnlCenterId = row.PnlCenterId.ToString(),
+        PnlCenterName = row.PnlCenterName,
+        Percentage = row.Percentage,
+        AllocatedAmount = row.AllocatedAmount,
+    };
+
+    private static ExpenseDto MapExpense(ExpenseRow row, List<ExpenseAllocationDto> allocations) => new()
+    {
+        Id = row.Id.ToString(),
+        Description = row.Description,
+        Amount = row.Amount,
+        Currency = row.Currency,
+        CategoryId = row.CategoryId?.ToString(),
+        Category = row.CategoryName != null
+            ? new ExpenseCategoryDto
+            {
+                Id = row.CategoryId!.Value.ToString(),
+                Name = row.CategoryName,
+                Type = row.CategoryType ?? string.Empty,
+                ParentId = row.CategoryParentId?.ToString(),
+                IsActive = row.CategoryIsActive ?? true,
+            }
+            : null,
+        ExpenseDate = row.ExpenseDate.ToString("yyyy-MM-dd"),
+        IsRecurring = row.IsRecurring,
+        RecurringPattern = row.RecurringPattern != null
+            ? JsonSerializer.Deserialize<object>(row.RecurringPattern)
+            : null,
+        Vendor = row.Vendor,
+        Notes = row.Notes,
+        Attachments = row.Attachments != null
+            ? JsonSerializer.Deserialize<List<object>>(row.Attachments) ?? []
+            : [],
+        Tags = row.Tags?.ToList() ?? [],
+        Allocations = allocations,
+        CreatedBy = row.CreatedBy?.ToString(),
+        CreatedAt = row.CreatedAt,
+        UpdatedAt = row.UpdatedAt,
+    };
+
+    // =============================================
+    // Expenses CRUD
+    // =============================================
+
+    public async Task<(List<ExpenseDto> Expenses, int Total)> GetAllAsync(
+        int page = 1,
+        int limit = 20,
+        string? dateFrom = null,
+        string? dateTo = null,
+        string? categoryId = null,
+        string? vendor = null,
+        bool? isRecurring = null,
+        decimal? minAmount = null,
+        decimal? maxAmount = null,
+        string? search = null,
+        string? sortBy = null,
+        string? sortOrder = null)
+    {
+        await using var conn = _db.CreateConnection();
+        await conn.OpenAsync();
+
+        var conditions = new List<string>();
+        var parameters = new DynamicParameters();
+
+        if (!string.IsNullOrEmpty(dateFrom))
+        {
+            conditions.Add("e.expense_date >= @DateFrom");
+            parameters.Add("DateFrom", DateTime.Parse(dateFrom));
+        }
+        if (!string.IsNullOrEmpty(dateTo))
+        {
+            conditions.Add("e.expense_date <= @DateTo");
+            parameters.Add("DateTo", DateTime.Parse(dateTo));
+        }
+        if (!string.IsNullOrEmpty(categoryId))
+        {
+            conditions.Add("e.category_id = @CategoryId");
+            parameters.Add("CategoryId", Guid.Parse(categoryId));
+        }
+        if (!string.IsNullOrEmpty(vendor))
+        {
+            conditions.Add("e.vendor ILIKE @Vendor");
+            parameters.Add("Vendor", $"%{vendor}%");
+        }
+        if (isRecurring.HasValue)
+        {
+            conditions.Add("e.is_recurring = @IsRecurring");
+            parameters.Add("IsRecurring", isRecurring.Value);
+        }
+        if (minAmount.HasValue)
+        {
+            conditions.Add("e.amount >= @MinAmount");
+            parameters.Add("MinAmount", minAmount.Value);
+        }
+        if (maxAmount.HasValue)
+        {
+            conditions.Add("e.amount <= @MaxAmount");
+            parameters.Add("MaxAmount", maxAmount.Value);
+        }
+        if (!string.IsNullOrEmpty(search))
+        {
+            conditions.Add("(e.description ILIKE @Search OR e.vendor ILIKE @Search)");
+            parameters.Add("Search", $"%{search}%");
+        }
+
+        var whereClause = conditions.Count > 0 ? $"WHERE {string.Join(" AND ", conditions)}" : "";
+        var offset = (page - 1) * limit;
+
+        // Get total count
+        var countSql = $"SELECT COUNT(*) FROM expenses e {whereClause}";
+        var total = await conn.ExecuteScalarAsync<int>(countSql, parameters);
+
+        // Determine sort column (whitelist to prevent SQL injection)
+        var sortColumn = sortBy?.ToLower() switch
+        {
+            "amount" => "e.amount",
+            "description" => "e.description",
+            "vendor" => "e.vendor",
+            "created_at" or "createdat" => "e.created_at",
+            _ => "e.expense_date",
+        };
+        var sortDir = sortOrder?.ToUpper() == "ASC" ? "ASC" : "DESC";
+        var orderClause = $"ORDER BY {sortColumn} {sortDir}, e.created_at DESC";
+
+        // Get expenses with categories
+        parameters.Add("Limit", limit);
+        parameters.Add("Offset", offset);
+
+        var expenseSql = $"""
+            SELECT
+                e.id, e.description, e.amount, e.currency, e.category_id,
+                e.expense_date, e.is_recurring, e.recurring_pattern,
+                e.vendor, e.notes, e.attachments::text, e.tags,
+                e.created_by, e.created_at, e.updated_at,
+                ec.name as category_name,
+                ec.type as category_type,
+                ec.parent_id as category_parent_id,
+                ec.is_active as category_is_active
+            FROM expenses e
+            LEFT JOIN expense_categories ec ON ec.id = e.category_id
+            {whereClause}
+            {orderClause}
+            LIMIT @Limit OFFSET @Offset
+            """;
+
+        var expenseRows = (await conn.QueryAsync<ExpenseRow>(expenseSql, parameters)).ToList();
+
+        // Get allocations for all expenses
+        var allocationsMap = new Dictionary<string, List<ExpenseAllocationDto>>();
+
+        if (expenseRows.Count > 0)
+        {
+            var expenseIds = expenseRows.Select(e => e.Id).ToArray();
+            var allocationsSql = """
+                SELECT
+                    ea.id,
+                    ea.expense_id,
+                    ea.pnl_center_id,
+                    pc.name as pnl_center_name,
+                    ea.percentage,
+                    ea.allocated_amount
+                FROM expense_allocations ea
+                JOIN pnl_centers pc ON pc.id = ea.pnl_center_id
+                WHERE ea.expense_id = ANY(@ExpenseIds)
+                """;
+
+            var allocationRows = await conn.QueryAsync<AllocationRow>(allocationsSql, new { ExpenseIds = expenseIds });
+
+            foreach (var row in allocationRows)
+            {
+                var key = row.ExpenseId.ToString();
+                if (!allocationsMap.ContainsKey(key))
+                    allocationsMap[key] = [];
+                allocationsMap[key].Add(MapAllocation(row));
+            }
+        }
+
+        var expenses = expenseRows.Select(row =>
+            MapExpense(row, allocationsMap.GetValueOrDefault(row.Id.ToString(), []))
+        ).ToList();
+
+        return (expenses, total);
+    }
+
+    public async Task<ExpenseDto> GetByIdAsync(string id)
+    {
+        await using var conn = _db.CreateConnection();
+        await conn.OpenAsync();
+
+        var expenseSql = """
+            SELECT
+                e.id, e.description, e.amount, e.currency, e.category_id,
+                e.expense_date, e.is_recurring, e.recurring_pattern,
+                e.vendor, e.notes, e.attachments::text, e.tags,
+                e.created_by, e.created_at, e.updated_at,
+                ec.name as category_name,
+                ec.type as category_type,
+                ec.parent_id as category_parent_id,
+                ec.is_active as category_is_active
+            FROM expenses e
+            LEFT JOIN expense_categories ec ON ec.id = e.category_id
+            WHERE e.id = @Id
+            """;
+
+        var row = await conn.QuerySingleOrDefaultAsync<ExpenseRow>(expenseSql, new { Id = Guid.Parse(id) });
+        if (row == null)
+            throw new AppException("Expense not found", 404, "NOT_FOUND");
+
+        var allocationsSql = """
+            SELECT
+                ea.id,
+                ea.expense_id,
+                ea.pnl_center_id,
+                pc.name as pnl_center_name,
+                ea.percentage,
+                ea.allocated_amount
+            FROM expense_allocations ea
+            JOIN pnl_centers pc ON pc.id = ea.pnl_center_id
+            WHERE ea.expense_id = @Id
+            """;
+
+        var allocationRows = (await conn.QueryAsync<AllocationRow>(allocationsSql, new { Id = Guid.Parse(id) })).ToList();
+
+        return MapExpense(row, allocationRows.Select(MapAllocation).ToList());
+    }
+
+    public async Task<ExpenseDto> CreateAsync(CreateExpenseRequest request, string userId)
+    {
+        await using var conn = _db.CreateConnection();
+        await conn.OpenAsync();
+        await using var tx = await conn.BeginTransactionAsync();
+
+        try
+        {
+            // Create expense
+            var expenseSql = """
+                INSERT INTO expenses (
+                    description, amount, currency, category_id, expense_date,
+                    is_recurring, recurring_pattern, vendor, notes, attachments, tags, created_by
+                )
+                VALUES (
+                    @Description, @Amount, @Currency, @CategoryId, @ExpenseDate,
+                    @IsRecurring, @RecurringPattern::jsonb, @Vendor, @Notes, @Attachments::jsonb, @Tags, @CreatedBy
+                )
+                RETURNING id, description, amount, currency, category_id, expense_date,
+                          is_recurring, recurring_pattern, vendor, notes, attachments::text, tags,
+                          created_by, created_at, updated_at
+                """;
+
+            var expenseRow = await conn.QuerySingleAsync<ExpenseRow>(expenseSql, new
+            {
+                request.Description,
+                request.Amount,
+                Currency = request.Currency ?? "USD",
+                CategoryId = !string.IsNullOrEmpty(request.CategoryId) ? (Guid?)Guid.Parse(request.CategoryId) : null,
+                ExpenseDate = DateTime.Parse(request.ExpenseDate),
+                request.IsRecurring,
+                RecurringPattern = request.RecurringPattern != null
+                    ? JsonSerializer.Serialize(request.RecurringPattern)
+                    : null,
+                request.Vendor,
+                request.Notes,
+                Attachments = JsonSerializer.Serialize(request.Attachments ?? []),
+                Tags = request.Tags?.ToArray() ?? Array.Empty<string>(),
+                CreatedBy = Guid.Parse(userId),
+            }, tx);
+
+            // Create allocations
+            var allocations = new List<ExpenseAllocationDto>();
+            foreach (var alloc in request.Allocations)
+            {
+                var allocatedAmount = request.Amount * alloc.Percentage / 100m;
+                var allocSql = """
+                    INSERT INTO expense_allocations (expense_id, pnl_center_id, percentage, allocated_amount)
+                    VALUES (@ExpenseId, @PnlCenterId, @Percentage, @AllocatedAmount)
+                    RETURNING
+                        id,
+                        expense_id,
+                        pnl_center_id,
+                        (SELECT name FROM pnl_centers WHERE id = @PnlCenterId) as pnl_center_name,
+                        percentage,
+                        allocated_amount
+                    """;
+
+                var allocRow = await conn.QuerySingleAsync<AllocationRow>(allocSql, new
+                {
+                    ExpenseId = expenseRow.Id,
+                    PnlCenterId = Guid.Parse(alloc.PnlCenterId),
+                    alloc.Percentage,
+                    AllocatedAmount = allocatedAmount,
+                }, tx);
+
+                allocations.Add(MapAllocation(allocRow));
+            }
+
+            // Audit log
+            await LogAuditAsync(conn, tx, Guid.Parse(userId), "create", "expense", expenseRow.Id);
+
+            await tx.CommitAsync();
+
+            _logger.LogInformation("Expense {ExpenseId} created by user {UserId}", expenseRow.Id, userId);
+
+            return MapExpense(expenseRow, allocations);
+        }
+        catch (AppException)
+        {
+            await tx.RollbackAsync();
+            throw;
+        }
+        catch (Exception ex)
+        {
+            await tx.RollbackAsync();
+            _logger.LogError(ex, "Failed to create expense");
+            throw;
+        }
+    }
+
+    public async Task<ExpenseDto> UpdateAsync(string id, UpdateExpenseRequest request, string userId)
+    {
+        await using var conn = _db.CreateConnection();
+        await conn.OpenAsync();
+        await using var tx = await conn.BeginTransactionAsync();
+
+        try
+        {
+            var expenseId = Guid.Parse(id);
+
+            // Verify expense exists
+            var exists = await conn.ExecuteScalarAsync<bool>(
+                "SELECT EXISTS(SELECT 1 FROM expenses WHERE id = @Id)",
+                new { Id = expenseId }, tx);
+            if (!exists)
+                throw new AppException("Expense not found", 404, "NOT_FOUND");
+
+            // Build dynamic update
+            var fields = new List<string>();
+            var parameters = new DynamicParameters();
+            parameters.Add("Id", expenseId);
+
+            if (request.Description != null)
+            {
+                fields.Add("description = @Description");
+                parameters.Add("Description", request.Description);
+            }
+            if (request.Amount.HasValue)
+            {
+                fields.Add("amount = @Amount");
+                parameters.Add("Amount", request.Amount.Value);
+            }
+            if (request.Currency != null)
+            {
+                fields.Add("currency = @Currency");
+                parameters.Add("Currency", request.Currency);
+            }
+            if (request.CategoryId != null)
+            {
+                fields.Add("category_id = @CategoryId");
+                parameters.Add("CategoryId", Guid.Parse(request.CategoryId));
+            }
+            if (request.ExpenseDate != null)
+            {
+                fields.Add("expense_date = @ExpenseDate");
+                parameters.Add("ExpenseDate", DateTime.Parse(request.ExpenseDate));
+            }
+            if (request.IsRecurring.HasValue)
+            {
+                fields.Add("is_recurring = @IsRecurring");
+                parameters.Add("IsRecurring", request.IsRecurring.Value);
+            }
+            if (request.RecurringPattern != null)
+            {
+                fields.Add("recurring_pattern = @RecurringPattern::jsonb");
+                parameters.Add("RecurringPattern", JsonSerializer.Serialize(request.RecurringPattern));
+            }
+            if (request.Vendor != null)
+            {
+                fields.Add("vendor = @Vendor");
+                parameters.Add("Vendor", request.Vendor);
+            }
+            if (request.Notes != null)
+            {
+                fields.Add("notes = @Notes");
+                parameters.Add("Notes", request.Notes);
+            }
+            if (request.Attachments != null)
+            {
+                fields.Add("attachments = @Attachments::jsonb");
+                parameters.Add("Attachments", JsonSerializer.Serialize(request.Attachments));
+            }
+            if (request.Tags != null)
+            {
+                fields.Add("tags = @Tags");
+                parameters.Add("Tags", request.Tags.ToArray());
+            }
+
+            if (fields.Count > 0)
+            {
+                fields.Add("updated_at = NOW()");
+                var updateSql = $"UPDATE expenses SET {string.Join(", ", fields)} WHERE id = @Id";
+                await conn.ExecuteAsync(updateSql, parameters, tx);
+            }
+
+            // Update allocations if provided
+            if (request.Allocations != null)
+            {
+                // Get current amount for recalculating allocations
+                var amount = await conn.ExecuteScalarAsync<decimal>(
+                    "SELECT amount FROM expenses WHERE id = @Id",
+                    new { Id = expenseId }, tx);
+
+                // Delete old allocations
+                await conn.ExecuteAsync(
+                    "DELETE FROM expense_allocations WHERE expense_id = @Id",
+                    new { Id = expenseId }, tx);
+
+                // Create new allocations
+                foreach (var alloc in request.Allocations)
+                {
+                    var allocatedAmount = amount * alloc.Percentage / 100m;
+                    await conn.ExecuteAsync(
+                        """
+                        INSERT INTO expense_allocations (expense_id, pnl_center_id, percentage, allocated_amount)
+                        VALUES (@ExpenseId, @PnlCenterId, @Percentage, @AllocatedAmount)
+                        """,
+                        new
+                        {
+                            ExpenseId = expenseId,
+                            PnlCenterId = Guid.Parse(alloc.PnlCenterId),
+                            alloc.Percentage,
+                            AllocatedAmount = allocatedAmount,
+                        }, tx);
+                }
+            }
+
+            // Audit log
+            await LogAuditAsync(conn, tx, Guid.Parse(userId), "update", "expense", expenseId);
+
+            await tx.CommitAsync();
+
+            _logger.LogInformation("Expense {ExpenseId} updated by user {UserId}", id, userId);
+
+            // Return full expense with category and allocations
+            return await GetByIdAsync(id);
+        }
+        catch (AppException)
+        {
+            await tx.RollbackAsync();
+            throw;
+        }
+        catch (Exception ex)
+        {
+            await tx.RollbackAsync();
+            _logger.LogError(ex, "Failed to update expense {ExpenseId}", id);
+            throw;
+        }
+    }
+
+    public async Task DeleteAsync(string id, string userId)
+    {
+        await using var conn = _db.CreateConnection();
+        await conn.OpenAsync();
+
+        var expenseId = Guid.Parse(id);
+
+        var rowsAffected = await conn.ExecuteAsync(
+            "DELETE FROM expenses WHERE id = @Id",
+            new { Id = expenseId });
+
+        if (rowsAffected == 0)
+            throw new AppException("Expense not found", 404, "NOT_FOUND");
+
+        // Audit log
+        await LogAuditAsync(conn, null, Guid.Parse(userId), "delete", "expense", expenseId);
+
+        _logger.LogInformation("Expense {ExpenseId} deleted by user {UserId}", id, userId);
+    }
+
+    // =============================================
+    // Categories CRUD
+    // =============================================
+
+    public async Task<List<ExpenseCategoryDto>> GetCategoriesAsync()
+    {
+        await using var conn = _db.CreateConnection();
+        await conn.OpenAsync();
+
+        var rows = await conn.QueryAsync<CategoryRow>("""
+            SELECT id, name, type, parent_id, is_active
+            FROM expense_categories
+            WHERE is_active = true
+            ORDER BY name ASC
+            """);
+
+        return rows.Select(MapCategory).ToList();
+    }
+
+    public async Task<ExpenseCategoryDto> CreateCategoryAsync(string name, string type, string? parentId)
+    {
+        await using var conn = _db.CreateConnection();
+        await conn.OpenAsync();
+
+        var row = await conn.QuerySingleAsync<CategoryRow>("""
+            INSERT INTO expense_categories (name, type, parent_id)
+            VALUES (@Name, @Type, @ParentId)
+            RETURNING id, name, type, parent_id, is_active
+            """,
+            new
+            {
+                Name = name,
+                Type = type,
+                ParentId = !string.IsNullOrEmpty(parentId) ? (Guid?)Guid.Parse(parentId) : null,
+            });
+
+        _logger.LogInformation("Expense category {CategoryId} created: {Name}", row.Id, name);
+
+        return MapCategory(row);
+    }
+
+    public async Task<ExpenseCategoryDto> UpdateCategoryAsync(string id, string? name, string? type, string? parentId)
+    {
+        var categoryId = Guid.Parse(id);
+
+        await using var conn = _db.CreateConnection();
+        await conn.OpenAsync();
+
+        var fields = new List<string>();
+        var parameters = new DynamicParameters();
+        parameters.Add("Id", categoryId);
+
+        if (name != null)
+        {
+            fields.Add("name = @Name");
+            parameters.Add("Name", name);
+        }
+        if (type != null)
+        {
+            fields.Add("type = @Type");
+            parameters.Add("Type", type);
+        }
+        if (parentId != null)
+        {
+            fields.Add("parent_id = @ParentId");
+            parameters.Add("ParentId", Guid.Parse(parentId));
+        }
+
+        if (fields.Count == 0)
+        {
+            // No changes, return current
+            var current = await conn.QuerySingleOrDefaultAsync<CategoryRow>(
+                "SELECT id, name, type, parent_id, is_active FROM expense_categories WHERE id = @Id",
+                new { Id = categoryId });
+
+            if (current == null)
+                throw new AppException("Category not found", 404, "NOT_FOUND");
+
+            return MapCategory(current);
+        }
+
+        var sql = $"""
+            UPDATE expense_categories SET {string.Join(", ", fields)}
+            WHERE id = @Id
+            RETURNING id, name, type, parent_id, is_active
+            """;
+
+        var row = await conn.QuerySingleOrDefaultAsync<CategoryRow>(sql, parameters);
+        if (row == null)
+            throw new AppException("Category not found", 404, "NOT_FOUND");
+
+        _logger.LogInformation("Expense category {CategoryId} updated", id);
+
+        return MapCategory(row);
+    }
+
+    public async Task DeleteCategoryAsync(string id)
+    {
+        await using var conn = _db.CreateConnection();
+        await conn.OpenAsync();
+
+        var categoryId = Guid.Parse(id);
+
+        // Soft delete (matching Node.js behavior)
+        var rowsAffected = await conn.ExecuteAsync(
+            "UPDATE expense_categories SET is_active = false WHERE id = @Id AND is_active = true",
+            new { Id = categoryId });
+
+        if (rowsAffected == 0)
+            throw new AppException("Category not found", 404, "NOT_FOUND");
+
+        _logger.LogInformation("Expense category {CategoryId} soft-deleted", id);
+    }
+
+    // =============================================
+    // Audit Helper
+    // =============================================
+
+    private static async Task LogAuditAsync(
+        Npgsql.NpgsqlConnection conn,
+        Npgsql.NpgsqlTransaction? tx,
+        Guid userId,
+        string action,
+        string entityType,
+        Guid entityId)
+    {
+        await conn.ExecuteAsync(
+            """
+            INSERT INTO audit_logs (user_id, action, entity_type, entity_id)
+            VALUES (@UserId, @Action, @EntityType, @EntityId)
+            """,
+            new { UserId = userId, Action = action, EntityType = entityType, EntityId = entityId },
+            tx);
+    }
+}
