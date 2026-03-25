@@ -106,11 +106,11 @@ public class BusinessPlansService
             throw new AppException("Business plan not found", 404, "NOT_FOUND");
 
         var projections = (await conn.QueryAsync<DbProjectionRow>(
-            "SELECT * FROM plan_projections WHERE plan_id = @PlanId ORDER BY period_start ASC",
+            "SELECT * FROM plan_projections WHERE business_plan_id = @PlanId ORDER BY period_start ASC",
             new { PlanId = id })).ToList();
 
         var goals = (await conn.QueryAsync<DbGoalRow>(
-            "SELECT * FROM plan_goals WHERE plan_id = @PlanId ORDER BY sort_order ASC",
+            "SELECT * FROM plan_goals WHERE business_plan_id = @PlanId ORDER BY sort_order ASC",
             new { PlanId = id })).ToList();
 
         return new BusinessPlanWithDetailsDto
@@ -315,14 +315,14 @@ public class BusinessPlansService
             {
                 var sql = """
                     INSERT INTO plan_projections (
-                        plan_id, period_start, period_end, period_label,
+                        business_plan_id, period_start, period_end, period_label,
                         projected_revenue, projected_expenses, projected_profit, notes
                     )
                     VALUES (
                         @PlanId, @PeriodStart::date, @PeriodEnd::date, @PeriodLabel,
                         @ProjectedRevenue, @ProjectedExpenses, @ProjectedProfit, @Notes
                     )
-                    ON CONFLICT (plan_id, period_start) DO UPDATE SET
+                    ON CONFLICT (business_plan_id, period_start) DO UPDATE SET
                         period_end = EXCLUDED.period_end,
                         period_label = EXCLUDED.period_label,
                         projected_revenue = EXCLUDED.projected_revenue,
@@ -354,7 +354,7 @@ public class BusinessPlansService
         }
 
         var rows = await conn.QueryAsync<DbProjectionRow>(
-            "SELECT * FROM plan_projections WHERE plan_id = @PlanId ORDER BY period_start ASC",
+            "SELECT * FROM plan_projections WHERE business_plan_id = @PlanId ORDER BY period_start ASC",
             new { PlanId = planId });
 
         _logger.LogInformation("Projections updated for plan {PlanId}", planId);
@@ -373,12 +373,12 @@ public class BusinessPlansService
         await EnsurePlanExistsAsync(conn, planId);
 
         var maxOrder = await conn.ExecuteScalarAsync<int?>(
-            "SELECT MAX(sort_order) FROM plan_goals WHERE plan_id = @PlanId",
+            "SELECT MAX(sort_order) FROM plan_goals WHERE business_plan_id = @PlanId",
             new { PlanId = planId });
 
         var sql = """
             INSERT INTO plan_goals (
-                plan_id, title, description, target_value, current_value,
+                business_plan_id, title, description, target_value, current_value,
                 unit, category, priority, due_date, sort_order
             )
             VALUES (
@@ -471,7 +471,7 @@ public class BusinessPlansService
             throw new AppException("No fields to update", 400, "BAD_REQUEST");
 
         fields.Add("updated_at = NOW()");
-        var sql = $"UPDATE plan_goals SET {string.Join(", ", fields)} WHERE id = @Id AND plan_id = @PlanId RETURNING *";
+        var sql = $"UPDATE plan_goals SET {string.Join(", ", fields)} WHERE id = @Id AND business_plan_id = @PlanId RETURNING *";
 
         var row = await conn.QuerySingleOrDefaultAsync<DbGoalRow>(sql, parameters);
         if (row == null)
@@ -487,7 +487,7 @@ public class BusinessPlansService
         await conn.OpenAsync();
 
         var affected = await conn.ExecuteAsync(
-            "DELETE FROM plan_goals WHERE id = @Id AND plan_id = @PlanId",
+            "DELETE FROM plan_goals WHERE id = @Id AND business_plan_id = @PlanId",
             new { Id = goalId, PlanId = planId });
 
         if (affected == 0)
@@ -512,7 +512,7 @@ public class BusinessPlansService
 
         // Get projections
         var projections = (await conn.QueryAsync<DbProjectionRow>(
-            "SELECT * FROM plan_projections WHERE plan_id = @PlanId ORDER BY period_start ASC",
+            "SELECT * FROM plan_projections WHERE business_plan_id = @PlanId ORDER BY period_start ASC",
             new { PlanId = planId })).ToList();
 
         // Get actual income grouped by month within plan date range
@@ -604,27 +604,27 @@ public class BusinessPlansService
             throw new AppException("Business plan not found", 404, "NOT_FOUND");
 
         var scenarios = (await conn.QueryAsync<DbScenarioRow>(
-            "SELECT * FROM plan_scenarios WHERE plan_id = @PlanId ORDER BY is_default DESC, created_at ASC",
+            "SELECT * FROM plan_scenarios WHERE business_plan_id = @PlanId ORDER BY is_default DESC, created_at ASC",
             new { PlanId = planId })).ToList();
 
         var drivers = (await conn.QueryAsync<DbDriverRow>(
-            "SELECT * FROM plan_drivers WHERE plan_id = @PlanId ORDER BY name ASC",
+            "SELECT * FROM plan_drivers WHERE business_plan_id = @PlanId ORDER BY name ASC",
             new { PlanId = planId })).ToList();
 
         var revenueModels = (await conn.QueryAsync<DbRevenueModelRow>(
-            "SELECT * FROM plan_revenue_models WHERE plan_id = @PlanId ORDER BY created_at ASC",
+            "SELECT * FROM plan_revenue_models WHERE business_plan_id = @PlanId ORDER BY created_at ASC",
             new { PlanId = planId })).ToList();
 
         var costCategories = (await conn.QueryAsync<DbCostCategoryRow>(
-            "SELECT * FROM plan_cost_categories WHERE plan_id = @PlanId ORDER BY name ASC",
+            "SELECT * FROM plan_cost_categories WHERE business_plan_id = @PlanId ORDER BY name ASC",
             new { PlanId = planId })).ToList();
 
         var staffing = (await conn.QueryAsync<DbStaffingRow>(
-            "SELECT * FROM plan_staffing WHERE plan_id = @PlanId ORDER BY role_name ASC",
+            "SELECT * FROM plan_staffing WHERE business_plan_id = @PlanId ORDER BY role_name ASC",
             new { PlanId = planId })).ToList();
 
         var results = (await conn.QueryAsync<DbCalculatedResultRow>(
-            "SELECT cr.*, s.name as scenario_name FROM plan_calculated_results cr JOIN plan_scenarios s ON s.id = cr.scenario_id WHERE cr.plan_id = @PlanId ORDER BY cr.period_start ASC",
+            "SELECT cr.*, s.name as scenario_name FROM plan_calculated_results cr JOIN plan_scenarios s ON s.id = cr.scenario_id WHERE cr.business_plan_id = @PlanId ORDER BY cr.period_start ASC",
             new { PlanId = planId })).ToList();
 
         return new BusinessPlanWithEngineDto
@@ -651,7 +651,7 @@ public class BusinessPlansService
         await EnsurePlanExistsAsync(conn, planId);
 
         var rows = await conn.QueryAsync<DbScenarioRow>(
-            "SELECT * FROM plan_scenarios WHERE plan_id = @PlanId ORDER BY is_default DESC, created_at ASC",
+            "SELECT * FROM plan_scenarios WHERE business_plan_id = @PlanId ORDER BY is_default DESC, created_at ASC",
             new { PlanId = planId });
 
         return rows.Select(MapScenario).ToList();
@@ -666,7 +666,7 @@ public class BusinessPlansService
 
         var sql = """
             INSERT INTO plan_scenarios (
-                plan_id, name, description, is_default, assumptions
+                business_plan_id, name, description, is_default, assumptions
             )
             VALUES (
                 @PlanId, @Name, @Description, @IsDefault, @Assumptions::jsonb
@@ -719,7 +719,7 @@ public class BusinessPlansService
             throw new AppException("No fields to update", 400, "BAD_REQUEST");
 
         fields.Add("updated_at = NOW()");
-        var sql = $"UPDATE plan_scenarios SET {string.Join(", ", fields)} WHERE id = @Id AND plan_id = @PlanId RETURNING *";
+        var sql = $"UPDATE plan_scenarios SET {string.Join(", ", fields)} WHERE id = @Id AND business_plan_id = @PlanId RETURNING *";
 
         var row = await conn.QuerySingleOrDefaultAsync<DbScenarioRow>(sql, parameters);
         if (row == null)
@@ -736,14 +736,14 @@ public class BusinessPlansService
 
         // Prevent deleting default scenarios
         var isDefault = await conn.ExecuteScalarAsync<bool>(
-            "SELECT COALESCE(is_default, false) FROM plan_scenarios WHERE id = @Id AND plan_id = @PlanId",
+            "SELECT COALESCE(is_default, false) FROM plan_scenarios WHERE id = @Id AND business_plan_id = @PlanId",
             new { Id = scenarioId, PlanId = planId });
 
         if (isDefault)
             throw new AppException("Cannot delete a default scenario", 400, "CANNOT_DELETE_DEFAULT");
 
         var affected = await conn.ExecuteAsync(
-            "DELETE FROM plan_scenarios WHERE id = @Id AND plan_id = @PlanId",
+            "DELETE FROM plan_scenarios WHERE id = @Id AND business_plan_id = @PlanId",
             new { Id = scenarioId, PlanId = planId });
 
         if (affected == 0)
@@ -764,7 +764,7 @@ public class BusinessPlansService
         await EnsurePlanExistsAsync(conn, planId);
 
         var rows = await conn.QueryAsync<DbDriverRow>(
-            "SELECT * FROM plan_drivers WHERE plan_id = @PlanId ORDER BY name ASC",
+            "SELECT * FROM plan_drivers WHERE business_plan_id = @PlanId ORDER BY name ASC",
             new { PlanId = planId });
 
         return rows.Select(MapDriver).ToList();
@@ -779,7 +779,7 @@ public class BusinessPlansService
 
         var sql = """
             INSERT INTO plan_drivers (
-                plan_id, name, description, driver_type, value,
+                business_plan_id, name, description, driver_type, value,
                 unit, min_value, max_value, step
             )
             VALUES (
@@ -861,7 +861,7 @@ public class BusinessPlansService
             throw new AppException("No fields to update", 400, "BAD_REQUEST");
 
         fields.Add("updated_at = NOW()");
-        var sql = $"UPDATE plan_drivers SET {string.Join(", ", fields)} WHERE id = @Id AND plan_id = @PlanId RETURNING *";
+        var sql = $"UPDATE plan_drivers SET {string.Join(", ", fields)} WHERE id = @Id AND business_plan_id = @PlanId RETURNING *";
 
         var row = await conn.QuerySingleOrDefaultAsync<DbDriverRow>(sql, parameters);
         if (row == null)
@@ -884,7 +884,7 @@ public class BusinessPlansService
             foreach (var d in drivers)
             {
                 var affected = await conn.ExecuteAsync(
-                    "UPDATE plan_drivers SET value = @Value, updated_at = NOW() WHERE id = @Id AND plan_id = @PlanId",
+                    "UPDATE plan_drivers SET value = @Value, updated_at = NOW() WHERE id = @Id AND business_plan_id = @PlanId",
                     new { Id = d.DriverId, PlanId = planId, d.Value }, tx);
 
                 if (affected == 0)
@@ -900,7 +900,7 @@ public class BusinessPlansService
         }
 
         var rows = await conn.QueryAsync<DbDriverRow>(
-            "SELECT * FROM plan_drivers WHERE plan_id = @PlanId ORDER BY name ASC",
+            "SELECT * FROM plan_drivers WHERE business_plan_id = @PlanId ORDER BY name ASC",
             new { PlanId = planId });
 
         _logger.LogInformation("Bulk updated {Count} drivers for plan {PlanId}", drivers.Count, planId);
@@ -913,7 +913,7 @@ public class BusinessPlansService
         await conn.OpenAsync();
 
         var affected = await conn.ExecuteAsync(
-            "DELETE FROM plan_drivers WHERE id = @Id AND plan_id = @PlanId",
+            "DELETE FROM plan_drivers WHERE id = @Id AND business_plan_id = @PlanId",
             new { Id = driverId, PlanId = planId });
 
         if (affected == 0)
@@ -934,7 +934,7 @@ public class BusinessPlansService
         await EnsurePlanExistsAsync(conn, planId);
 
         var rows = await conn.QueryAsync<DbRevenueModelRow>(
-            "SELECT * FROM plan_revenue_models WHERE plan_id = @PlanId ORDER BY created_at ASC",
+            "SELECT * FROM plan_revenue_models WHERE business_plan_id = @PlanId ORDER BY created_at ASC",
             new { PlanId = planId });
 
         return rows.Select(MapRevenueModel).ToList();
@@ -954,7 +954,7 @@ public class BusinessPlansService
             {
                 var sql = """
                     INSERT INTO plan_revenue_models (
-                        plan_id, name, model_type, description,
+                        business_plan_id, name, model_type, description,
                         leads, conversion_rate, average_deal_size,
                         sales_reps, quota_per_rep, quota_attainment,
                         manual_revenue, scenario_id
@@ -965,7 +965,7 @@ public class BusinessPlansService
                         @SalesReps, @QuotaPerRep, @QuotaAttainment,
                         @ManualRevenue, @ScenarioId
                     )
-                    ON CONFLICT (plan_id, name, COALESCE(scenario_id, '00000000-0000-0000-0000-000000000000')) DO UPDATE SET
+                    ON CONFLICT (business_plan_id, name, COALESCE(scenario_id, '00000000-0000-0000-0000-000000000000')) DO UPDATE SET
                         model_type = EXCLUDED.model_type,
                         description = EXCLUDED.description,
                         leads = EXCLUDED.leads,
@@ -1004,7 +1004,7 @@ public class BusinessPlansService
         }
 
         var rows = await conn.QueryAsync<DbRevenueModelRow>(
-            "SELECT * FROM plan_revenue_models WHERE plan_id = @PlanId ORDER BY created_at ASC",
+            "SELECT * FROM plan_revenue_models WHERE business_plan_id = @PlanId ORDER BY created_at ASC",
             new { PlanId = planId });
 
         _logger.LogInformation("Revenue models upserted for plan {PlanId}", planId);
@@ -1023,7 +1023,7 @@ public class BusinessPlansService
         await EnsurePlanExistsAsync(conn, planId);
 
         var rows = await conn.QueryAsync<DbCostCategoryRow>(
-            "SELECT * FROM plan_cost_categories WHERE plan_id = @PlanId ORDER BY name ASC",
+            "SELECT * FROM plan_cost_categories WHERE business_plan_id = @PlanId ORDER BY name ASC",
             new { PlanId = planId });
 
         return rows.Select(MapCostCategory).ToList();
@@ -1038,7 +1038,7 @@ public class BusinessPlansService
 
         var sql = """
             INSERT INTO plan_cost_categories (
-                plan_id, name, cost_type, amount, formula,
+                business_plan_id, name, cost_type, amount, formula,
                 description, is_recurring, frequency
             )
             VALUES (
@@ -1114,7 +1114,7 @@ public class BusinessPlansService
             throw new AppException("No fields to update", 400, "BAD_REQUEST");
 
         fields.Add("updated_at = NOW()");
-        var sql = $"UPDATE plan_cost_categories SET {string.Join(", ", fields)} WHERE id = @Id AND plan_id = @PlanId RETURNING *";
+        var sql = $"UPDATE plan_cost_categories SET {string.Join(", ", fields)} WHERE id = @Id AND business_plan_id = @PlanId RETURNING *";
 
         var row = await conn.QuerySingleOrDefaultAsync<DbCostCategoryRow>(sql, parameters);
         if (row == null)
@@ -1130,7 +1130,7 @@ public class BusinessPlansService
         await conn.OpenAsync();
 
         var affected = await conn.ExecuteAsync(
-            "DELETE FROM plan_cost_categories WHERE id = @Id AND plan_id = @PlanId",
+            "DELETE FROM plan_cost_categories WHERE id = @Id AND business_plan_id = @PlanId",
             new { Id = categoryId, PlanId = planId });
 
         if (affected == 0)
@@ -1151,7 +1151,7 @@ public class BusinessPlansService
         await EnsurePlanExistsAsync(conn, planId);
 
         var rows = await conn.QueryAsync<DbStaffingRow>(
-            "SELECT * FROM plan_staffing WHERE plan_id = @PlanId ORDER BY role_name ASC",
+            "SELECT * FROM plan_staffing WHERE business_plan_id = @PlanId ORDER BY role_name ASC",
             new { PlanId = planId });
 
         return rows.Select(MapStaffing).ToList();
@@ -1166,7 +1166,7 @@ public class BusinessPlansService
 
         var sql = """
             INSERT INTO plan_staffing (
-                plan_id, role_name, department, headcount,
+                business_plan_id, role_name, department, headcount,
                 monthly_salary, trigger_metric, trigger_threshold,
                 start_date, notes
             )
@@ -1250,7 +1250,7 @@ public class BusinessPlansService
             throw new AppException("No fields to update", 400, "BAD_REQUEST");
 
         fields.Add("updated_at = NOW()");
-        var sql = $"UPDATE plan_staffing SET {string.Join(", ", fields)} WHERE id = @Id AND plan_id = @PlanId RETURNING *";
+        var sql = $"UPDATE plan_staffing SET {string.Join(", ", fields)} WHERE id = @Id AND business_plan_id = @PlanId RETURNING *";
 
         var row = await conn.QuerySingleOrDefaultAsync<DbStaffingRow>(sql, parameters);
         if (row == null)
@@ -1266,7 +1266,7 @@ public class BusinessPlansService
         await conn.OpenAsync();
 
         var affected = await conn.ExecuteAsync(
-            "DELETE FROM plan_staffing WHERE id = @Id AND plan_id = @PlanId",
+            "DELETE FROM plan_staffing WHERE id = @Id AND business_plan_id = @PlanId",
             new { Id = ruleId, PlanId = planId });
 
         if (affected == 0)
@@ -1291,7 +1291,7 @@ public class BusinessPlansService
 
         // Load all plan data
         var scenarios = (await conn.QueryAsync<DbScenarioRow>(
-            "SELECT * FROM plan_scenarios WHERE plan_id = @PlanId",
+            "SELECT * FROM plan_scenarios WHERE business_plan_id = @PlanId",
             new { PlanId = planId })).ToList();
 
         // If no scenarios, create a default one for calculation
@@ -1299,7 +1299,7 @@ public class BusinessPlansService
         {
             var defaultScenario = await conn.QuerySingleAsync<DbScenarioRow>(
                 """
-                INSERT INTO plan_scenarios (plan_id, name, description, is_default)
+                INSERT INTO plan_scenarios (business_plan_id, name, description, is_default)
                 VALUES (@PlanId, 'Base', 'Default base scenario', true)
                 RETURNING *
                 """,
@@ -1308,25 +1308,25 @@ public class BusinessPlansService
         }
 
         var revenueModels = (await conn.QueryAsync<DbRevenueModelRow>(
-            "SELECT * FROM plan_revenue_models WHERE plan_id = @PlanId",
+            "SELECT * FROM plan_revenue_models WHERE business_plan_id = @PlanId",
             new { PlanId = planId })).ToList();
 
         var costCategories = (await conn.QueryAsync<DbCostCategoryRow>(
-            "SELECT * FROM plan_cost_categories WHERE plan_id = @PlanId",
+            "SELECT * FROM plan_cost_categories WHERE business_plan_id = @PlanId",
             new { PlanId = planId })).ToList();
 
         var staffingRules = (await conn.QueryAsync<DbStaffingRow>(
-            "SELECT * FROM plan_staffing WHERE plan_id = @PlanId",
+            "SELECT * FROM plan_staffing WHERE business_plan_id = @PlanId",
             new { PlanId = planId })).ToList();
 
         var drivers = (await conn.QueryAsync<DbDriverRow>(
-            "SELECT * FROM plan_drivers WHERE plan_id = @PlanId",
+            "SELECT * FROM plan_drivers WHERE business_plan_id = @PlanId",
             new { PlanId = planId })).ToList();
 
         var driverValues = drivers.ToDictionary(d => d.name, d => d.value);
 
         var projections = (await conn.QueryAsync<DbProjectionRow>(
-            "SELECT * FROM plan_projections WHERE plan_id = @PlanId ORDER BY period_start ASC",
+            "SELECT * FROM plan_projections WHERE business_plan_id = @PlanId ORDER BY period_start ASC",
             new { PlanId = planId })).ToList();
 
         await using var tx = await conn.BeginTransactionAsync();
@@ -1418,7 +1418,7 @@ public class BusinessPlansService
                     // Store result
                     var upsertSql = """
                         INSERT INTO plan_calculated_results (
-                            plan_id, scenario_id, period_start, period_end, period_label,
+                            business_plan_id, scenario_id, period_start, period_end, period_label,
                             revenue, fixed_costs, variable_costs, cogs, staffing_costs,
                             total_expenses, net_profit, headcount
                         )
@@ -1427,7 +1427,7 @@ public class BusinessPlansService
                             @Revenue, @FixedCosts, @VariableCosts, @Cogs, @StaffingCosts,
                             @TotalExpenses, @NetProfit, @Headcount
                         )
-                        ON CONFLICT (plan_id, scenario_id, period_start) DO UPDATE SET
+                        ON CONFLICT (business_plan_id, scenario_id, period_start) DO UPDATE SET
                             period_end = EXCLUDED.period_end,
                             period_label = EXCLUDED.period_label,
                             revenue = EXCLUDED.revenue,
@@ -1488,7 +1488,7 @@ public class BusinessPlansService
                 SELECT cr.*, s.name as scenario_name
                 FROM plan_calculated_results cr
                 JOIN plan_scenarios s ON s.id = cr.scenario_id
-                WHERE cr.plan_id = @PlanId AND cr.scenario_id = @ScenarioId
+                WHERE cr.business_plan_id = @PlanId AND cr.scenario_id = @ScenarioId
                 ORDER BY cr.period_start ASC
                 """;
             sqlParams = new { PlanId = planId, ScenarioId = scenarioId.Value };
@@ -1500,7 +1500,7 @@ public class BusinessPlansService
                 SELECT cr.*, s.name as scenario_name
                 FROM plan_calculated_results cr
                 JOIN plan_scenarios s ON s.id = cr.scenario_id
-                WHERE cr.plan_id = @PlanId AND s.is_default = true
+                WHERE cr.business_plan_id = @PlanId AND s.is_default = true
                 ORDER BY cr.period_start ASC
                 """;
             sqlParams = new { PlanId = planId };
@@ -1521,7 +1521,7 @@ public class BusinessPlansService
             SELECT cr.*, s.name as scenario_name
             FROM plan_calculated_results cr
             JOIN plan_scenarios s ON s.id = cr.scenario_id
-            WHERE cr.plan_id = @PlanId
+            WHERE cr.business_plan_id = @PlanId
             ORDER BY s.is_default DESC, s.name ASC, cr.period_start ASC
             """;
 
@@ -1742,7 +1742,7 @@ public class BusinessPlansService
     internal class DbProjectionRow
     {
         public Guid id { get; set; }
-        public Guid plan_id { get; set; }
+        public Guid business_plan_id { get; set; }
         public DateTime period_start { get; set; }
         public DateTime period_end { get; set; }
         public string? period_label { get; set; }
@@ -1757,7 +1757,7 @@ public class BusinessPlansService
     internal class DbGoalRow
     {
         public Guid id { get; set; }
-        public Guid plan_id { get; set; }
+        public Guid business_plan_id { get; set; }
         public string title { get; set; } = string.Empty;
         public string? description { get; set; }
         public decimal? target_value { get; set; }
@@ -1775,7 +1775,7 @@ public class BusinessPlansService
     internal class DbScenarioRow
     {
         public Guid id { get; set; }
-        public Guid plan_id { get; set; }
+        public Guid business_plan_id { get; set; }
         public string name { get; set; } = string.Empty;
         public string? description { get; set; }
         public bool is_default { get; set; }
@@ -1787,7 +1787,7 @@ public class BusinessPlansService
     internal class DbDriverRow
     {
         public Guid id { get; set; }
-        public Guid plan_id { get; set; }
+        public Guid business_plan_id { get; set; }
         public string name { get; set; } = string.Empty;
         public string? description { get; set; }
         public string? driver_type { get; set; }
@@ -1803,7 +1803,7 @@ public class BusinessPlansService
     internal class DbRevenueModelRow
     {
         public Guid id { get; set; }
-        public Guid plan_id { get; set; }
+        public Guid business_plan_id { get; set; }
         public string name { get; set; } = string.Empty;
         public string model_type { get; set; } = string.Empty;
         public string? description { get; set; }
@@ -1822,7 +1822,7 @@ public class BusinessPlansService
     internal class DbCostCategoryRow
     {
         public Guid id { get; set; }
-        public Guid plan_id { get; set; }
+        public Guid business_plan_id { get; set; }
         public string name { get; set; } = string.Empty;
         public string cost_type { get; set; } = string.Empty;
         public decimal? amount { get; set; }
@@ -1837,7 +1837,7 @@ public class BusinessPlansService
     internal class DbStaffingRow
     {
         public Guid id { get; set; }
-        public Guid plan_id { get; set; }
+        public Guid business_plan_id { get; set; }
         public string role_name { get; set; } = string.Empty;
         public string? department { get; set; }
         public int headcount { get; set; }
@@ -1853,7 +1853,7 @@ public class BusinessPlansService
     internal class DbCalculatedResultRow
     {
         public Guid id { get; set; }
-        public Guid plan_id { get; set; }
+        public Guid business_plan_id { get; set; }
         public Guid scenario_id { get; set; }
         public string? scenario_name { get; set; }
         public DateTime period_start { get; set; }
@@ -1904,7 +1904,7 @@ public class BusinessPlansService
     private static ProjectionDto MapProjection(DbProjectionRow row) => new()
     {
         Id = row.id,
-        PlanId = row.plan_id,
+        PlanId = row.business_plan_id,
         PeriodStart = row.period_start.ToString("yyyy-MM-dd"),
         PeriodEnd = row.period_end.ToString("yyyy-MM-dd"),
         PeriodLabel = row.period_label,
@@ -1919,7 +1919,7 @@ public class BusinessPlansService
     private static GoalDto MapGoal(DbGoalRow row) => new()
     {
         Id = row.id,
-        PlanId = row.plan_id,
+        PlanId = row.business_plan_id,
         Title = row.title,
         Description = row.description,
         TargetValue = row.target_value,
@@ -1937,7 +1937,7 @@ public class BusinessPlansService
     private static ScenarioDto MapScenario(DbScenarioRow row) => new()
     {
         Id = row.id,
-        PlanId = row.plan_id,
+        PlanId = row.business_plan_id,
         Name = row.name,
         Description = row.description,
         IsDefault = row.is_default,
@@ -1951,7 +1951,7 @@ public class BusinessPlansService
     private static DriverDto MapDriver(DbDriverRow row) => new()
     {
         Id = row.id,
-        PlanId = row.plan_id,
+        PlanId = row.business_plan_id,
         Name = row.name,
         Description = row.description,
         DriverType = row.driver_type,
@@ -1967,7 +1967,7 @@ public class BusinessPlansService
     private static RevenueModelDto MapRevenueModel(DbRevenueModelRow row) => new()
     {
         Id = row.id,
-        PlanId = row.plan_id,
+        PlanId = row.business_plan_id,
         Name = row.name,
         ModelType = row.model_type,
         Description = row.description,
@@ -1986,7 +1986,7 @@ public class BusinessPlansService
     private static CostCategoryDto MapCostCategory(DbCostCategoryRow row) => new()
     {
         Id = row.id,
-        PlanId = row.plan_id,
+        PlanId = row.business_plan_id,
         Name = row.name,
         CostType = row.cost_type,
         Amount = row.amount,
@@ -2001,7 +2001,7 @@ public class BusinessPlansService
     private static StaffingDto MapStaffing(DbStaffingRow row) => new()
     {
         Id = row.id,
-        PlanId = row.plan_id,
+        PlanId = row.business_plan_id,
         RoleName = row.role_name,
         Department = row.department,
         Headcount = row.headcount,
@@ -2017,7 +2017,7 @@ public class BusinessPlansService
     private static CalculatedResultDto MapCalculatedResult(DbCalculatedResultRow row) => new()
     {
         Id = row.id,
-        PlanId = row.plan_id,
+        PlanId = row.business_plan_id,
         ScenarioId = row.scenario_id,
         ScenarioName = row.scenario_name,
         PeriodStart = row.period_start.ToString("yyyy-MM-dd"),

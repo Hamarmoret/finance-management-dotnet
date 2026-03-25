@@ -39,9 +39,11 @@ public class AuditLogsService
             SELECT al.id, al.user_id, u.email AS user_email, u.first_name, u.last_name,
                    al.action, al.entity_type, al.entity_id,
                    al.old_values::text AS old_values, al.new_values::text AS new_values,
-                   al.ip_address::text AS ip_address, al.user_agent, al.created_at
+                   al.ip_address::text AS ip_address, al.user_agent, al.created_at,
+                   t.first_name AS target_first_name, t.last_name AS target_last_name, t.email AS target_email
             FROM audit_logs al
             LEFT JOIN users u ON al.user_id = u.id
+            LEFT JOIN users t ON al.entity_type = 'user' AND al.entity_id = t.id
             {where}
             ORDER BY al.created_at DESC
             OFFSET @Offset LIMIT @Limit
@@ -57,14 +59,30 @@ public class AuditLogsService
             Action = r.Action,
             EntityType = r.Entity_Type,
             EntityId = r.Entity_Id?.ToString(),
-            OldValues = r.Old_Values,
-            NewValues = r.New_Values,
+            OldValues = ParseJsonOrNull(r.Old_Values),
+            NewValues = ParseJsonOrNull(r.New_Values),
             IpAddress = r.Ip_Address,
             UserAgent = r.User_Agent,
             CreatedAt = r.Created_At,
+            TargetFirstName = r.Target_First_Name,
+            TargetLastName = r.Target_Last_Name,
+            TargetEmail = r.Target_Email,
         }).ToList();
 
-        return (logs.ToList(), total);
+        return (logs, total);
+    }
+
+    private static object? ParseJsonOrNull(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json)) return null;
+        try
+        {
+            return System.Text.Json.JsonSerializer.Deserialize<object>(json);
+        }
+        catch
+        {
+            return json;
+        }
     }
 }
 
@@ -83,6 +101,9 @@ internal class AuditLogRow
     public string? Ip_Address { get; set; }
     public string? User_Agent { get; set; }
     public DateTime Created_At { get; set; }
+    public string? Target_First_Name { get; set; }
+    public string? Target_Last_Name { get; set; }
+    public string? Target_Email { get; set; }
 }
 
 public class AuditLogDto
@@ -90,14 +111,17 @@ public class AuditLogDto
     [JsonPropertyName("id")] public string Id { get; set; } = string.Empty;
     [JsonPropertyName("userId")] public string? UserId { get; set; }
     [JsonPropertyName("userEmail")] public string? UserEmail { get; set; }
-    [JsonPropertyName("firstName")] public string? FirstName { get; set; }
-    [JsonPropertyName("lastName")] public string? LastName { get; set; }
+    [JsonPropertyName("userFirstName")] public string? FirstName { get; set; }
+    [JsonPropertyName("userLastName")] public string? LastName { get; set; }
     [JsonPropertyName("action")] public string Action { get; set; } = string.Empty;
     [JsonPropertyName("entityType")] public string EntityType { get; set; } = string.Empty;
     [JsonPropertyName("entityId")] public string? EntityId { get; set; }
-    [JsonPropertyName("oldValues")] public string? OldValues { get; set; }
-    [JsonPropertyName("newValues")] public string? NewValues { get; set; }
+    [JsonPropertyName("oldValues")] public object? OldValues { get; set; }
+    [JsonPropertyName("newValues")] public object? NewValues { get; set; }
     [JsonPropertyName("ipAddress")] public string? IpAddress { get; set; }
     [JsonPropertyName("userAgent")] public string? UserAgent { get; set; }
     [JsonPropertyName("createdAt")] public DateTime CreatedAt { get; set; }
+    [JsonPropertyName("targetFirstName")] public string? TargetFirstName { get; set; }
+    [JsonPropertyName("targetLastName")] public string? TargetLastName { get; set; }
+    [JsonPropertyName("targetEmail")] public string? TargetEmail { get; set; }
 }

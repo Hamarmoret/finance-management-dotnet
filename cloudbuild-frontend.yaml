@@ -13,7 +13,7 @@ steps:
       - '.'
 
 substitutions:
-  _API_URL: 'https://finance-backend-dotnet-233195483413.me-west1.run.app'
+  _API_URL: 'https://finance-backend-dotnet-233195483413.me-west1.run.app/api'
 
 images:
   - 'gcr.io/$PROJECT_ID/finance-frontend-dotnet:$BUILD_ID'
