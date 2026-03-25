@@ -13,6 +13,7 @@ public class PasswordResetService
     private readonly DbContext _db;
     private readonly AppSettings _settings;
     private readonly ILogger<PasswordResetService> _logger;
+    private readonly EmailService _emailService;
 
     private const int TokenExpiryHours = 1;
     private const int MaxRequestsPerHour = 3;
@@ -23,11 +24,12 @@ public class PasswordResetService
     private const int Argon2Parallelism = 4;
     private const int Argon2HashLength = 32;
 
-    public PasswordResetService(DbContext db, AppSettings settings, ILogger<PasswordResetService> logger)
+    public PasswordResetService(DbContext db, AppSettings settings, ILogger<PasswordResetService> logger, EmailService emailService)
     {
         _db = db;
         _settings = settings;
         _logger = logger;
+        _emailService = emailService;
     }
 
     /// <summary>
@@ -41,7 +43,7 @@ public class PasswordResetService
 
         // Find user
         var user = await conn.QuerySingleOrDefaultAsync<dynamic>(
-            "SELECT id, email FROM users WHERE email = @Email AND is_active = true",
+            "SELECT id, email, first_name FROM users WHERE email = @Email AND is_active = true",
             new { Email = email.ToLowerInvariant() });
 
         if (user == null)
@@ -87,6 +89,14 @@ public class PasswordResetService
             new { UserId = (Guid)user.id, TokenHash = tokenHash, ExpiresAt = expiresAt });
 
         _logger.LogInformation("Password reset token created for user {UserId}", (Guid)user.id);
+
+        // Send the reset email
+        var firstName = (string?)user.first_name ?? "User";
+        var emailSent = await _emailService.SendPasswordResetAsync((string)user.email, firstName, token);
+        if (!emailSent)
+        {
+            _logger.LogWarning("Failed to send password reset email to {Email}", (string)user.email);
+        }
 
         return token;
     }

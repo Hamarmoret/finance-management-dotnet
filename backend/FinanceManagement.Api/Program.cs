@@ -17,6 +17,7 @@ using FinanceManagement.Api.Services.Users;
 using FinanceManagement.Api.Services.Pipeline;
 using FinanceManagement.Api.Services.Analytics;
 using FinanceManagement.Api.Services.AuditLogs;
+using FinanceManagement.Api.Services;
 using FinanceManagement.Api.Services.Uploads;
 
 // Configure Serilog
@@ -89,6 +90,7 @@ builder.Services.AddCors(options =>
 });
 
 // Services
+builder.Services.AddScoped<EmailService>();
 builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<PasswordResetService>();
 builder.Services.AddScoped<ExpensesService>();
