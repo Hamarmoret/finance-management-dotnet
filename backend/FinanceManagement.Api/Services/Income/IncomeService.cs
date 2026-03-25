@@ -93,6 +93,12 @@ public class IncomeDto
     [JsonPropertyName("paymentReceivedDate")]
     public string? PaymentReceivedDate { get; set; }
 
+    [JsonPropertyName("proformaInvoiceDate")]
+    public string? ProformaInvoiceDate { get; set; }
+
+    [JsonPropertyName("taxInvoiceDate")]
+    public string? TaxInvoiceDate { get; set; }
+
     [JsonPropertyName("notes")]
     public string? Notes { get; set; }
 
@@ -153,6 +159,12 @@ public class CreateIncomeRequest
     [JsonPropertyName("paymentReceivedDate")]
     public string? PaymentReceivedDate { get; set; }
 
+    [JsonPropertyName("proformaInvoiceDate")]
+    public string? ProformaInvoiceDate { get; set; }
+
+    [JsonPropertyName("taxInvoiceDate")]
+    public string? TaxInvoiceDate { get; set; }
+
     [JsonPropertyName("notes")]
     public string? Notes { get; set; }
 
@@ -203,6 +215,12 @@ public class UpdateIncomeRequest
 
     [JsonPropertyName("paymentReceivedDate")]
     public string? PaymentReceivedDate { get; set; }
+
+    [JsonPropertyName("proformaInvoiceDate")]
+    public string? ProformaInvoiceDate { get; set; }
+
+    [JsonPropertyName("taxInvoiceDate")]
+    public string? TaxInvoiceDate { get; set; }
 
     [JsonPropertyName("notes")]
     public string? Notes { get; set; }
@@ -282,6 +300,8 @@ internal class DbIncomeRow
     public string? invoice_status { get; set; }
     public DateTime? payment_due_date { get; set; }
     public DateTime? payment_received_date { get; set; }
+    public DateTime? proforma_invoice_date { get; set; }
+    public DateTime? tax_invoice_date { get; set; }
     public string? notes { get; set; }
     public string[]? tags { get; set; }
     public Guid? created_by { get; set; }
@@ -507,12 +527,14 @@ public class IncomeService
                     description, amount, currency, category_id, income_date,
                     is_recurring, recurring_pattern, client_name, invoice_number,
                     invoice_type, invoice_status, payment_due_date, payment_received_date,
+                    proforma_invoice_date, tax_invoice_date,
                     notes, tags, created_by
                 )
                 VALUES (
                     @Description, @Amount, @Currency, @CategoryId, @IncomeDate::date,
                     @IsRecurring, @RecurringPattern::jsonb, @ClientName, @InvoiceNumber,
                     @InvoiceType, @InvoiceStatus, @PaymentDueDate::date, @PaymentReceivedDate::date,
+                    @ProformaInvoiceDate::date, @TaxInvoiceDate::date,
                     @Notes, @Tags, @CreatedBy
                 )
                 RETURNING *
@@ -533,6 +555,8 @@ public class IncomeService
                 request.InvoiceStatus,
                 PaymentDueDate = request.PaymentDueDate,
                 PaymentReceivedDate = request.PaymentReceivedDate,
+                ProformaInvoiceDate = request.ProformaInvoiceDate,
+                TaxInvoiceDate = request.TaxInvoiceDate,
                 request.Notes,
                 Tags = request.Tags ?? [],
                 CreatedBy = userId,
@@ -670,6 +694,16 @@ public class IncomeService
             {
                 fields.Add("payment_received_date = @PaymentReceivedDate::date");
                 parameters.Add("PaymentReceivedDate", request.PaymentReceivedDate);
+            }
+            if (request.ProformaInvoiceDate != null)
+            {
+                fields.Add("proforma_invoice_date = @ProformaInvoiceDate::date");
+                parameters.Add("ProformaInvoiceDate", request.ProformaInvoiceDate);
+            }
+            if (request.TaxInvoiceDate != null)
+            {
+                fields.Add("tax_invoice_date = @TaxInvoiceDate::date");
+                parameters.Add("TaxInvoiceDate", request.TaxInvoiceDate);
             }
             if (request.Notes != null)
             {
@@ -878,6 +912,8 @@ public class IncomeService
             InvoiceStatus = row.invoice_status,
             PaymentDueDate = row.payment_due_date?.ToString("yyyy-MM-dd"),
             PaymentReceivedDate = row.payment_received_date?.ToString("yyyy-MM-dd"),
+            ProformaInvoiceDate = row.proforma_invoice_date?.ToString("yyyy-MM-dd"),
+            TaxInvoiceDate = row.tax_invoice_date?.ToString("yyyy-MM-dd"),
             Notes = row.notes,
             Tags = row.tags ?? [],
             Allocations = allocations,

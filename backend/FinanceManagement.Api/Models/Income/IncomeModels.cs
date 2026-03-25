@@ -62,6 +62,14 @@ public class IncomeDto
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? PaymentReceivedDate { get; set; }
 
+    [JsonPropertyName("proformaInvoiceDate")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? ProformaInvoiceDate { get; set; }
+
+    [JsonPropertyName("taxInvoiceDate")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? TaxInvoiceDate { get; set; }
+
     [JsonPropertyName("notes")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? Notes { get; set; }
@@ -158,6 +166,12 @@ public class CreateIncomeRequest
     [JsonPropertyName("paymentDueDate")]
     public string? PaymentDueDate { get; set; }
 
+    [JsonPropertyName("proformaInvoiceDate")]
+    public string? ProformaInvoiceDate { get; set; }
+
+    [JsonPropertyName("taxInvoiceDate")]
+    public string? TaxInvoiceDate { get; set; }
+
     [JsonPropertyName("notes")]
     public string? Notes { get; set; }
 
@@ -205,6 +219,12 @@ public class UpdateIncomeRequest
 
     [JsonPropertyName("paymentDueDate")]
     public string? PaymentDueDate { get; set; }
+
+    [JsonPropertyName("proformaInvoiceDate")]
+    public string? ProformaInvoiceDate { get; set; }
+
+    [JsonPropertyName("taxInvoiceDate")]
+    public string? TaxInvoiceDate { get; set; }
 
     [JsonPropertyName("notes")]
     public string? Notes { get; set; }
@@ -266,6 +286,8 @@ public class IncomeRow
     public string? Invoice_Status { get; set; }
     public DateTime? Payment_Due_Date { get; set; }
     public DateTime? Payment_Received_Date { get; set; }
+    public DateTime? Proforma_Invoice_Date { get; set; }
+    public DateTime? Tax_Invoice_Date { get; set; }
     public string? Notes { get; set; }
     public string[]? Tags { get; set; }
     public Guid? Created_By { get; set; }

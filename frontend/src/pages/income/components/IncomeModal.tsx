@@ -41,6 +41,9 @@ export function IncomeModal({
     income?.invoiceStatus || ''
   );
   const [paymentDueDate, setPaymentDueDate] = useState(income?.paymentDueDate || '');
+  const [paymentReceivedDate, setPaymentReceivedDate] = useState(income?.paymentReceivedDate || '');
+  const [proformaInvoiceDate, setProformaInvoiceDate] = useState(income?.proformaInvoiceDate || '');
+  const [taxInvoiceDate, setTaxInvoiceDate] = useState(income?.taxInvoiceDate || '');
   const [notes, setNotes] = useState(income?.notes || '');
   const [isRecurring, setIsRecurring] = useState(income?.isRecurring || false);
   const [recurringPattern, setRecurringPattern] = useState<RecurringPattern | null>(
@@ -144,6 +147,9 @@ export function IncomeModal({
         invoiceType: invoiceType || null,
         invoiceStatus: invoiceStatus || null,
         paymentDueDate: paymentDueDate || null,
+        paymentReceivedDate: paymentReceivedDate || null,
+        proformaInvoiceDate: proformaInvoiceDate || null,
+        taxInvoiceDate: taxInvoiceDate || null,
         notes: notes.trim() || null,
         isRecurring,
         recurringPattern: isRecurring ? recurringPattern : null,
@@ -325,6 +331,39 @@ export function IncomeModal({
                   type="date"
                   value={paymentDueDate}
                   onChange={(e) => setPaymentDueDate(e.target.value)}
+                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Payment Received Date
+                </label>
+                <input
+                  type="date"
+                  value={paymentReceivedDate}
+                  onChange={(e) => setPaymentReceivedDate(e.target.value)}
+                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Proforma Invoice Date
+                </label>
+                <input
+                  type="date"
+                  value={proformaInvoiceDate}
+                  onChange={(e) => setProformaInvoiceDate(e.target.value)}
+                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Tax Invoice Date
+                </label>
+                <input
+                  type="date"
+                  value={taxInvoiceDate}
+                  onChange={(e) => setTaxInvoiceDate(e.target.value)}
                   className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                 />
               </div>

@@ -19,6 +19,7 @@ using FinanceManagement.Api.Services.Analytics;
 using FinanceManagement.Api.Services.AuditLogs;
 using FinanceManagement.Api.Services;
 using FinanceManagement.Api.Services.Uploads;
+using FinanceManagement.Api.Services.BusinessPlans;
 
 // Configure Serilog
 Log.Logger = new LoggerConfiguration()
@@ -103,6 +104,7 @@ builder.Services.AddScoped<ProposalsService>();
 builder.Services.AddScoped<AnalyticsService>();
 builder.Services.AddScoped<AuditLogsService>();
 builder.Services.AddScoped<UploadsService>();
+builder.Services.AddScoped<BusinessPlansService>();
 
 // Controllers with JSON options matching Node.js API
 builder.Services.AddControllers()

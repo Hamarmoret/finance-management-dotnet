@@ -34,12 +34,12 @@ public class AuditLogsService
         p.Add("Offset", (page - 1) * limit);
         p.Add("Limit", limit);
 
-        var logs = await conn.QueryAsync<AuditLogDto>(
+        var rows = await conn.QueryAsync<AuditLogRow>(
             $"""
             SELECT al.id, al.user_id, u.email AS user_email, u.first_name, u.last_name,
                    al.action, al.entity_type, al.entity_id,
-                   al.old_values::text, al.new_values::text,
-                   al.ip_address::text, al.user_agent, al.created_at
+                   al.old_values::text AS old_values, al.new_values::text AS new_values,
+                   al.ip_address::text AS ip_address, al.user_agent, al.created_at
             FROM audit_logs al
             LEFT JOIN users u ON al.user_id = u.id
             {where}
@@ -47,8 +47,42 @@ public class AuditLogsService
             OFFSET @Offset LIMIT @Limit
             """, p);
 
+        var logs = rows.Select(r => new AuditLogDto
+        {
+            Id = r.Id.ToString(),
+            UserId = r.User_Id?.ToString(),
+            UserEmail = r.User_Email,
+            FirstName = r.First_Name,
+            LastName = r.Last_Name,
+            Action = r.Action,
+            EntityType = r.Entity_Type,
+            EntityId = r.Entity_Id?.ToString(),
+            OldValues = r.Old_Values,
+            NewValues = r.New_Values,
+            IpAddress = r.Ip_Address,
+            UserAgent = r.User_Agent,
+            CreatedAt = r.Created_At,
+        }).ToList();
+
         return (logs.ToList(), total);
     }
+}
+
+internal class AuditLogRow
+{
+    public Guid Id { get; set; }
+    public Guid? User_Id { get; set; }
+    public string? User_Email { get; set; }
+    public string? First_Name { get; set; }
+    public string? Last_Name { get; set; }
+    public string Action { get; set; } = string.Empty;
+    public string Entity_Type { get; set; } = string.Empty;
+    public Guid? Entity_Id { get; set; }
+    public string? Old_Values { get; set; }
+    public string? New_Values { get; set; }
+    public string? Ip_Address { get; set; }
+    public string? User_Agent { get; set; }
+    public DateTime Created_At { get; set; }
 }
 
 public class AuditLogDto

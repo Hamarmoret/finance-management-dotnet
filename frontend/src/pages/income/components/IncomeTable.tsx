@@ -94,6 +94,8 @@ const defaultColumnVisibility: VisibilityState = {
   // Hidden by default
   paymentDueDate: false,
   paymentReceivedDate: false,
+  proformaInvoiceDate: false,
+  taxInvoiceDate: false,
   isRecurring: false,
   pnlCenters: false,
   tags: false,
@@ -196,6 +198,26 @@ export function IncomeTable({
         cell: ({ row }) => (
           <span className="whitespace-nowrap text-sm text-gray-600">
             {row.original.paymentReceivedDate ? formatDate(row.original.paymentReceivedDate) : '—'}
+          </span>
+        ),
+      },
+      {
+        id: 'proformaInvoiceDate',
+        accessorKey: 'proformaInvoiceDate',
+        header: 'Proforma Date',
+        cell: ({ row }) => (
+          <span className="whitespace-nowrap text-sm text-gray-600">
+            {row.original.proformaInvoiceDate ? formatDate(row.original.proformaInvoiceDate) : '—'}
+          </span>
+        ),
+      },
+      {
+        id: 'taxInvoiceDate',
+        accessorKey: 'taxInvoiceDate',
+        header: 'Tax Invoice Date',
+        cell: ({ row }) => (
+          <span className="whitespace-nowrap text-sm text-gray-600">
+            {row.original.taxInvoiceDate ? formatDate(row.original.taxInvoiceDate) : '—'}
           </span>
         ),
       },

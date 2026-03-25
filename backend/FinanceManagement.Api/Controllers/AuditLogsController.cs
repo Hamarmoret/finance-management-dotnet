@@ -6,7 +6,7 @@ using FinanceManagement.Api.Services.AuditLogs;
 namespace FinanceManagement.Api.Controllers;
 
 [ApiController]
-[Route("api/audit-logs")]
+[Route("api/audit")]
 [Authorize]
 public class AuditLogsController : ControllerBase
 {

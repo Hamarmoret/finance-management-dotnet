@@ -51,6 +51,7 @@ public class MigrationRunner
         ("006b_pipeline_triggers", Sql006bPipelineTriggers),
         ("007_pipeline_attachments", Sql007PipelineAttachments),
         ("008_lead_sources", Sql008LeadSources),
+        ("009_income_extra_dates", Sql009IncomeExtraDates),
     ];
 
     #region SQL Migrations
@@ -520,6 +521,13 @@ public class MigrationRunner
           ('Website'),('Referral'),('LinkedIn'),('Cold Call'),
           ('Trade Show'),('Email Campaign'),('Social Media'),('Partner'),('Other')
         ON CONFLICT (name) DO NOTHING;
+        """;
+
+    private const string Sql009IncomeExtraDates = """
+        ALTER TABLE income ADD COLUMN IF NOT EXISTS proforma_invoice_date DATE;
+        ALTER TABLE income ADD COLUMN IF NOT EXISTS tax_invoice_date DATE;
+        CREATE INDEX IF NOT EXISTS idx_income_proforma_date ON income(proforma_invoice_date);
+        CREATE INDEX IF NOT EXISTS idx_income_tax_invoice_date ON income(tax_invoice_date);
         """;
 
     #endregion
