@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Receipt, Plus, Filter, Search, X } from 'lucide-react';
+import { Receipt, Plus, Filter, Search, X, Download, Upload, FileSpreadsheet, ChevronDown } from 'lucide-react';
 import { api, getErrorMessage } from '../../services/api';
 import type { Expense, ExpenseCategory, PnlCenterWithStats } from '@finance/shared';
 import { ExpenseModal } from './components/ExpenseModal';
@@ -16,6 +16,9 @@ export default function Expenses() {
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [showFilters, setShowFilters] = useState(false);
   const [pnlCentersError, setPnlCentersError] = useState<string | null>(null);
+  const [showCsvMenu, setShowCsvMenu] = useState(false);
+  const [csvUploading, setCsvUploading] = useState(false);
+  const [csvResult, setCsvResult] = useState<{ imported: number; failed: number; errors: { row: number; message: string }[] } | null>(null);
 
   // Pagination
   const [page, setPage] = useState(1);
@@ -125,6 +128,44 @@ export default function Expenses() {
   const hasFilters = search || categoryFilter || pnlCenterFilter || startDate || endDate;
   const totalAmount = expenses.reduce((sum, e) => sum + e.amount, 0);
 
+  async function downloadCsvTemplate() {
+    try {
+      const response = await api.get('/csv-import/templates/expenses', { responseType: 'blob' });
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'expenses_template.csv';
+      a.click();
+      window.URL.revokeObjectURL(url);
+    } catch {
+      setError('Failed to download template');
+    }
+    setShowCsvMenu(false);
+  }
+
+  async function handleCsvUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = '';
+    setShowCsvMenu(false);
+    setCsvUploading(true);
+    setCsvResult(null);
+    setError(null);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const response = await api.post('/csv-import/expenses', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      setCsvResult(response.data.data);
+      fetchExpenses();
+    } catch (err) {
+      setError(getErrorMessage(err));
+    } finally {
+      setCsvUploading(false);
+    }
+  }
+
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
@@ -136,19 +177,84 @@ export default function Expenses() {
           </h1>
           <p className="text-gray-600 mt-1">Track and manage your expenses</p>
         </div>
-        <button
-          onClick={() => setShowModal(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
-        >
-          <Plus className="w-4 h-4" />
-          Add Expense
-        </button>
+        <div className="flex items-center gap-2">
+          <div className="relative">
+            <button
+              onClick={() => setShowCsvMenu(!showCsvMenu)}
+              className="flex items-center gap-2 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              <FileSpreadsheet className="w-4 h-4" />
+              CSV
+              <ChevronDown className="w-3 h-3" />
+            </button>
+            {showCsvMenu && (
+              <>
+                <div className="fixed inset-0 z-10" onClick={() => setShowCsvMenu(false)} />
+                <div className="absolute right-0 mt-1 w-52 bg-white rounded-lg shadow-lg border z-20">
+                  <button
+                    onClick={downloadCsvTemplate}
+                    className="w-full px-4 py-2.5 text-left text-sm hover:bg-gray-50 flex items-center gap-2 rounded-t-lg"
+                  >
+                    <Download className="w-4 h-4 text-gray-500" />
+                    Download Template
+                  </button>
+                  <label className="w-full px-4 py-2.5 text-left text-sm hover:bg-gray-50 flex items-center gap-2 cursor-pointer rounded-b-lg">
+                    <Upload className="w-4 h-4 text-gray-500" />
+                    Import from CSV
+                    <input
+                      type="file"
+                      accept=".csv"
+                      onChange={handleCsvUpload}
+                      className="hidden"
+                    />
+                  </label>
+                </div>
+              </>
+            )}
+          </div>
+          <button
+            onClick={() => setShowModal(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            Add Expense
+          </button>
+        </div>
       </div>
 
       {/* Error Message */}
       {error && (
         <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
           {error}
+        </div>
+      )}
+
+      {/* CSV Upload Status */}
+      {csvUploading && (
+        <div className="bg-blue-50 border border-blue-200 text-blue-700 px-4 py-3 rounded-lg flex items-center gap-2">
+          <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+          Importing CSV...
+        </div>
+      )}
+      {csvResult && (
+        <div className={`border px-4 py-3 rounded-lg ${csvResult.failed > 0 ? 'bg-yellow-50 border-yellow-200 text-yellow-800' : 'bg-green-50 border-green-200 text-green-700'}`}>
+          <div className="flex items-center justify-between">
+            <span>
+              Imported <strong>{csvResult.imported}</strong> record{csvResult.imported !== 1 ? 's' : ''}
+              {csvResult.failed > 0 && <>, <strong>{csvResult.failed}</strong> failed</>}
+            </span>
+            <button onClick={() => setCsvResult(null)} className="text-gray-400 hover:text-gray-600">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+          {csvResult.errors.length > 0 && (
+            <ul className="mt-2 text-sm space-y-1">
+              {csvResult.errors.slice(0, 5).map((err, i) => (
+                <li key={i}>Row {err.row}: {err.message}</li>
+              ))}
+              {csvResult.errors.length > 5 && <li>...and {csvResult.errors.length - 5} more errors</li>}
+            </ul>
+          )}
         </div>
       )}
 
