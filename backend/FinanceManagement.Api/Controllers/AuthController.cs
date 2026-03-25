@@ -12,10 +12,12 @@ namespace FinanceManagement.Api.Controllers;
 public class AuthController : ControllerBase
 {
     private readonly AuthService _authService;
+    private readonly PasswordResetService _passwordResetService;
 
-    public AuthController(AuthService authService)
+    public AuthController(AuthService authService, PasswordResetService passwordResetService)
     {
         _authService = authService;
+        _passwordResetService = passwordResetService;
     }
 
     [HttpPost("register")]
@@ -68,6 +70,45 @@ public class AuthController : ControllerBase
         await _authService.ChangePasswordAsync(userId, request.CurrentPassword, request.NewPassword,
             GetIpAddress(), GetUserAgent());
         return Ok(ApiResponse<object>.Ok(new { message = "Password changed successfully" }));
+    }
+
+    [HttpPost("forgot-password")]
+    [AllowAnonymous]
+    public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordRequest request)
+    {
+        var token = await _passwordResetService.RequestPasswordResetAsync(request.Email);
+
+        // Always return success to prevent email enumeration
+        var response = new { message = "If an account exists with that email, a password reset link has been sent." };
+
+        if (token != null && Environment.GetEnvironmentVariable("NODE_ENV") != "production")
+        {
+            var frontendUrl = Environment.GetEnvironmentVariable("FRONTEND_URL") ?? "http://localhost:5173";
+            return Ok(ApiResponse<object>.Ok(new
+            {
+                message = response.message,
+                resetToken = token,
+                resetLink = $"{frontendUrl}/reset-password?token={token}",
+            }));
+        }
+
+        return Ok(ApiResponse<object>.Ok(response));
+    }
+
+    [HttpGet("reset-password/{token}")]
+    [AllowAnonymous]
+    public async Task<IActionResult> ValidateResetToken(string token)
+    {
+        var userId = await _passwordResetService.ValidateResetTokenAsync(token);
+        return Ok(ApiResponse<object>.Ok(new { valid = userId != null }));
+    }
+
+    [HttpPost("reset-password")]
+    [AllowAnonymous]
+    public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequest request)
+    {
+        await _passwordResetService.ResetPasswordAsync(request.Token, request.NewPassword);
+        return Ok(ApiResponse<object>.Ok(new { message = "Password has been reset successfully. Please log in with your new password." }));
     }
 
     private string? GetIpAddress() =>
