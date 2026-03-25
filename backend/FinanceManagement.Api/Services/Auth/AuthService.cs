@@ -1,12 +1,14 @@
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using Dapper;
 using FinanceManagement.Api.Config;
 using FinanceManagement.Api.Database;
 using FinanceManagement.Api.Middleware;
 using FinanceManagement.Api.Models;
 using FinanceManagement.Api.Models.Auth;
+using Konscious.Security.Cryptography;
 
 namespace FinanceManagement.Api.Services.Auth;
 
@@ -16,11 +18,159 @@ public class AuthService
     private readonly AppSettings _settings;
     private readonly ILogger<AuthService> _logger;
 
+    // Argon2id configuration matching Node.js argon2 defaults
+    private const int Argon2MemoryCost = 65536; // 64 MB
+    private const int Argon2TimeCost = 3;
+    private const int Argon2Parallelism = 4;
+    private const int Argon2HashLength = 32;
+
     public AuthService(DbContext db, AppSettings settings, ILogger<AuthService> logger)
     {
         _db = db;
         _settings = settings;
         _logger = logger;
+    }
+
+    /// <summary>
+    /// Verify a password against an Argon2id hash in PHC string format.
+    /// Format: $argon2id$v=19$m=65536,t=3,p=4$<base64salt>$<base64hash>
+    /// This is compatible with Node.js argon2 package output.
+    /// </summary>
+    private bool VerifyPassword(string password, string hash)
+    {
+        var trimmedHash = hash.Trim();
+
+        _logger.LogDebug(
+            "Password verify: hash length={Length}, prefix={Prefix}",
+            trimmedHash.Length,
+            trimmedHash.Length >= 10 ? trimmedHash[..10] : trimmedHash);
+
+        try
+        {
+            // Parse the PHC format: $argon2id$v=19$m=65536,t=3,p=4$<salt>$<hash>
+            if (trimmedHash.StartsWith("$argon2"))
+            {
+                return VerifyArgon2(password, trimmedHash);
+            }
+
+            // Fallback for bcrypt hashes ($2a$, $2b$, etc.)
+            if (trimmedHash.StartsWith("$2"))
+            {
+                return BCrypt.Net.BCrypt.Verify(password, trimmedHash);
+            }
+
+            _logger.LogWarning("Unknown hash format: prefix={Prefix}", trimmedHash[..Math.Min(10, trimmedHash.Length)]);
+            return false;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Password verification failed");
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Verify password against Argon2id PHC format hash.
+    /// </summary>
+    private bool VerifyArgon2(string password, string encodedHash)
+    {
+        // Parse: $argon2id$v=19$m=65536,t=3,p=4$<base64salt>$<base64hash>
+        var parts = encodedHash.Split('$', StringSplitOptions.RemoveEmptyEntries);
+        // parts[0] = "argon2id"
+        // parts[1] = "v=19"
+        // parts[2] = "m=65536,t=3,p=4"
+        // parts[3] = base64 salt
+        // parts[4] = base64 hash
+
+        if (parts.Length < 5)
+        {
+            _logger.LogWarning("Invalid Argon2 hash format: expected 5 parts, got {Count}", parts.Length);
+            return false;
+        }
+
+        var algorithm = parts[0]; // argon2id, argon2i, argon2d
+        var paramStr = parts[2];  // m=65536,t=3,p=4
+
+        // Parse parameters
+        var paramDict = new Dictionary<string, int>();
+        foreach (var param in paramStr.Split(','))
+        {
+            var kv = param.Split('=');
+            if (kv.Length == 2 && int.TryParse(kv[1], out var val))
+                paramDict[kv[0]] = val;
+        }
+
+        var memoryCost = paramDict.GetValueOrDefault("m", Argon2MemoryCost);
+        var timeCost = paramDict.GetValueOrDefault("t", Argon2TimeCost);
+        var parallelism = paramDict.GetValueOrDefault("p", Argon2Parallelism);
+
+        // Decode salt and expected hash (Argon2 uses base64 without padding)
+        var salt = Base64DecodeNoPadding(parts[3]);
+        var expectedHash = Base64DecodeNoPadding(parts[4]);
+
+        // Hash the password with the same parameters
+        var passwordBytes = Encoding.UTF8.GetBytes(password);
+
+        using var argon2 = new Argon2id(passwordBytes)
+        {
+            Salt = salt,
+            MemorySize = memoryCost,
+            Iterations = timeCost,
+            DegreeOfParallelism = parallelism,
+        };
+
+        var computedHash = argon2.GetBytes(expectedHash.Length);
+
+        // Constant-time comparison
+        return CryptographicOperations.FixedTimeEquals(computedHash, expectedHash);
+    }
+
+    /// <summary>
+    /// Hash a password using Argon2id, producing PHC format string compatible with Node.js argon2.
+    /// </summary>
+    private static string HashPassword(string password)
+    {
+        var salt = RandomNumberGenerator.GetBytes(16);
+        var passwordBytes = Encoding.UTF8.GetBytes(password);
+
+        using var argon2 = new Argon2id(passwordBytes)
+        {
+            Salt = salt,
+            MemorySize = Argon2MemoryCost,
+            Iterations = Argon2TimeCost,
+            DegreeOfParallelism = Argon2Parallelism,
+        };
+
+        var hash = argon2.GetBytes(Argon2HashLength);
+
+        // Encode to PHC format: $argon2id$v=19$m=65536,t=3,p=4$<base64salt>$<base64hash>
+        var saltB64 = Base64EncodeNoPadding(salt);
+        var hashB64 = Base64EncodeNoPadding(hash);
+
+        return $"$argon2id$v=19$m={Argon2MemoryCost},t={Argon2TimeCost},p={Argon2Parallelism}${saltB64}${hashB64}";
+    }
+
+    /// <summary>
+    /// Base64 decode without padding (standard for Argon2 PHC format).
+    /// </summary>
+    private static byte[] Base64DecodeNoPadding(string input)
+    {
+        // Add padding if needed
+        var padded = input;
+        switch (input.Length % 4)
+        {
+            case 2: padded += "=="; break;
+            case 3: padded += "="; break;
+        }
+        return Convert.FromBase64String(padded);
+    }
+
+    /// <summary>
+    /// Base64 encode without padding (standard for Argon2 PHC format).
+    /// </summary>
+    private static string Base64EncodeNoPadding(byte[] input)
+    {
+        return Convert.ToBase64String(input).TrimEnd('=');
     }
 
     public async Task<LoginResponse> RegisterAsync(RegisterRequest request, string? ipAddress, string? userAgent)
@@ -36,7 +186,7 @@ public class AuthService
         if (exists)
             throw new AppException("Email already registered", 409, "EMAIL_EXISTS");
 
-        var passwordHash = BCrypt.Net.BCrypt.HashPassword(request.Password);
+        var passwordHash = HashPassword(request.Password);
 
         var user = await conn.QuerySingleAsync<UserEntity>(
             """
@@ -106,7 +256,7 @@ public class AuthService
         if (user.LockedUntil.HasValue && user.LockedUntil > DateTime.UtcNow)
             throw new AppException("Account is temporarily locked", 423, "ACCOUNT_LOCKED");
 
-        if (!BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
+        if (!VerifyPassword(request.Password, user.PasswordHash))
         {
             // Increment failed attempts
             await conn.ExecuteAsync(
@@ -258,10 +408,10 @@ public class AuthService
         if (user == null)
             throw new AppException("User not found", 404, "USER_NOT_FOUND");
 
-        if (!BCrypt.Net.BCrypt.Verify(currentPassword, user.PasswordHash))
+        if (!VerifyPassword(currentPassword, user.PasswordHash))
             throw new AppException("Current password is incorrect", 400, "INVALID_PASSWORD");
 
-        var newHash = BCrypt.Net.BCrypt.HashPassword(newPassword);
+        var newHash = HashPassword(newPassword);
 
         await conn.ExecuteAsync(
             """

@@ -7,14 +7,14 @@ steps:
       - '--build-arg'
       - 'VITE_API_URL=${_API_URL}'
       - '-t'
-      - 'gcr.io/$PROJECT_ID/finance-frontend:$BUILD_ID'
+      - 'gcr.io/$PROJECT_ID/finance-frontend-dotnet:$BUILD_ID'
       - '-t'
-      - 'gcr.io/$PROJECT_ID/finance-frontend:latest'
+      - 'gcr.io/$PROJECT_ID/finance-frontend-dotnet:latest'
       - '.'
 
 substitutions:
-  _API_URL: 'https://finance-backend-233195483413.me-west1.run.app'
+  _API_URL: 'https://finance-backend-dotnet-233195483413.me-west1.run.app'
 
 images:
-  - 'gcr.io/$PROJECT_ID/finance-frontend:$BUILD_ID'
-  - 'gcr.io/$PROJECT_ID/finance-frontend:latest'
+  - 'gcr.io/$PROJECT_ID/finance-frontend-dotnet:$BUILD_ID'
+  - 'gcr.io/$PROJECT_ID/finance-frontend-dotnet:latest'

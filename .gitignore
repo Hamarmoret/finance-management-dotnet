@@ -23,6 +23,8 @@ Thumbs.db
 .env
 .env.local
 .env.*.local
+env.yaml
+tmp_login.json
 
 # Build
 publish/

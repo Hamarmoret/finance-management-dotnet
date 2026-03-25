@@ -15,9 +15,9 @@ RUN dotnet publish backend/FinanceManagement.Api/FinanceManagement.Api.csproj \
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 WORKDIR /app
 
-# Create non-root user
-RUN addgroup --gid 1001 appgroup && \
-    adduser --uid 1001 --ingroup appgroup --disabled-password --gecos "" appuser
+# Create non-root user (Ubuntu-based image)
+RUN groupadd --gid 1001 appgroup && \
+    useradd --uid 1001 --gid appgroup --no-create-home --shell /usr/sbin/nologin appuser
 
 COPY --from=build /app/publish .
 
@@ -26,6 +26,6 @@ USER appuser
 EXPOSE 3001
 
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD wget --no-verbose --tries=1 --spider http://localhost:3001/health || exit 1
+  CMD curl --fail --silent http://localhost:3001/health || exit 1
 
 ENTRYPOINT ["dotnet", "FinanceManagement.Api.dll"]

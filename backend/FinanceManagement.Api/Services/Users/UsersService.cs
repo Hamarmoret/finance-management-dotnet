@@ -379,7 +379,7 @@ public class UsersService
 
         // Create user with a temporary password
         var tempPassword = GenerateTempPassword();
-        var passwordHash = BCrypt.Net.BCrypt.HashPassword(tempPassword);
+        var passwordHash = HashPasswordArgon2(tempPassword);
 
         var user = await conn.QuerySingleAsync<UserEntity>(
             """
@@ -431,5 +431,29 @@ public class UsersService
         const string chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$%";
         var random = new Random();
         return new string(Enumerable.Range(0, 16).Select(_ => chars[random.Next(chars.Length)]).ToArray());
+    }
+
+    /// <summary>
+    /// Hash a password using Argon2id (matching Node.js argon2 config).
+    /// </summary>
+    private static string HashPasswordArgon2(string password)
+    {
+        var salt = System.Security.Cryptography.RandomNumberGenerator.GetBytes(16);
+        var passwordBytes = System.Text.Encoding.UTF8.GetBytes(password);
+
+        using var argon2 = new Konscious.Security.Cryptography.Argon2id(passwordBytes)
+        {
+            Salt = salt,
+            MemorySize = 65536,
+            Iterations = 3,
+            DegreeOfParallelism = 4,
+        };
+
+        var hash = argon2.GetBytes(32);
+
+        var saltB64 = Convert.ToBase64String(salt).TrimEnd('=');
+        var hashB64 = Convert.ToBase64String(hash).TrimEnd('=');
+
+        return $"$argon2id$v=19$m=65536,t=3,p=4${saltB64}${hashB64}";
     }
 }

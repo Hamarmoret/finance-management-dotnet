@@ -13,7 +13,6 @@
     "test:coverage": "vitest --coverage"
   },
   "dependencies": {
-    "@finance/shared": "*",
     "@tanstack/react-query": "^5.17.9",
     "@tanstack/react-table": "^8.11.2",
     "axios": "^1.6.5",
