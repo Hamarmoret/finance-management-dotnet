@@ -105,23 +105,23 @@ Frontend scripts: `dev`, `build`, `preview`, `lint`, `lint:fix`, `test`, `test:c
 
 ## Deployment
 
-### Build & deploy backend
+### Automatic (normal workflow)
+Push to `master` on GitHub → Cloud Build trigger fires → builds Docker image → deploys to Cloud Run automatically.
+Both `cloudbuild-frontend.yaml` and `cloudbuild-backend.yaml` include the `gcloud run deploy` step.
+
+### Manual (if needed)
 ```bash
+# Frontend
+gcloud builds submit --config cloudbuild-frontend.yaml
+
+# Backend
 gcloud builds submit --config cloudbuild-backend.yaml
-gcloud run deploy finance-backend-dotnet \
-  --image gcr.io/PROJECT_ID/finance-backend-dotnet:latest \
-  --region me-west1 \
-  --env-vars-file env.yaml
 ```
 
-### Build & deploy frontend
-```bash
-gcloud builds submit --config cloudbuild-frontend.yaml \
-  --substitutions _API_URL=https://finance-backend-dotnet-233195483413.me-west1.run.app/api
-gcloud run deploy finance-frontend-dotnet \
-  --image gcr.io/PROJECT_ID/finance-frontend-dotnet:latest \
-  --region me-west1
-```
+### Rollback
+Cloud Run keeps all previous revisions. Roll back via:
+- **Cloud Console**: Cloud Run → service → Revisions tab → route 100% traffic to previous revision
+- **CLI**: `gcloud run services update-traffic finance-frontend-dotnet --to-revisions=REVISION_NAME=100 --region me-west1`
 
 ## Environment Variables (env.yaml)
 | Variable | Purpose |
