@@ -12,6 +12,23 @@ steps:
       - 'gcr.io/$PROJECT_ID/finance-frontend-dotnet:latest'
       - '.'
 
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'gcr.io/$PROJECT_ID/finance-frontend-dotnet:latest']
+
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - 'run'
+      - 'deploy'
+      - 'finance-frontend-dotnet'
+      - '--image'
+      - 'gcr.io/$PROJECT_ID/finance-frontend-dotnet:latest'
+      - '--region'
+      - 'me-west1'
+      - '--platform'
+      - 'managed'
+      - '--quiet'
+
 substitutions:
   _API_URL: 'https://finance-backend-dotnet-233195483413.me-west1.run.app/api'
 

@@ -10,6 +10,23 @@ steps:
       - 'gcr.io/$PROJECT_ID/finance-backend-dotnet:latest'
       - '.'
 
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'gcr.io/$PROJECT_ID/finance-backend-dotnet:latest']
+
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - 'run'
+      - 'deploy'
+      - 'finance-backend-dotnet'
+      - '--image'
+      - 'gcr.io/$PROJECT_ID/finance-backend-dotnet:latest'
+      - '--region'
+      - 'me-west1'
+      - '--platform'
+      - 'managed'
+      - '--quiet'
+
 images:
   - 'gcr.io/$PROJECT_ID/finance-backend-dotnet:$BUILD_ID'
   - 'gcr.io/$PROJECT_ID/finance-backend-dotnet:latest'

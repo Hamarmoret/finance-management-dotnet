@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using FinanceManagement.Api.Database;
 using FinanceManagement.Api.Middleware;
+using FinanceManagement.Api.Services.CsvImport;
 
 namespace FinanceManagement.Api.Controllers;
 
@@ -14,6 +15,7 @@ namespace FinanceManagement.Api.Controllers;
 public class CsvImportController : ControllerBase
 {
     private readonly DbContext _db;
+    private readonly CsvImportService _csvImportService;
 
     private static readonly string[] DateFormats =
     [
@@ -27,91 +29,32 @@ public class CsvImportController : ControllerBase
         "dd-MM-yyyy",
     ];
 
-    public CsvImportController(DbContext db)
+    public CsvImportController(DbContext db, CsvImportService csvImportService)
     {
         _db = db;
+        _csvImportService = csvImportService;
     }
 
     // =========================================================================
-    // POST /api/csv-import/expenses
+    // GET /api/csv-import/templates/income
     // =========================================================================
-    [HttpPost("expenses")]
-    public async Task<IActionResult> ImportExpenses(IFormFile file)
+    [HttpGet("templates/income")]
+    public IActionResult DownloadIncomeTemplate()
     {
-        var userId = HttpContext.GetUserId()
-            ?? throw new AppException("Unauthorized", 401, "UNAUTHORIZED");
+        var csv = _csvImportService.GenerateIncomeTemplate();
+        var bytes = Encoding.UTF8.GetBytes(csv);
+        return File(bytes, "text/csv", "income_template.csv");
+    }
 
-        ValidateFile(file);
-
-        var rows = await ParseCsvFile(file);
-        var headers = NormalizeHeaders(rows[0]);
-
-        var imported = 0;
-        var failed = 0;
-        var errors = new List<object>();
-
-        await using var conn = _db.CreateConnection();
-        await conn.OpenAsync();
-
-        for (var i = 1; i < rows.Count; i++)
-        {
-            try
-            {
-                var fields = rows[i];
-                var record = MapRow(headers, fields);
-
-                var description = GetRequired(record, "description", i);
-                var amount = ParseDecimal(GetRequired(record, "amount", i), i, "amount");
-                var currency = GetOptional(record, "currency") ?? "USD";
-                var expenseDate = ParseDate(GetRequired(record, "expense_date", i), i, "expense_date");
-                var vendor = GetOptional(record, "vendor");
-                var paymentMethod = GetOptional(record, "payment_method");
-                var notes = GetOptional(record, "notes");
-                var category = GetOptional(record, "category");
-
-                Guid? categoryId = null;
-                if (!string.IsNullOrWhiteSpace(category))
-                {
-                    categoryId = await conn.QueryFirstOrDefaultAsync<Guid?>(
-                        "SELECT id FROM expense_categories WHERE LOWER(name) = @Name AND is_active = TRUE LIMIT 1",
-                        new { Name = category.ToLowerInvariant() });
-                }
-
-                await conn.ExecuteAsync("""
-                    INSERT INTO expenses (description, amount, currency, category_id, expense_date, vendor, notes, created_by)
-                    VALUES (@Description, @Amount, @Currency, @CategoryId, @ExpenseDate, @Vendor, @Notes, @CreatedBy::uuid)
-                    """,
-                    new
-                    {
-                        Description = description,
-                        Amount = amount,
-                        Currency = currency,
-                        CategoryId = categoryId,
-                        ExpenseDate = expenseDate,
-                        Vendor = vendor,
-                        Notes = notes,
-                        CreatedBy = userId,
-                    });
-
-                imported++;
-            }
-            catch (CsvRowException ex)
-            {
-                failed++;
-                errors.Add(new { row = ex.Row, message = ex.Message });
-            }
-            catch (Exception ex)
-            {
-                failed++;
-                errors.Add(new { row = i + 1, message = ex.Message });
-            }
-        }
-
-        return Ok(new
-        {
-            success = true,
-            data = new { imported, failed, errors },
-        });
+    // =========================================================================
+    // GET /api/csv-import/templates/expenses
+    // =========================================================================
+    [HttpGet("templates/expenses")]
+    public IActionResult DownloadExpensesTemplate()
+    {
+        var csv = _csvImportService.GenerateExpensesTemplate();
+        var bytes = Encoding.UTF8.GetBytes(csv);
+        return File(bytes, "text/csv", "expenses_template.csv");
     }
 
     // =========================================================================
@@ -123,113 +66,44 @@ public class CsvImportController : ControllerBase
         var userId = HttpContext.GetUserId()
             ?? throw new AppException("Unauthorized", 401, "UNAUTHORIZED");
 
-        ValidateFile(file);
-
-        var rows = await ParseCsvFile(file);
-        var headers = NormalizeHeaders(rows[0]);
-
-        var imported = 0;
-        var failed = 0;
-        var errors = new List<object>();
-
-        await using var conn = _db.CreateConnection();
-        await conn.OpenAsync();
-
-        for (var i = 1; i < rows.Count; i++)
-        {
-            try
-            {
-                var fields = rows[i];
-                var record = MapRow(headers, fields);
-
-                var description = GetRequired(record, "description", i);
-                var amount = ParseDecimal(GetRequired(record, "amount", i), i, "amount");
-                var currency = GetOptional(record, "currency") ?? "USD";
-                var clientName = GetOptional(record, "client_name");
-                var incomeDate = ParseDate(GetRequired(record, "income_date", i), i, "income_date");
-                var invoiceNumber = GetOptional(record, "invoice_number");
-                var invoiceType = GetOptional(record, "invoice_type");
-                var invoiceStatus = GetOptional(record, "invoice_status");
-                var notes = GetOptional(record, "notes");
-
-                DateTime? paymentDueDate = null;
-                var paymentDueDateStr = GetOptional(record, "payment_due_date");
-                if (!string.IsNullOrWhiteSpace(paymentDueDateStr))
-                    paymentDueDate = ParseDate(paymentDueDateStr, i, "payment_due_date");
-
-                DateTime? proformaInvoiceDate = null;
-                var proformaStr = GetOptional(record, "proforma_invoice_date");
-                if (!string.IsNullOrWhiteSpace(proformaStr))
-                    proformaInvoiceDate = ParseDate(proformaStr, i, "proforma_invoice_date");
-
-                DateTime? taxInvoiceDate = null;
-                var taxStr = GetOptional(record, "tax_invoice_date");
-                if (!string.IsNullOrWhiteSpace(taxStr))
-                    taxInvoiceDate = ParseDate(taxStr, i, "tax_invoice_date");
-
-                // Validate invoice_type if provided
-                if (!string.IsNullOrWhiteSpace(invoiceType))
-                {
-                    var validTypes = new[] { "standard", "proforma", "tax", "credit_note", "receipt" };
-                    if (!validTypes.Contains(invoiceType.ToLowerInvariant()))
-                        throw new CsvRowException(i + 1,
-                            $"Invalid invoice_type '{invoiceType}'. Must be one of: {string.Join(", ", validTypes)}");
-                    invoiceType = invoiceType.ToLowerInvariant();
-                }
-
-                // Validate invoice_status if provided
-                if (!string.IsNullOrWhiteSpace(invoiceStatus))
-                {
-                    var validStatuses = new[] { "draft", "sent", "paid", "overdue", "cancelled" };
-                    if (!validStatuses.Contains(invoiceStatus.ToLowerInvariant()))
-                        throw new CsvRowException(i + 1,
-                            $"Invalid invoice_status '{invoiceStatus}'. Must be one of: {string.Join(", ", validStatuses)}");
-                    invoiceStatus = invoiceStatus.ToLowerInvariant();
-                }
-
-                await conn.ExecuteAsync("""
-                    INSERT INTO income (description, amount, currency, client_name, income_date, invoice_number,
-                        invoice_type, invoice_status, payment_due_date, proforma_invoice_date, tax_invoice_date,
-                        notes, created_by)
-                    VALUES (@Description, @Amount, @Currency, @ClientName, @IncomeDate, @InvoiceNumber,
-                        @InvoiceType, @InvoiceStatus, @PaymentDueDate, @ProformaInvoiceDate, @TaxInvoiceDate,
-                        @Notes, @CreatedBy::uuid)
-                    """,
-                    new
-                    {
-                        Description = description,
-                        Amount = amount,
-                        Currency = currency,
-                        ClientName = clientName,
-                        IncomeDate = incomeDate,
-                        InvoiceNumber = invoiceNumber,
-                        InvoiceType = invoiceType,
-                        InvoiceStatus = invoiceStatus,
-                        PaymentDueDate = paymentDueDate,
-                        ProformaInvoiceDate = proformaInvoiceDate,
-                        TaxInvoiceDate = taxInvoiceDate,
-                        Notes = notes,
-                        CreatedBy = userId,
-                    });
-
-                imported++;
-            }
-            catch (CsvRowException ex)
-            {
-                failed++;
-                errors.Add(new { row = ex.Row, message = ex.Message });
-            }
-            catch (Exception ex)
-            {
-                failed++;
-                errors.Add(new { row = i + 1, message = ex.Message });
-            }
-        }
+        using var stream = file.OpenReadStream();
+        var result = await _csvImportService.ImportIncomeAsync(
+            stream, file.FileName, file.Length, userId);
 
         return Ok(new
         {
             success = true,
-            data = new { imported, failed, errors },
+            data = new
+            {
+                imported = result.Imported,
+                failed = result.Failed,
+                errors = result.Errors.Select(e => new { row = e.Row, message = e.Message }),
+            },
+        });
+    }
+
+    // =========================================================================
+    // POST /api/csv-import/expenses
+    // =========================================================================
+    [HttpPost("expenses")]
+    public async Task<IActionResult> ImportExpenses(IFormFile file)
+    {
+        var userId = HttpContext.GetUserId()
+            ?? throw new AppException("Unauthorized", 401, "UNAUTHORIZED");
+
+        using var stream = file.OpenReadStream();
+        var result = await _csvImportService.ImportExpensesAsync(
+            stream, file.FileName, file.Length, userId);
+
+        return Ok(new
+        {
+            success = true,
+            data = new
+            {
+                imported = result.Imported,
+                failed = result.Failed,
+                errors = result.Errors.Select(e => new { row = e.Row, message = e.Message }),
+            },
         });
     }
 
@@ -434,15 +308,13 @@ public class CsvImportController : ControllerBase
     }
 
     // =========================================================================
-    // GET /api/csv-import/templates/{type}
+    // GET /api/csv-import/templates/{type} (legacy - clients, leads)
     // =========================================================================
     [HttpGet("templates/{type}")]
     public IActionResult DownloadTemplate(string type)
     {
         var headers = type.ToLowerInvariant() switch
         {
-            "expenses" => "description,amount,currency,category,expense_date,vendor,payment_method,notes",
-            "income" => "description,amount,currency,client_name,income_date,invoice_number,invoice_type,invoice_status,payment_due_date,proforma_invoice_date,tax_invoice_date,notes",
             "clients" => "name,company_name,email,phone,address,city,country,website,notes,tags",
             "leads" => "title,description,contact_name,contact_email,company_name,source,estimated_value,currency,probability,status,expected_close_date,notes",
             _ => throw new AppException($"Unknown template type '{type}'. Valid types: expenses, income, clients, leads", 400, "VALIDATION_ERROR"),
@@ -453,7 +325,7 @@ public class CsvImportController : ControllerBase
     }
 
     // =========================================================================
-    // CSV Parsing Helpers
+    // CSV Parsing Helpers (retained for clients/leads imports)
     // =========================================================================
 
     private static void ValidateFile(IFormFile? file)
@@ -461,7 +333,7 @@ public class CsvImportController : ControllerBase
         if (file == null || file.Length == 0)
             throw new AppException("No file uploaded or file is empty", 400, "VALIDATION_ERROR");
 
-        if (file.Length > 10 * 1024 * 1024) // 10 MB limit
+        if (file.Length > 10 * 1024 * 1024)
             throw new AppException("File size exceeds 10 MB limit", 400, "VALIDATION_ERROR");
 
         var extension = Path.GetExtension(file.FileName)?.ToLowerInvariant();
@@ -488,10 +360,6 @@ public class CsvImportController : ControllerBase
         return rows;
     }
 
-    /// <summary>
-    /// Parses a single CSV line with basic quoted field support.
-    /// Handles fields wrapped in double quotes containing commas, and escaped quotes ("").
-    /// </summary>
     private static string[] ParseCsvLine(string line)
     {
         var fields = new List<string>();
@@ -506,11 +374,10 @@ public class CsvImportController : ControllerBase
             {
                 if (ch == '"')
                 {
-                    // Check for escaped quote ""
                     if (idx + 1 < line.Length && line[idx + 1] == '"')
                     {
                         current.Append('"');
-                        idx++; // skip the next quote
+                        idx++;
                     }
                     else
                     {
@@ -544,31 +411,19 @@ public class CsvImportController : ControllerBase
         return fields.ToArray();
     }
 
-    /// <summary>
-    /// Normalizes header names to lowercase with underscores for consistent lookup.
-    /// e.g. "Expense Date" -> "expense_date", "expenseDate" -> "expense_date"
-    /// </summary>
     private static string[] NormalizeHeaders(string[] headers)
     {
         return headers.Select(h =>
         {
-            // Remove BOM if present
             h = h.TrimStart('\uFEFF');
-
-            // Trim and lowercase
             h = h.Trim().ToLowerInvariant();
-
-            // Replace spaces and dashes with underscores
             h = h.Replace(' ', '_').Replace('-', '_');
 
-            // Convert camelCase to snake_case
             var sb = new StringBuilder();
             for (var i = 0; i < h.Length; i++)
             {
                 if (i > 0 && char.IsUpper(h[i]) && !char.IsUpper(h[i - 1]))
-                {
                     sb.Append('_');
-                }
                 sb.Append(char.ToLowerInvariant(h[i]));
             }
 
@@ -614,8 +469,7 @@ public class CsvImportController : ControllerBase
 
     private static decimal ParseDecimal(string value, int rowIndex, string fieldName)
     {
-        // Remove currency symbols and whitespace
-        var cleaned = value.Trim().TrimStart('$', '€', '£', '¥').Trim();
+        var cleaned = value.Trim().TrimStart('$', '\u20ac', '\u00a3', '\u00a5').Trim();
 
         if (decimal.TryParse(cleaned, NumberStyles.Number | NumberStyles.AllowDecimalPoint,
                 CultureInfo.InvariantCulture, out var result))
@@ -625,9 +479,6 @@ public class CsvImportController : ControllerBase
             $"Invalid number for '{fieldName}': '{value}'");
     }
 
-    // =========================================================================
-    // Custom exception for CSV row errors
-    // =========================================================================
     private class CsvRowException : Exception
     {
         public int Row { get; }
