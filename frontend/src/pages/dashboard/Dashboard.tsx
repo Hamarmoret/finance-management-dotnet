@@ -1,5 +1,4 @@
 import { useState, useEffect, useMemo } from 'react';
-import { useAuthStore } from '../../stores/authStore';
 import { api, getErrorMessage } from '../../services/api';
 import type { ReactNode } from 'react';
 import {
@@ -80,7 +79,6 @@ function monthKey(dateStr: string): string {
 }
 
 export default function Dashboard() {
-  const { user } = useAuthStore();
   const [rawIncome, setRawIncome] = useState<RawIncome[]>([]);
   const [rawExpenses, setRawExpenses] = useState<RawExpense[]>([]);
   const [summaryData, setSummaryData] = useState<SummaryData | null>(null);
