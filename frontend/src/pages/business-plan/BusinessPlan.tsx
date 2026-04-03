@@ -174,7 +174,8 @@ export default function BusinessPlan() {
   const fetchActualsComparison = async (planId: string) => {
     try {
       const response = await api.get(`/business-plans/${planId}/actuals`);
-      setActualsComparison(response.data.data ?? []);
+      const data = response.data.data;
+      setActualsComparison(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error('Failed to fetch actuals:', err);
     }
@@ -271,10 +272,11 @@ export default function BusinessPlan() {
   ) ?? [];
 
   // Calculate totals from actuals comparison
-  const totalProjectedRevenue = actualsComparison.reduce((sum, p) => sum + p.projected.revenue, 0);
-  const totalActualRevenue = actualsComparison.reduce((sum, p) => sum + p.actual.revenue, 0);
-  const totalProjectedExpenses = actualsComparison.reduce((sum, p) => sum + p.projected.expenses, 0);
-  const totalActualExpenses = actualsComparison.reduce((sum, p) => sum + p.actual.expenses, 0);
+  const safeActuals = Array.isArray(actualsComparison) ? actualsComparison : [];
+  const totalProjectedRevenue = safeActuals.reduce((sum, p) => sum + p.projected.revenue, 0);
+  const totalActualRevenue = safeActuals.reduce((sum, p) => sum + p.actual.revenue, 0);
+  const totalProjectedExpenses = safeActuals.reduce((sum, p) => sum + p.projected.expenses, 0);
+  const totalActualExpenses = safeActuals.reduce((sum, p) => sum + p.actual.expenses, 0);
   const totalProjectedProfit = totalProjectedRevenue - totalProjectedExpenses;
   const totalActualProfit = totalActualRevenue - totalActualExpenses;
 
