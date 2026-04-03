@@ -79,6 +79,7 @@ function monthKey(dateStr: string): string {
 }
 
 export default function Dashboard() {
+  const isDark = document.documentElement.classList.contains('dark');
   const [rawIncome, setRawIncome] = useState<RawIncome[]>([]);
   const [rawExpenses, setRawExpenses] = useState<RawExpense[]>([]);
   const [summaryData, setSummaryData] = useState<SummaryData | null>(null);
@@ -274,8 +275,8 @@ export default function Dashboard() {
               <p className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
                 {formatCurrency(summaryData.pendingValue)}
               </p>
-              <p className="text-sm text-gray-500 flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-gray-400" />
+              <p className="text-sm text-gray-500 dark:text-gray-400 flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-gray-400 dark:bg-gray-500" />
                 {summaryData.pendingCount} invoice{summaryData.pendingCount !== 1 ? 's' : ''} pending
               </p>
               {summaryData.overdueCount > 0 && (
@@ -378,7 +379,7 @@ export default function Dashboard() {
         <div className="lg:col-span-4 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm p-5 flex flex-col">
           <div className="flex items-center justify-between mb-4 gap-2">
             <h3 className="text-base font-semibold text-gray-800 dark:text-white shrink-0">Cash Flow</h3>
-            <div className="flex rounded-lg border border-gray-200 overflow-hidden text-xs font-medium">
+            <div className="flex rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden text-xs font-medium">
               {(['3M', '6M', '1Y', 'All'] as Timeframe[]).map(tf => (
                 <button
                   key={tf}
@@ -402,10 +403,10 @@ export default function Dashboard() {
           ) : (
             <ResponsiveContainer width="100%" height={220}>
               <LineChart data={chartData} margin={{ top: 4, right: 4, left: -16, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="4 4" stroke="#e2e8f0" />
+                <CartesianGrid strokeDasharray="4 4" stroke={isDark ? '#374151' : '#e2e8f0'} />
                 <XAxis
                   dataKey="month"
-                  tick={{ fontSize: 11, fill: '#64748b' }}
+                  tick={{ fontSize: 11, fill: isDark ? '#9ca3af' : '#64748b' }}
                   tickLine={false}
                   axisLine={false}
                 />
@@ -413,7 +414,7 @@ export default function Dashboard() {
                   tickFormatter={v =>
                     v >= 1000 ? `$${(v / 1000).toFixed(0)}k` : `$${v}`
                   }
-                  tick={{ fontSize: 11, fill: '#64748b' }}
+                  tick={{ fontSize: 11, fill: isDark ? '#9ca3af' : '#64748b' }}
                   tickLine={false}
                   axisLine={false}
                 />
@@ -421,7 +422,9 @@ export default function Dashboard() {
                   formatter={(value: number) => [formatCurrency(value)]}
                   contentStyle={{
                     borderRadius: '8px',
-                    border: '1px solid #e2e8f0',
+                    border: `1px solid ${isDark ? '#374151' : '#e2e8f0'}`,
+                    backgroundColor: isDark ? '#1f2937' : '#ffffff',
+                    color: isDark ? '#f3f4f6' : '#111827',
                     fontSize: '12px',
                   }}
                 />
@@ -509,7 +512,7 @@ function SummaryCard({ title, value, change, positiveIsGood }: SummaryCardProps)
         <p className="text-sm text-gray-500 dark:text-gray-400 flex items-center gap-1">
           <span
             className={`flex items-center gap-0.5 font-medium ${
-              isGood ? 'text-success-600' : 'text-danger-600'
+              isGood ? 'text-success-600 dark:text-success-500' : 'text-danger-600 dark:text-danger-500'
             }`}
           >
             {change >= 0

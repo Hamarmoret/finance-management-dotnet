@@ -135,6 +135,34 @@ Cloud Run keeps all previous revisions. Roll back via:
 | `CORS_ORIGIN` / `FRONTEND_URL` | Frontend URL for CORS & links |
 | `MAX_CONCURRENT_SESSIONS` | `10` |
 
+## Dark Mode
+Implemented via Tailwind `darkMode: 'class'`. The `.dark` class is added to `<html>` by an inline script in `index.html` (reads from `localStorage.getItem('theme')` or system preference). The toggle lives in `DashboardLayout.tsx` (`useDarkMode` hook).
+
+### Key Dark Mode Files Touched
+- `index.html` — inline init script (add `.dark` to `<html>` before React mounts)
+- `index.css` — `.panel`, `.card`, `.dropdown-menu`, `.modal-box`, `.modal-header` all have `dark:` variants
+- `DashboardLayout.tsx` — `useDarkMode()` hook; sidebar always dark (`bg-[#1a2942]`)
+- `Dashboard.tsx` — SummaryCards, Recharts chart (uses `isDark` local variable for SVG colors)
+- `BusinessPlan.tsx` — dark mode classes + multiple null-safety fixes (see gotchas)
+- `PnlCenters.tsx` — summary cards use `.panel` utility
+- `PnlCenterDetail.tsx` — `<Link>` (not `<a href>`) to avoid page reloads
+- `DateRangeFilter.tsx` — dark mode on trigger button, dropdown, presets
+- `components/ErrorBoundary.tsx` — new file, wraps BusinessPlan route in `App.tsx`
+
+### Known Dark Mode Gotchas
+- Recharts doesn't support Tailwind — use `isDark = document.documentElement.classList.contains('dark')` and pass hex colors conditionally
+- `text-success-600` / `text-danger-600` have no dark variants in config (only 50/500/600/700 exist) — use `dark:text-success-500` / `dark:text-danger-500` for bright-on-dark contrast
+- `danger-400` and `danger-900` do NOT exist in the Tailwind config — ErrorBoundary uses them but they silently no-op in production
+
+### BusinessPlan Null-Safety Issues (Recurring)
+The `/business-plans/:id/with-engine` and `/business-plans/:id/actuals` endpoints can return null arrays. Always guard with:
+- `planWithEngine?.drivers?.filter(...) ?? []` (double optional chain, not single)
+- `Array.isArray(data) ? data : []` for `actualsComparison` (not just `?? []`)
+- Render: `const safeActuals = Array.isArray(actualsComparison) ? actualsComparison : [];`
+
+### Auth Race Condition (Fixed)
+`scheduleTokenRefresh()` used to set a timer with delay=0 for already-expired tokens, racing with the 401 interceptor → both called `/auth/refresh` simultaneously → logout. Fix: return early in `scheduleTokenRefresh` if `timeUntilExpiry <= 2 * 60 * 1000`. Also: `fetchUser()` now only clears auth on HTTP 401, not on network errors.
+
 ## Meta: Keeping This File Updated
 At the end of each session, update this file with:
 - Any new files, services, or controllers added
