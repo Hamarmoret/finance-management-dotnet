@@ -145,7 +145,7 @@ export default function BusinessPlan() {
     try {
       setLoading(true);
       const response = await api.get('/business-plans');
-      setPlans(response.data.data);
+      setPlans(response.data.data ?? []);
     } catch (err) {
       setError(getErrorMessage(err));
     } finally {
@@ -156,7 +156,7 @@ export default function BusinessPlan() {
   const fetchPlanDetails = async (planId: string) => {
     try {
       const response = await api.get(`/business-plans/${planId}`);
-      setSelectedPlan(response.data.data);
+      setSelectedPlan(response.data.data ?? null);
     } catch (err) {
       setError(getErrorMessage(err));
     }
@@ -165,7 +165,7 @@ export default function BusinessPlan() {
   const fetchPlanWithEngine = async (planId: string) => {
     try {
       const response = await api.get(`/business-plans/${planId}/engine`);
-      setPlanWithEngine(response.data.data);
+      setPlanWithEngine(response.data.data ?? null);
     } catch (err) {
       console.error('Failed to fetch plan engine data:', err);
     }
@@ -174,7 +174,7 @@ export default function BusinessPlan() {
   const fetchActualsComparison = async (planId: string) => {
     try {
       const response = await api.get(`/business-plans/${planId}/actuals`);
-      setActualsComparison(response.data.data);
+      setActualsComparison(response.data.data ?? []);
     } catch (err) {
       console.error('Failed to fetch actuals:', err);
     }
