@@ -178,3 +178,36 @@ At the end of each session, update this file with:
 - `ErrorHandlingMiddleware` catches unhandled exceptions globally
 - Frontend uses React Query for server state, Zustand for auth state
 - Form handling: react-hook-form + Zod schemas
+
+## Sales / Pipeline Module (Phase 1 — Frontend Complete)
+
+New `/sales` page (tabbed, mirrors Settings pattern) with 3 tabs:
+
+### New Files
+- `frontend/src/pages/sales/Sales.tsx` — shell with Clients/Leads/Proposals tabs
+- `frontend/src/pages/sales/components/ClientsTab.tsx` — client list, search, status filter
+- `frontend/src/pages/sales/components/ClientModal.tsx` — create/edit client form (collapsible address section)
+- `frontend/src/pages/sales/components/ClientDetailDrawer.tsx` — right-side drawer: Overview, Income, Proposals, Leads tabs (fetches related data in parallel on open)
+- `frontend/src/pages/sales/components/LeadsTab.tsx` — lead list, status chip filters, probability bar, pipeline value stats
+- `frontend/src/pages/sales/components/LeadModal.tsx` — 2-tab modal: Details (form) + Activities (list + add form); activities disabled for new leads
+- `frontend/src/pages/sales/components/ProposalsTab.tsx` — proposal list, status chips, conversion rate stat
+- `frontend/src/pages/sales/components/ProposalModal.tsx` — header + dynamic line items with live total calculation
+
+### Types Added to `@finance/shared`
+`Client`, `ClientStatus`, `Lead`, `LeadStatus`, `LeadActivity`, `LeadActivityType`, `Proposal`, `ProposalStatus`, `ProposalItem`
+
+### Navigation
+- `DashboardLayout.tsx` — "Sales" nav item (Briefcase icon) between P&L Centers and Business Plan
+- `App.tsx` — `<Route path="sales" element={<Sales />} />`
+
+### Integration
+- ClientDetailDrawer fetches `/income?clientName=`, `/proposals?clientId=`, `/leads?clientId=` in parallel
+- LeadModal auto-fills companyName from selected client
+- ProposalModal filters leads by selected client; auto-sets clientId from selected lead
+
+### Phase 2 Planned (not yet built)
+- DB migrations 010-012: contact_persons table, client/lead/income enrichment columns
+- ContactPersonsService + Controller (nested `GET /api/clients/{id}/contacts`)
+- ClientAutocomplete shared component (typeahead on income modal clientName field)
+- IncomeModal: VAT toggle, billable hours, payment method
+- LeadModal: Deal Terms tab (deal_type, retainer_renewal_date, etc.)

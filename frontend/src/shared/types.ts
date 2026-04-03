@@ -673,3 +673,138 @@ export interface ScenarioComparison {
     };
   }[];
 }
+
+// =============================================
+// Pipeline / CRM Types
+// =============================================
+
+export type ClientStatus = 'active' | 'inactive' | 'archived';
+
+export interface Client {
+  id: string;
+  name: string;
+  companyName: string | null;
+  email: string | null;
+  phone: string | null;
+  address: string | null;
+  city: string | null;
+  state: string | null;
+  postalCode: string | null;
+  country: string | null;
+  website: string | null;
+  notes: string | null;
+  tags: string[];
+  defaultCurrency: string;
+  taxId: string | null;
+  paymentTerms: number;
+  status: ClientStatus;
+  createdBy: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export type LeadStatus =
+  | 'new'
+  | 'contacted'
+  | 'qualified'
+  | 'proposal_sent'
+  | 'negotiation'
+  | 'won'
+  | 'lost'
+  | 'on_hold';
+
+export type LeadActivityType = 'note' | 'call' | 'email' | 'meeting' | 'task' | 'status_change' | 'proposal_sent';
+
+export interface LeadActivity {
+  id: string;
+  leadId: string;
+  activityType: LeadActivityType;
+  title: string | null;
+  description: string | null;
+  dueDate: string | null;
+  completed: boolean;
+  completedAt: string | null;
+  createdBy: string | null;
+  createdByName: string | null;
+  createdAt: Date;
+}
+
+export interface Lead {
+  id: string;
+  clientId: string | null;
+  clientName: string | null;
+  title: string;
+  description: string | null;
+  contactName: string | null;
+  contactEmail: string | null;
+  contactPhone: string | null;
+  companyName: string | null;
+  source: string | null;
+  estimatedValue: number | null;
+  currency: string;
+  probability: number;
+  status: LeadStatus;
+  statusChangedAt: Date | null;
+  lostReason: string | null;
+  expectedCloseDate: string | null;
+  actualCloseDate: string | null;
+  assignedTo: string | null;
+  assignedToName: string | null;
+  pnlCenterId: string | null;
+  pnlCenterName: string | null;
+  notes: string | null;
+  createdBy: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export type ProposalStatus =
+  | 'draft'
+  | 'sent'
+  | 'viewed'
+  | 'accepted'
+  | 'rejected'
+  | 'expired'
+  | 'converted';
+
+export interface ProposalItem {
+  id: string;
+  proposalId: string;
+  description: string;
+  quantity: number;
+  unitPrice: number;
+  discountPercent: number;
+  total: number;
+  sortOrder: number;
+}
+
+export interface Proposal {
+  id: string;
+  leadId: string | null;
+  clientId: string | null;
+  proposalNumber: string;
+  title: string;
+  description: string | null;
+  issueDate: string;
+  validUntil: string | null;
+  subtotal: number;
+  taxRate: number;
+  taxAmount: number;
+  discountAmount: number;
+  total: number;
+  currency: string;
+  status: ProposalStatus;
+  statusChangedAt: Date | null;
+  rejectionReason: string | null;
+  convertedToIncomeId: string | null;
+  convertedAt: Date | null;
+  terms: string | null;
+  notes: string | null;
+  documentUrl: string | null;
+  clientName: string | null;
+  leadTitle: string | null;
+  items: ProposalItem[];
+  createdBy: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}

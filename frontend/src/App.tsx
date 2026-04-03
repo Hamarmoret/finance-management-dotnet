@@ -21,6 +21,7 @@ import Expenses from './pages/expenses/Expenses';
 import Income from './pages/income/Income';
 import Settings from './pages/settings/Settings';
 import Analytics from './pages/analytics/Analytics';
+import Sales from './pages/sales/Sales';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useAuthStore();
@@ -123,6 +124,7 @@ export default function App() {
         <Route path="income" element={<Income />} />
         <Route path="pnl" element={<PnlCenters />} />
         <Route path="analytics" element={<Analytics />} />
+        <Route path="sales" element={<Sales />} />
         <Route path="business-plan" element={<ErrorBoundary fallbackLabel="Business Plan failed to render"><BusinessPlan /></ErrorBoundary>} />
         <Route path="settings" element={<Settings />} />
       </Route>

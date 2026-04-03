@@ -16,6 +16,7 @@ import {
   Target,
   Sun,
   Moon,
+  Briefcase,
 } from 'lucide-react';
 
 const navigation = [
@@ -23,6 +24,7 @@ const navigation = [
   { name: 'Expenses', href: '/expenses', icon: Receipt },
   { name: 'Income', href: '/income', icon: Wallet },
   { name: 'P&L Centers', href: '/pnl', icon: PieChart },
+  { name: 'Sales', href: '/sales', icon: Briefcase },
   { name: 'Business Plan', href: '/business-plan', icon: Target },
   { name: 'Analytics', href: '/analytics', icon: BarChart3 },
   { name: 'Settings', href: '/settings', icon: Settings },
