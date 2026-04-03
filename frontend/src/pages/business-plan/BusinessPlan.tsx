@@ -315,11 +315,11 @@ export default function BusinessPlan() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
             <Target className="w-6 h-6 text-primary-600" />
             Business Plan
           </h1>
-          <p className="text-gray-600">Set targets, track progress, and achieve your goals.</p>
+          <p className="text-gray-600 dark:text-gray-400">Set targets, track progress, and achieve your goals.</p>
         </div>
         <div className="flex items-center gap-3">
           {/* Plan Selector */}
@@ -327,7 +327,7 @@ export default function BusinessPlan() {
             <div className="relative">
               <button
                 onClick={() => setPlanSelectorOpen(!planSelectorOpen)}
-                className="flex items-center gap-2 px-4 py-2 bg-white border rounded-lg shadow-sm hover:bg-gray-50"
+                className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-lg shadow-sm hover:bg-gray-50 dark:hover:bg-gray-700 dark:text-gray-200"
               >
                 <Calendar className="w-4 h-4 text-gray-500" />
                 <span className="font-medium">
@@ -338,13 +338,13 @@ export default function BusinessPlan() {
               {planSelectorOpen && (
                 <>
                   <div className="fixed inset-0" onClick={() => setPlanSelectorOpen(false)} />
-                  <div className="absolute right-0 mt-2 w-64 bg-white rounded-lg shadow-lg border z-50 py-1">
+                  <div className="dropdown-menu absolute right-0 mt-2 w-64 z-50 py-1">
                     {plans.map((plan) => (
                       <button
                         key={plan.id}
                         onClick={() => handleSelectPlan(plan.id)}
-                        className={`w-full text-left px-4 py-2 hover:bg-gray-50 flex items-center justify-between ${
-                          plan.id === selectedPlanId ? 'bg-primary-50 text-primary-700' : ''
+                        className={`w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center justify-between dark:text-gray-200 ${
+                          plan.id === selectedPlanId ? 'bg-primary-50 dark:bg-primary-900/30 text-primary-700 dark:text-primary-400' : ''
                         }`}
                       >
                         <div>
@@ -416,7 +416,7 @@ export default function BusinessPlan() {
           )}
 
           {/* Tabs */}
-          <div className="border-b border-gray-200">
+          <div className="border-b border-gray-200 dark:border-gray-700">
             <nav className="-mb-px flex space-x-8 overflow-x-auto">
               {tabs.map((tab) => (
                 <button
@@ -425,7 +425,7 @@ export default function BusinessPlan() {
                   className={`flex items-center gap-2 py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
                     activeTab === tab.id
                       ? 'border-primary-500 text-primary-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                      : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:border-gray-300 dark:hover:border-gray-500'
                   }`}
                 >
                   <tab.icon className="w-4 h-4" />

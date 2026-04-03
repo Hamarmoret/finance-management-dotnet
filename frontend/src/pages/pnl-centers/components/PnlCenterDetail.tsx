@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { X, TrendingUp, TrendingDown, DollarSign, ArrowRight } from 'lucide-react';
 import { api } from '../../../services/api';
 import type { PnlCenterWithStats } from '@finance/shared';
@@ -199,18 +200,20 @@ export function PnlCenterDetail({ center, onClose }: PnlCenterDetailProps) {
 
           {/* Quick Navigation */}
           <div className="flex gap-3 border-t dark:border-gray-700 pt-4">
-            <a
-              href={`/income?pnlCenterId=${center.id}`}
+            <Link
+              to={`/income?pnlCenterId=${center.id}`}
+              onClick={onClose}
               className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-green-50 text-green-700 rounded-lg hover:bg-green-100 transition-colors text-sm font-medium"
             >
               View Income <ArrowRight className="w-4 h-4" />
-            </a>
-            <a
-              href={`/expenses?pnlCenterId=${center.id}`}
+            </Link>
+            <Link
+              to={`/expenses?pnlCenterId=${center.id}`}
+              onClick={onClose}
               className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-red-50 text-red-700 rounded-lg hover:bg-red-100 transition-colors text-sm font-medium"
             >
               View Expenses <ArrowRight className="w-4 h-4" />
-            </a>
+            </Link>
           </div>
         </div>
       </div>

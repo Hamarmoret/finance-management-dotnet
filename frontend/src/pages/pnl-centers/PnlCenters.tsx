@@ -122,7 +122,7 @@ export default function PnlCenters() {
             </div>
           </div>
         </div>
-        <div className="bg-white rounded-xl border p-6">
+        <div className="panel p-6">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-500 dark:text-gray-400">Total Expenses</p>
@@ -133,7 +133,7 @@ export default function PnlCenters() {
             </div>
           </div>
         </div>
-        <div className="bg-white rounded-xl border p-6">
+        <div className="panel p-6">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-500 dark:text-gray-400">Net Profit</p>
