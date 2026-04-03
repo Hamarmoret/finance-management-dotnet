@@ -32,6 +32,15 @@ public class LeadDto
     [JsonPropertyName("pnlCenterName")] public string? PnlCenterName { get; set; }
     [JsonPropertyName("notes")] public string? Notes { get; set; }
     [JsonPropertyName("clientName")] public string? ClientName { get; set; }
+    [JsonPropertyName("dealType")] public string? DealType { get; set; }
+    [JsonPropertyName("retainerRenewalDate")] public string? RetainerRenewalDate { get; set; }
+    [JsonPropertyName("followUpDate")] public string? FollowUpDate { get; set; }
+    [JsonPropertyName("scopeMonths")] public int? ScopeMonths { get; set; }
+    [JsonPropertyName("minCommitmentMonths")] public int? MinCommitmentMonths { get; set; }
+    [JsonPropertyName("complimentaryHours")] public decimal? ComplimentaryHours { get; set; }
+    [JsonPropertyName("orderNumber")] public string? OrderNumber { get; set; }
+    [JsonPropertyName("clientOrderNumber")] public string? ClientOrderNumber { get; set; }
+    [JsonPropertyName("ndaUrl")] public string? NdaUrl { get; set; }
     [JsonPropertyName("createdBy")] public string? CreatedBy { get; set; }
     [JsonPropertyName("createdAt")] public DateTime CreatedAt { get; set; }
     [JsonPropertyName("updatedAt")] public DateTime UpdatedAt { get; set; }
@@ -70,6 +79,15 @@ public class CreateLeadRequest
     [JsonPropertyName("assignedTo")] public string? AssignedTo { get; set; }
     [JsonPropertyName("pnlCenterId")] public string? PnlCenterId { get; set; }
     [JsonPropertyName("notes")] public string? Notes { get; set; }
+    [JsonPropertyName("dealType")] public string? DealType { get; set; }
+    [JsonPropertyName("retainerRenewalDate")] public string? RetainerRenewalDate { get; set; }
+    [JsonPropertyName("followUpDate")] public string? FollowUpDate { get; set; }
+    [JsonPropertyName("scopeMonths")] public int? ScopeMonths { get; set; }
+    [JsonPropertyName("minCommitmentMonths")] public int? MinCommitmentMonths { get; set; }
+    [JsonPropertyName("complimentaryHours")] public decimal? ComplimentaryHours { get; set; }
+    [JsonPropertyName("orderNumber")] public string? OrderNumber { get; set; }
+    [JsonPropertyName("clientOrderNumber")] public string? ClientOrderNumber { get; set; }
+    [JsonPropertyName("ndaUrl")] public string? NdaUrl { get; set; }
 }
 
 public class UpdateLeadRequest
@@ -92,6 +110,15 @@ public class UpdateLeadRequest
     [JsonPropertyName("assignedTo")] public string? AssignedTo { get; set; }
     [JsonPropertyName("pnlCenterId")] public string? PnlCenterId { get; set; }
     [JsonPropertyName("notes")] public string? Notes { get; set; }
+    [JsonPropertyName("dealType")] public string? DealType { get; set; }
+    [JsonPropertyName("retainerRenewalDate")] public string? RetainerRenewalDate { get; set; }
+    [JsonPropertyName("followUpDate")] public string? FollowUpDate { get; set; }
+    [JsonPropertyName("scopeMonths")] public int? ScopeMonths { get; set; }
+    [JsonPropertyName("minCommitmentMonths")] public int? MinCommitmentMonths { get; set; }
+    [JsonPropertyName("complimentaryHours")] public decimal? ComplimentaryHours { get; set; }
+    [JsonPropertyName("orderNumber")] public string? OrderNumber { get; set; }
+    [JsonPropertyName("clientOrderNumber")] public string? ClientOrderNumber { get; set; }
+    [JsonPropertyName("ndaUrl")] public string? NdaUrl { get; set; }
 }
 
 public class CreateLeadActivityRequest
@@ -214,10 +241,14 @@ public class LeadsService
             """
             INSERT INTO leads (client_id, title, description, contact_name, contact_email, contact_phone,
                 company_name, source, estimated_value, currency, probability, status,
-                expected_close_date, assigned_to, pnl_center_id, notes, created_by)
+                expected_close_date, assigned_to, pnl_center_id, notes,
+                deal_type, retainer_renewal_date, follow_up_date, scope_months, min_commitment_months,
+                complimentary_hours, order_number, client_order_number, nda_url, created_by)
             VALUES (@ClientId::uuid, @Title, @Description, @ContactName, @ContactEmail, @ContactPhone,
                 @CompanyName, @Source, @EstimatedValue, @Currency, @Probability, @Status,
-                @ExpectedCloseDate::date, @AssignedTo::uuid, @PnlCenterId::uuid, @Notes, @CreatedBy)
+                @ExpectedCloseDate::date, @AssignedTo::uuid, @PnlCenterId::uuid, @Notes,
+                @DealType, @RetainerRenewalDate::date, @FollowUpDate::date, @ScopeMonths, @MinCommitmentMonths,
+                @ComplimentaryHours, @OrderNumber, @ClientOrderNumber, @NdaUrl, @CreatedBy)
             RETURNING *
             """,
             new
@@ -238,6 +269,15 @@ public class LeadsService
                 AssignedTo = request.AssignedTo,
                 PnlCenterId = request.PnlCenterId,
                 request.Notes,
+                request.DealType,
+                RetainerRenewalDate = request.RetainerRenewalDate,
+                FollowUpDate = request.FollowUpDate,
+                request.ScopeMonths,
+                MinCommitmentMonths = request.MinCommitmentMonths,
+                ComplimentaryHours = request.ComplimentaryHours,
+                OrderNumber = request.OrderNumber,
+                ClientOrderNumber = request.ClientOrderNumber,
+                NdaUrl = request.NdaUrl,
                 CreatedBy = userId,
             });
 
@@ -271,6 +311,15 @@ public class LeadsService
         if (request.AssignedTo != null) { fields.Add("assigned_to = @AssignedTo::uuid"); parameters.Add("AssignedTo", request.AssignedTo); }
         if (request.PnlCenterId != null) { fields.Add("pnl_center_id = @PnlCenterId::uuid"); parameters.Add("PnlCenterId", request.PnlCenterId); }
         if (request.Notes != null) { fields.Add("notes = @Notes"); parameters.Add("Notes", request.Notes); }
+        if (request.DealType != null) { fields.Add("deal_type = @DealType"); parameters.Add("DealType", request.DealType); }
+        if (request.RetainerRenewalDate != null) { fields.Add("retainer_renewal_date = @RetainerRenewalDate::date"); parameters.Add("RetainerRenewalDate", request.RetainerRenewalDate); }
+        if (request.FollowUpDate != null) { fields.Add("follow_up_date = @FollowUpDate::date"); parameters.Add("FollowUpDate", request.FollowUpDate); }
+        if (request.ScopeMonths.HasValue) { fields.Add("scope_months = @ScopeMonths"); parameters.Add("ScopeMonths", request.ScopeMonths.Value); }
+        if (request.MinCommitmentMonths.HasValue) { fields.Add("min_commitment_months = @MinCommitmentMonths"); parameters.Add("MinCommitmentMonths", request.MinCommitmentMonths.Value); }
+        if (request.ComplimentaryHours.HasValue) { fields.Add("complimentary_hours = @ComplimentaryHours"); parameters.Add("ComplimentaryHours", request.ComplimentaryHours.Value); }
+        if (request.OrderNumber != null) { fields.Add("order_number = @OrderNumber"); parameters.Add("OrderNumber", request.OrderNumber); }
+        if (request.ClientOrderNumber != null) { fields.Add("client_order_number = @ClientOrderNumber"); parameters.Add("ClientOrderNumber", request.ClientOrderNumber); }
+        if (request.NdaUrl != null) { fields.Add("nda_url = @NdaUrl"); parameters.Add("NdaUrl", request.NdaUrl); }
 
         if (fields.Count == 0)
             return await GetByIdAsync(id);
@@ -382,6 +431,15 @@ public class LeadsService
         PnlCenterName = e.PnlCenterName,
         Notes = e.Notes,
         ClientName = e.ClientName,
+        DealType = e.DealType,
+        RetainerRenewalDate = e.RetainerRenewalDate?.ToString("yyyy-MM-dd"),
+        FollowUpDate = e.FollowUpDate?.ToString("yyyy-MM-dd"),
+        ScopeMonths = e.ScopeMonths,
+        MinCommitmentMonths = e.MinCommitmentMonths,
+        ComplimentaryHours = e.ComplimentaryHours,
+        OrderNumber = e.OrderNumber,
+        ClientOrderNumber = e.ClientOrderNumber,
+        NdaUrl = e.NdaUrl,
         CreatedBy = e.CreatedBy?.ToString(),
         CreatedAt = e.CreatedAt,
         UpdatedAt = e.UpdatedAt,
@@ -431,6 +489,15 @@ public class LeadsService
         public string? PnlCenterName { get; set; }
         public string? Notes { get; set; }
         public string? ClientName { get; set; }
+        public string? DealType { get; set; }
+        public DateTime? RetainerRenewalDate { get; set; }
+        public DateTime? FollowUpDate { get; set; }
+        public int? ScopeMonths { get; set; }
+        public int? MinCommitmentMonths { get; set; }
+        public decimal? ComplimentaryHours { get; set; }
+        public string? OrderNumber { get; set; }
+        public string? ClientOrderNumber { get; set; }
+        public string? NdaUrl { get; set; }
         public Guid? CreatedBy { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime UpdatedAt { get; set; }

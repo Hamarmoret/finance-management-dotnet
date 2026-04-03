@@ -205,9 +205,30 @@ New `/sales` page (tabbed, mirrors Settings pattern) with 3 tabs:
 - LeadModal auto-fills companyName from selected client
 - ProposalModal filters leads by selected client; auto-sets clientId from selected lead
 
-### Phase 2 Planned (not yet built)
-- DB migrations 010-012: contact_persons table, client/lead/income enrichment columns
-- ContactPersonsService + Controller (nested `GET /api/clients/{id}/contacts`)
-- ClientAutocomplete shared component (typeahead on income modal clientName field)
-- IncomeModal: VAT toggle, billable hours, payment method
-- LeadModal: Deal Terms tab (deal_type, retainer_renewal_date, etc.)
+### Phase 2 — Data Model Enrichment (Complete)
+
+#### New DB Migrations (010-012)
+- **010**: `contact_persons` table + client enrichment columns (industry, business_type, utm_source/medium/campaign)
+- **011**: Leads deal terms (deal_type, retainer_renewal_date, follow_up_date, scope_months, min_commitment_months, complimentary_hours, order_number, client_order_number, nda_url)
+- **012**: Income enrichment (client_id UUID FK → clients, billable_hours_regular/150/200, hourly_rate_regular/150/200, vat_applicable, vat_percentage, payment_method)
+
+#### New Backend Files
+- `backend/.../Services/Pipeline/ContactPersonsService.cs` — DTOs + service (GetByClientId, Create, Update, Delete)
+- `backend/.../Controllers/ContactPersonsController.cs` — `GET /api/clients/{id}/contacts`, `POST /api/clients/{id}/contacts`, `PUT /api/contacts/{id}`, `DELETE /api/contacts/{id}`
+
+#### Extended Backend Services
+- `ClientsService.cs` — added industry, businessType, utmSource, utmMedium, utmCampaign to Dto/Request/Entity/INSERT/UPDATE
+- `LeadsService.cs` — added 9 deal terms fields to Dto/Request/Entity/INSERT/UPDATE
+- `IncomeService.cs` — added clientId FK + 9 billing/VAT fields to Dto/Request/DbRow/INSERT/UPDATE/MapIncome
+
+#### New Frontend Files
+- `frontend/src/components/ClientAutocomplete.tsx` — debounced typeahead, calls `GET /api/clients?search=`, sets both clientId + clientName on select (backwards-compatible with free-text)
+
+#### Extended Frontend Files
+- `frontend/src/shared/types.ts` — added fields to `Client`, `Lead`, `Income`; added `ContactPerson` interface
+- `frontend/src/pages/sales/components/ClientModal.tsx` — 3-tab modal: Details (original) + Contacts (add/delete contact_persons) + Industry & Attribution (industry, businessType, UTM fields)
+- `frontend/src/pages/sales/components/LeadModal.tsx` — added "Deal Terms" tab (3rd tab) with all 9 deal terms fields
+- `frontend/src/pages/income/components/IncomeModal.tsx` — replaced clientName text input with ClientAutocomplete, added Payment Method select, VAT toggle+%, Billable Hours collapsible section (6 fields)
+
+### Phase 3 Planned (not yet built)
+- CSV Import extensions: contacts import, leads-enrichment import, income billing columns

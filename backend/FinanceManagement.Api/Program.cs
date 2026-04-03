@@ -100,6 +100,7 @@ builder.Services.AddScoped<IncomeService>();
 builder.Services.AddScoped<PnlCentersService>();
 builder.Services.AddScoped<UsersService>();
 builder.Services.AddScoped<ClientsService>();
+builder.Services.AddScoped<ContactPersonsService>();
 builder.Services.AddScoped<LeadsService>();
 builder.Services.AddScoped<ProposalsService>();
 builder.Services.AddScoped<AnalyticsService>();

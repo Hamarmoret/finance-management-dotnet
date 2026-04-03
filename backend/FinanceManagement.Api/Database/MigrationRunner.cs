@@ -52,6 +52,9 @@ public class MigrationRunner
         ("007_pipeline_attachments", Sql007PipelineAttachments),
         ("008_lead_sources", Sql008LeadSources),
         ("009_income_extra_dates", Sql009IncomeExtraDates),
+        ("010_contact_persons_client_enrichment", Sql010ContactPersonsClientEnrichment),
+        ("011_leads_deal_terms", Sql011LeadsDealTerms),
+        ("012_income_client_billing", Sql012IncomeClientBilling),
     ];
 
     #region SQL Migrations
@@ -528,6 +531,62 @@ public class MigrationRunner
         ALTER TABLE income ADD COLUMN IF NOT EXISTS tax_invoice_date DATE;
         CREATE INDEX IF NOT EXISTS idx_income_proforma_date ON income(proforma_invoice_date);
         CREATE INDEX IF NOT EXISTS idx_income_tax_invoice_date ON income(tax_invoice_date);
+        """;
+
+    private const string Sql010ContactPersonsClientEnrichment = """
+        CREATE TABLE IF NOT EXISTS contact_persons (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          client_id UUID REFERENCES clients(id) ON DELETE CASCADE,
+          name VARCHAR(255) NOT NULL,
+          email VARCHAR(255),
+          phone VARCHAR(50),
+          role VARCHAR(100),
+          linkedin_url VARCHAR(500),
+          country VARCHAR(100),
+          is_primary BOOLEAN DEFAULT FALSE,
+          notes TEXT,
+          created_by UUID REFERENCES users(id) ON DELETE SET NULL,
+          created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE INDEX IF NOT EXISTS idx_contact_persons_client ON contact_persons(client_id);
+
+        CREATE OR REPLACE FUNCTION update_contact_persons_updated_at()
+        RETURNS TRIGGER AS $$ BEGIN NEW.updated_at = CURRENT_TIMESTAMP; RETURN NEW; END; $$ LANGUAGE plpgsql;
+        DROP TRIGGER IF EXISTS trigger_update_contact_persons_updated_at ON contact_persons;
+        CREATE TRIGGER trigger_update_contact_persons_updated_at BEFORE UPDATE ON contact_persons FOR EACH ROW EXECUTE FUNCTION update_contact_persons_updated_at();
+
+        ALTER TABLE clients ADD COLUMN IF NOT EXISTS industry VARCHAR(100);
+        ALTER TABLE clients ADD COLUMN IF NOT EXISTS business_type VARCHAR(50);
+        ALTER TABLE clients ADD COLUMN IF NOT EXISTS utm_source VARCHAR(100);
+        ALTER TABLE clients ADD COLUMN IF NOT EXISTS utm_medium VARCHAR(100);
+        ALTER TABLE clients ADD COLUMN IF NOT EXISTS utm_campaign VARCHAR(100);
+        """;
+
+    private const string Sql011LeadsDealTerms = """
+        ALTER TABLE leads ADD COLUMN IF NOT EXISTS deal_type VARCHAR(50);
+        ALTER TABLE leads ADD COLUMN IF NOT EXISTS retainer_renewal_date DATE;
+        ALTER TABLE leads ADD COLUMN IF NOT EXISTS follow_up_date DATE;
+        ALTER TABLE leads ADD COLUMN IF NOT EXISTS scope_months INTEGER;
+        ALTER TABLE leads ADD COLUMN IF NOT EXISTS min_commitment_months INTEGER;
+        ALTER TABLE leads ADD COLUMN IF NOT EXISTS complimentary_hours DECIMAL(10,2);
+        ALTER TABLE leads ADD COLUMN IF NOT EXISTS order_number VARCHAR(100);
+        ALTER TABLE leads ADD COLUMN IF NOT EXISTS client_order_number VARCHAR(100);
+        ALTER TABLE leads ADD COLUMN IF NOT EXISTS nda_url VARCHAR(500);
+        """;
+
+    private const string Sql012IncomeClientBilling = """
+        ALTER TABLE income ADD COLUMN IF NOT EXISTS client_id UUID REFERENCES clients(id) ON DELETE SET NULL;
+        ALTER TABLE income ADD COLUMN IF NOT EXISTS billable_hours_regular DECIMAL(10,2);
+        ALTER TABLE income ADD COLUMN IF NOT EXISTS billable_hours_150 DECIMAL(10,2);
+        ALTER TABLE income ADD COLUMN IF NOT EXISTS billable_hours_200 DECIMAL(10,2);
+        ALTER TABLE income ADD COLUMN IF NOT EXISTS hourly_rate_regular DECIMAL(15,2);
+        ALTER TABLE income ADD COLUMN IF NOT EXISTS hourly_rate_150 DECIMAL(15,2);
+        ALTER TABLE income ADD COLUMN IF NOT EXISTS hourly_rate_200 DECIMAL(15,2);
+        ALTER TABLE income ADD COLUMN IF NOT EXISTS vat_applicable BOOLEAN DEFAULT FALSE;
+        ALTER TABLE income ADD COLUMN IF NOT EXISTS vat_percentage DECIMAL(5,2);
+        ALTER TABLE income ADD COLUMN IF NOT EXISTS payment_method VARCHAR(50);
+        CREATE INDEX IF NOT EXISTS idx_income_client_id ON income(client_id);
         """;
 
     #endregion

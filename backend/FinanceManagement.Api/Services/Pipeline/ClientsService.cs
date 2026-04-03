@@ -26,6 +26,11 @@ public class ClientDto
     [JsonPropertyName("taxId")] public string? TaxId { get; set; }
     [JsonPropertyName("paymentTerms")] public int PaymentTerms { get; set; } = 30;
     [JsonPropertyName("status")] public string Status { get; set; } = "active";
+    [JsonPropertyName("industry")] public string? Industry { get; set; }
+    [JsonPropertyName("businessType")] public string? BusinessType { get; set; }
+    [JsonPropertyName("utmSource")] public string? UtmSource { get; set; }
+    [JsonPropertyName("utmMedium")] public string? UtmMedium { get; set; }
+    [JsonPropertyName("utmCampaign")] public string? UtmCampaign { get; set; }
     [JsonPropertyName("createdBy")] public string? CreatedBy { get; set; }
     [JsonPropertyName("createdAt")] public DateTime CreatedAt { get; set; }
     [JsonPropertyName("updatedAt")] public DateTime UpdatedAt { get; set; }
@@ -48,6 +53,11 @@ public class CreateClientRequest
     [JsonPropertyName("defaultCurrency")] public string? DefaultCurrency { get; set; }
     [JsonPropertyName("taxId")] public string? TaxId { get; set; }
     [JsonPropertyName("paymentTerms")] public int? PaymentTerms { get; set; }
+    [JsonPropertyName("industry")] public string? Industry { get; set; }
+    [JsonPropertyName("businessType")] public string? BusinessType { get; set; }
+    [JsonPropertyName("utmSource")] public string? UtmSource { get; set; }
+    [JsonPropertyName("utmMedium")] public string? UtmMedium { get; set; }
+    [JsonPropertyName("utmCampaign")] public string? UtmCampaign { get; set; }
 }
 
 public class UpdateClientRequest
@@ -68,6 +78,11 @@ public class UpdateClientRequest
     [JsonPropertyName("taxId")] public string? TaxId { get; set; }
     [JsonPropertyName("paymentTerms")] public int? PaymentTerms { get; set; }
     [JsonPropertyName("status")] public string? Status { get; set; }
+    [JsonPropertyName("industry")] public string? Industry { get; set; }
+    [JsonPropertyName("businessType")] public string? BusinessType { get; set; }
+    [JsonPropertyName("utmSource")] public string? UtmSource { get; set; }
+    [JsonPropertyName("utmMedium")] public string? UtmMedium { get; set; }
+    [JsonPropertyName("utmCampaign")] public string? UtmCampaign { get; set; }
 }
 
 #endregion
@@ -144,9 +159,11 @@ public class ClientsService
         var row = await conn.QuerySingleAsync<ClientEntity>(
             """
             INSERT INTO clients (name, company_name, email, phone, address, city, state, postal_code,
-                country, website, notes, tags, default_currency, tax_id, payment_terms, created_by)
+                country, website, notes, tags, default_currency, tax_id, payment_terms,
+                industry, business_type, utm_source, utm_medium, utm_campaign, created_by)
             VALUES (@Name, @CompanyName, @Email, @Phone, @Address, @City, @State, @PostalCode,
-                @Country, @Website, @Notes, @Tags, @DefaultCurrency, @TaxId, @PaymentTerms, @CreatedBy)
+                @Country, @Website, @Notes, @Tags, @DefaultCurrency, @TaxId, @PaymentTerms,
+                @Industry, @BusinessType, @UtmSource, @UtmMedium, @UtmCampaign, @CreatedBy)
             RETURNING *
             """,
             new
@@ -166,6 +183,11 @@ public class ClientsService
                 DefaultCurrency = request.DefaultCurrency ?? "USD",
                 request.TaxId,
                 PaymentTerms = request.PaymentTerms ?? 30,
+                request.Industry,
+                BusinessType = request.BusinessType,
+                UtmSource = request.UtmSource,
+                UtmMedium = request.UtmMedium,
+                UtmCampaign = request.UtmCampaign,
                 CreatedBy = userId,
             });
 
@@ -197,6 +219,11 @@ public class ClientsService
         if (request.TaxId != null) { fields.Add("tax_id = @TaxId"); parameters.Add("TaxId", request.TaxId); }
         if (request.PaymentTerms.HasValue) { fields.Add("payment_terms = @PaymentTerms"); parameters.Add("PaymentTerms", request.PaymentTerms.Value); }
         if (request.Status != null) { fields.Add("status = @Status"); parameters.Add("Status", request.Status); }
+        if (request.Industry != null) { fields.Add("industry = @Industry"); parameters.Add("Industry", request.Industry); }
+        if (request.BusinessType != null) { fields.Add("business_type = @BusinessType"); parameters.Add("BusinessType", request.BusinessType); }
+        if (request.UtmSource != null) { fields.Add("utm_source = @UtmSource"); parameters.Add("UtmSource", request.UtmSource); }
+        if (request.UtmMedium != null) { fields.Add("utm_medium = @UtmMedium"); parameters.Add("UtmMedium", request.UtmMedium); }
+        if (request.UtmCampaign != null) { fields.Add("utm_campaign = @UtmCampaign"); parameters.Add("UtmCampaign", request.UtmCampaign); }
 
         if (fields.Count == 0)
             return await GetByIdAsync(id);
@@ -235,6 +262,11 @@ public class ClientsService
         TaxId = e.TaxId,
         PaymentTerms = e.PaymentTerms,
         Status = e.Status,
+        Industry = e.Industry,
+        BusinessType = e.BusinessType,
+        UtmSource = e.UtmSource,
+        UtmMedium = e.UtmMedium,
+        UtmCampaign = e.UtmCampaign,
         CreatedBy = e.CreatedBy?.ToString(),
         CreatedAt = e.CreatedAt,
         UpdatedAt = e.UpdatedAt,
@@ -259,6 +291,11 @@ public class ClientsService
         public string? TaxId { get; set; }
         public int PaymentTerms { get; set; } = 30;
         public string Status { get; set; } = "active";
+        public string? Industry { get; set; }
+        public string? BusinessType { get; set; }
+        public string? UtmSource { get; set; }
+        public string? UtmMedium { get; set; }
+        public string? UtmCampaign { get; set; }
         public Guid? CreatedBy { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime UpdatedAt { get; set; }

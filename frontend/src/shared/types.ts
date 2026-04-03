@@ -161,6 +161,7 @@ export interface Income {
   isRecurring: boolean;
   recurringPattern: RecurringPattern | null;
   clientName: string | null;
+  clientId: string | null;
   invoiceNumber: string | null;
   invoiceType: InvoiceType | null;
   invoiceStatus: InvoiceStatus | null;
@@ -170,6 +171,15 @@ export interface Income {
   taxInvoiceDate: string | null;
   notes: string | null;
   tags: string[];
+  billableHoursRegular: number | null;
+  billableHours150: number | null;
+  billableHours200: number | null;
+  hourlyRateRegular: number | null;
+  hourlyRate150: number | null;
+  hourlyRate200: number | null;
+  vatApplicable: boolean;
+  vatPercentage: number | null;
+  paymentMethod: string | null;
   allocations: IncomeAllocation[];
   createdBy: string | null;
   createdAt: Date;
@@ -698,7 +708,27 @@ export interface Client {
   taxId: string | null;
   paymentTerms: number;
   status: ClientStatus;
+  industry: string | null;
+  businessType: string | null;
+  utmSource: string | null;
+  utmMedium: string | null;
+  utmCampaign: string | null;
   createdBy: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface ContactPerson {
+  id: string;
+  clientId: string | null;
+  name: string;
+  email: string | null;
+  phone: string | null;
+  role: string | null;
+  linkedinUrl: string | null;
+  country: string | null;
+  isPrimary: boolean;
+  notes: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -753,6 +783,15 @@ export interface Lead {
   pnlCenterId: string | null;
   pnlCenterName: string | null;
   notes: string | null;
+  dealType: string | null;
+  retainerRenewalDate: string | null;
+  followUpDate: string | null;
+  scopeMonths: number | null;
+  minCommitmentMonths: number | null;
+  complimentaryHours: number | null;
+  orderNumber: string | null;
+  clientOrderNumber: string | null;
+  ndaUrl: string | null;
   createdBy: string | null;
   createdAt: Date;
   updatedAt: Date;

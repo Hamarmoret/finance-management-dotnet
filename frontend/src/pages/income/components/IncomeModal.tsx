@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
-import { X, Plus, Trash2, Sparkles } from 'lucide-react';
+import { X, Plus, Trash2, Sparkles, ChevronDown, ChevronUp } from 'lucide-react';
 import { api, getErrorMessage } from '../../../services/api';
 import type { Income, IncomeCategory, PnlCenterWithStats, InvoiceStatus, InvoiceType, RecurringPattern, Attachment, PnlDistributionDefault } from '@finance/shared';
 import { RecurringToggle } from '../../../components/RecurringToggle';
 import { FileUpload } from '../../../components/FileUpload';
+import { ClientAutocomplete } from '../../../components/ClientAutocomplete';
 
 interface IncomeModalProps {
   income: Income | null;
@@ -33,6 +34,19 @@ export function IncomeModal({
   const [categoryId, setCategoryId] = useState(income?.categoryId || '');
   const [currency, setCurrency] = useState(income?.currency || 'ILS');
   const [clientName, setClientName] = useState(income?.clientName || '');
+  const [clientId, setClientId] = useState(income?.clientId || '');
+  const [paymentMethod, setPaymentMethod] = useState(income?.paymentMethod || '');
+  const [vatApplicable, setVatApplicable] = useState(income?.vatApplicable ?? false);
+  const [vatPercentage, setVatPercentage] = useState(income?.vatPercentage?.toString() || '');
+  const [showBillableHours, setShowBillableHours] = useState(
+    !!(income?.billableHoursRegular || income?.billableHours150 || income?.billableHours200)
+  );
+  const [billableHoursRegular, setBillableHoursRegular] = useState(income?.billableHoursRegular?.toString() || '');
+  const [billableHours150, setBillableHours150] = useState(income?.billableHours150?.toString() || '');
+  const [billableHours200, setBillableHours200] = useState(income?.billableHours200?.toString() || '');
+  const [hourlyRateRegular, setHourlyRateRegular] = useState(income?.hourlyRateRegular?.toString() || '');
+  const [hourlyRate150, setHourlyRate150] = useState(income?.hourlyRate150?.toString() || '');
+  const [hourlyRate200, setHourlyRate200] = useState(income?.hourlyRate200?.toString() || '');
   const [invoiceNumber, setInvoiceNumber] = useState(income?.invoiceNumber || '');
   const [invoiceType, setInvoiceType] = useState<InvoiceType | ''>(
     income?.invoiceType || ''
@@ -143,6 +157,7 @@ export function IncomeModal({
         incomeDate,
         categoryId: categoryId || null,
         clientName: clientName.trim() || null,
+        clientId: clientId || null,
         invoiceNumber: invoiceNumber.trim() || null,
         invoiceType: invoiceType || null,
         invoiceStatus: invoiceStatus || null,
@@ -153,6 +168,15 @@ export function IncomeModal({
         notes: notes.trim() || null,
         isRecurring,
         recurringPattern: isRecurring ? recurringPattern : null,
+        paymentMethod: paymentMethod || null,
+        vatApplicable,
+        vatPercentage: vatApplicable && vatPercentage ? parseFloat(vatPercentage) : null,
+        billableHoursRegular: billableHoursRegular ? parseFloat(billableHoursRegular) : null,
+        billableHours150: billableHours150 ? parseFloat(billableHours150) : null,
+        billableHours200: billableHours200 ? parseFloat(billableHours200) : null,
+        hourlyRateRegular: hourlyRateRegular ? parseFloat(hourlyRateRegular) : null,
+        hourlyRate150: hourlyRate150 ? parseFloat(hourlyRate150) : null,
+        hourlyRate200: hourlyRate200 ? parseFloat(hourlyRate200) : null,
         allocations: validAllocations,
       };
 
@@ -264,16 +288,103 @@ export function IncomeModal({
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Client Name</label>
-              <input
-                type="text"
-                value={clientName}
-                onChange={(e) => setClientName(e.target.value)}
-                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Client</label>
+              <ClientAutocomplete
+                clientId={clientId}
+                clientName={clientName}
+                onSelect={(id, name) => { setClientId(id); setClientName(name); }}
                 placeholder="Client name"
-                maxLength={255}
               />
             </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Payment Method</label>
+              <select
+                value={paymentMethod}
+                onChange={(e) => setPaymentMethod(e.target.value)}
+                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+              >
+                <option value="">— Select —</option>
+                <option value="bank_transfer">Bank Transfer</option>
+                <option value="credit_card">Credit Card</option>
+                <option value="check">Check</option>
+                <option value="cash">Cash</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+
+            <div className="md:col-span-2 flex items-center gap-3">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={vatApplicable}
+                  onChange={(e) => setVatApplicable(e.target.checked)}
+                  className="w-4 h-4 accent-primary-600"
+                />
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">VAT Applicable</span>
+              </label>
+              {vatApplicable && (
+                <div className="flex items-center gap-1.5">
+                  <input
+                    type="number"
+                    value={vatPercentage}
+                    onChange={(e) => setVatPercentage(e.target.value)}
+                    className="w-20 px-2 py-1.5 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm"
+                    min="0"
+                    max="100"
+                    step="0.1"
+                    placeholder="17"
+                  />
+                  <span className="text-sm text-gray-500">%</span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Billable Hours */}
+          <div className="border-t dark:border-gray-700 pt-4">
+            <button
+              type="button"
+              onClick={() => setShowBillableHours(!showBillableHours)}
+              className="flex items-center gap-1 text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200"
+            >
+              {showBillableHours ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+              Billable Hours
+            </button>
+            {showBillableHours && (
+              <div className="mt-3 grid grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Regular Hours</label>
+                  <input type="number" min="0" step="0.5" value={billableHoursRegular} onChange={(e) => setBillableHoursRegular(e.target.value)}
+                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm" placeholder="0" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Hours ×1.5</label>
+                  <input type="number" min="0" step="0.5" value={billableHours150} onChange={(e) => setBillableHours150(e.target.value)}
+                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm" placeholder="0" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Hours ×2</label>
+                  <input type="number" min="0" step="0.5" value={billableHours200} onChange={(e) => setBillableHours200(e.target.value)}
+                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm" placeholder="0" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Rate (regular)</label>
+                  <input type="number" min="0" step="0.01" value={hourlyRateRegular} onChange={(e) => setHourlyRateRegular(e.target.value)}
+                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm" placeholder="0.00" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Rate ×1.5</label>
+                  <input type="number" min="0" step="0.01" value={hourlyRate150} onChange={(e) => setHourlyRate150(e.target.value)}
+                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm" placeholder="0.00" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Rate ×2</label>
+                  <input type="number" min="0" step="0.01" value={hourlyRate200} onChange={(e) => setHourlyRate200(e.target.value)}
+                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm" placeholder="0.00" />
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Invoice Details */}

@@ -78,6 +78,9 @@ public class IncomeDto
     [JsonPropertyName("clientName")]
     public string? ClientName { get; set; }
 
+    [JsonPropertyName("clientId")]
+    public Guid? ClientId { get; set; }
+
     [JsonPropertyName("invoiceNumber")]
     public string? InvoiceNumber { get; set; }
 
@@ -104,6 +107,33 @@ public class IncomeDto
 
     [JsonPropertyName("tags")]
     public string[] Tags { get; set; } = [];
+
+    [JsonPropertyName("billableHoursRegular")]
+    public decimal? BillableHoursRegular { get; set; }
+
+    [JsonPropertyName("billableHours150")]
+    public decimal? BillableHours150 { get; set; }
+
+    [JsonPropertyName("billableHours200")]
+    public decimal? BillableHours200 { get; set; }
+
+    [JsonPropertyName("hourlyRateRegular")]
+    public decimal? HourlyRateRegular { get; set; }
+
+    [JsonPropertyName("hourlyRate150")]
+    public decimal? HourlyRate150 { get; set; }
+
+    [JsonPropertyName("hourlyRate200")]
+    public decimal? HourlyRate200 { get; set; }
+
+    [JsonPropertyName("vatApplicable")]
+    public bool VatApplicable { get; set; }
+
+    [JsonPropertyName("vatPercentage")]
+    public decimal? VatPercentage { get; set; }
+
+    [JsonPropertyName("paymentMethod")]
+    public string? PaymentMethod { get; set; }
 
     [JsonPropertyName("allocations")]
     public List<IncomeAllocationDto> Allocations { get; set; } = [];
@@ -144,6 +174,9 @@ public class CreateIncomeRequest
     [JsonPropertyName("clientName")]
     public string? ClientName { get; set; }
 
+    [JsonPropertyName("clientId")]
+    public Guid? ClientId { get; set; }
+
     [JsonPropertyName("invoiceNumber")]
     public string? InvoiceNumber { get; set; }
 
@@ -170,6 +203,33 @@ public class CreateIncomeRequest
 
     [JsonPropertyName("tags")]
     public string[]? Tags { get; set; }
+
+    [JsonPropertyName("billableHoursRegular")]
+    public decimal? BillableHoursRegular { get; set; }
+
+    [JsonPropertyName("billableHours150")]
+    public decimal? BillableHours150 { get; set; }
+
+    [JsonPropertyName("billableHours200")]
+    public decimal? BillableHours200 { get; set; }
+
+    [JsonPropertyName("hourlyRateRegular")]
+    public decimal? HourlyRateRegular { get; set; }
+
+    [JsonPropertyName("hourlyRate150")]
+    public decimal? HourlyRate150 { get; set; }
+
+    [JsonPropertyName("hourlyRate200")]
+    public decimal? HourlyRate200 { get; set; }
+
+    [JsonPropertyName("vatApplicable")]
+    public bool? VatApplicable { get; set; }
+
+    [JsonPropertyName("vatPercentage")]
+    public decimal? VatPercentage { get; set; }
+
+    [JsonPropertyName("paymentMethod")]
+    public string? PaymentMethod { get; set; }
 
     [JsonPropertyName("allocations")]
     public List<AllocationInput> Allocations { get; set; } = [];
@@ -201,6 +261,9 @@ public class UpdateIncomeRequest
     [JsonPropertyName("clientName")]
     public string? ClientName { get; set; }
 
+    [JsonPropertyName("clientId")]
+    public Guid? ClientId { get; set; }
+
     [JsonPropertyName("invoiceNumber")]
     public string? InvoiceNumber { get; set; }
 
@@ -227,6 +290,33 @@ public class UpdateIncomeRequest
 
     [JsonPropertyName("tags")]
     public string[]? Tags { get; set; }
+
+    [JsonPropertyName("billableHoursRegular")]
+    public decimal? BillableHoursRegular { get; set; }
+
+    [JsonPropertyName("billableHours150")]
+    public decimal? BillableHours150 { get; set; }
+
+    [JsonPropertyName("billableHours200")]
+    public decimal? BillableHours200 { get; set; }
+
+    [JsonPropertyName("hourlyRateRegular")]
+    public decimal? HourlyRateRegular { get; set; }
+
+    [JsonPropertyName("hourlyRate150")]
+    public decimal? HourlyRate150 { get; set; }
+
+    [JsonPropertyName("hourlyRate200")]
+    public decimal? HourlyRate200 { get; set; }
+
+    [JsonPropertyName("vatApplicable")]
+    public bool? VatApplicable { get; set; }
+
+    [JsonPropertyName("vatPercentage")]
+    public decimal? VatPercentage { get; set; }
+
+    [JsonPropertyName("paymentMethod")]
+    public string? PaymentMethod { get; set; }
 
     [JsonPropertyName("allocations")]
     public List<AllocationInput>? Allocations { get; set; }
@@ -295,6 +385,7 @@ internal class DbIncomeRow
     public bool is_recurring { get; set; }
     public string? recurring_pattern { get; set; }
     public string? client_name { get; set; }
+    public Guid? client_id { get; set; }
     public string? invoice_number { get; set; }
     public string? invoice_type { get; set; }
     public string? invoice_status { get; set; }
@@ -304,6 +395,15 @@ internal class DbIncomeRow
     public DateTime? tax_invoice_date { get; set; }
     public string? notes { get; set; }
     public string[]? tags { get; set; }
+    public decimal? billable_hours_regular { get; set; }
+    public decimal? billable_hours_150 { get; set; }
+    public decimal? billable_hours_200 { get; set; }
+    public decimal? hourly_rate_regular { get; set; }
+    public decimal? hourly_rate_150 { get; set; }
+    public decimal? hourly_rate_200 { get; set; }
+    public bool vat_applicable { get; set; }
+    public decimal? vat_percentage { get; set; }
+    public string? payment_method { get; set; }
     public Guid? created_by { get; set; }
     public DateTime created_at { get; set; }
     public DateTime updated_at { get; set; }
@@ -525,17 +625,21 @@ public class IncomeService
             var insertSql = """
                 INSERT INTO income (
                     description, amount, currency, category_id, income_date,
-                    is_recurring, recurring_pattern, client_name, invoice_number,
+                    is_recurring, recurring_pattern, client_name, client_id, invoice_number,
                     invoice_type, invoice_status, payment_due_date, payment_received_date,
-                    proforma_invoice_date, tax_invoice_date,
-                    notes, tags, created_by
+                    proforma_invoice_date, tax_invoice_date, notes, tags,
+                    billable_hours_regular, billable_hours_150, billable_hours_200,
+                    hourly_rate_regular, hourly_rate_150, hourly_rate_200,
+                    vat_applicable, vat_percentage, payment_method, created_by
                 )
                 VALUES (
                     @Description, @Amount, @Currency, @CategoryId, @IncomeDate::date,
-                    @IsRecurring, @RecurringPattern::jsonb, @ClientName, @InvoiceNumber,
+                    @IsRecurring, @RecurringPattern::jsonb, @ClientName, @ClientId, @InvoiceNumber,
                     @InvoiceType, @InvoiceStatus, @PaymentDueDate::date, @PaymentReceivedDate::date,
-                    @ProformaInvoiceDate::date, @TaxInvoiceDate::date,
-                    @Notes, @Tags, @CreatedBy
+                    @ProformaInvoiceDate::date, @TaxInvoiceDate::date, @Notes, @Tags,
+                    @BillableHoursRegular, @BillableHours150, @BillableHours200,
+                    @HourlyRateRegular, @HourlyRate150, @HourlyRate200,
+                    @VatApplicable, @VatPercentage, @PaymentMethod, @CreatedBy
                 )
                 RETURNING *
                 """;
@@ -550,6 +654,7 @@ public class IncomeService
                 request.IsRecurring,
                 RecurringPattern = recurringPatternJson,
                 request.ClientName,
+                ClientId = request.ClientId,
                 request.InvoiceNumber,
                 request.InvoiceType,
                 request.InvoiceStatus,
@@ -559,6 +664,15 @@ public class IncomeService
                 TaxInvoiceDate = request.TaxInvoiceDate,
                 request.Notes,
                 Tags = request.Tags ?? [],
+                BillableHoursRegular = request.BillableHoursRegular,
+                BillableHours150 = request.BillableHours150,
+                BillableHours200 = request.BillableHours200,
+                HourlyRateRegular = request.HourlyRateRegular,
+                HourlyRate150 = request.HourlyRate150,
+                HourlyRate200 = request.HourlyRate200,
+                VatApplicable = request.VatApplicable ?? false,
+                VatPercentage = request.VatPercentage,
+                PaymentMethod = request.PaymentMethod,
                 CreatedBy = userId,
             }, tx);
 
@@ -714,6 +828,56 @@ public class IncomeService
             {
                 fields.Add("tags = @Tags");
                 parameters.Add("Tags", request.Tags);
+            }
+            if (request.ClientId.HasValue)
+            {
+                fields.Add("client_id = @ClientId");
+                parameters.Add("ClientId", request.ClientId.Value);
+            }
+            if (request.BillableHoursRegular.HasValue)
+            {
+                fields.Add("billable_hours_regular = @BillableHoursRegular");
+                parameters.Add("BillableHoursRegular", request.BillableHoursRegular.Value);
+            }
+            if (request.BillableHours150.HasValue)
+            {
+                fields.Add("billable_hours_150 = @BillableHours150");
+                parameters.Add("BillableHours150", request.BillableHours150.Value);
+            }
+            if (request.BillableHours200.HasValue)
+            {
+                fields.Add("billable_hours_200 = @BillableHours200");
+                parameters.Add("BillableHours200", request.BillableHours200.Value);
+            }
+            if (request.HourlyRateRegular.HasValue)
+            {
+                fields.Add("hourly_rate_regular = @HourlyRateRegular");
+                parameters.Add("HourlyRateRegular", request.HourlyRateRegular.Value);
+            }
+            if (request.HourlyRate150.HasValue)
+            {
+                fields.Add("hourly_rate_150 = @HourlyRate150");
+                parameters.Add("HourlyRate150", request.HourlyRate150.Value);
+            }
+            if (request.HourlyRate200.HasValue)
+            {
+                fields.Add("hourly_rate_200 = @HourlyRate200");
+                parameters.Add("HourlyRate200", request.HourlyRate200.Value);
+            }
+            if (request.VatApplicable.HasValue)
+            {
+                fields.Add("vat_applicable = @VatApplicable");
+                parameters.Add("VatApplicable", request.VatApplicable.Value);
+            }
+            if (request.VatPercentage.HasValue)
+            {
+                fields.Add("vat_percentage = @VatPercentage");
+                parameters.Add("VatPercentage", request.VatPercentage.Value);
+            }
+            if (request.PaymentMethod != null)
+            {
+                fields.Add("payment_method = @PaymentMethod");
+                parameters.Add("PaymentMethod", request.PaymentMethod);
             }
 
             if (fields.Count > 0)
@@ -907,6 +1071,7 @@ public class IncomeService
                 ? JsonSerializer.Deserialize<object>(row.recurring_pattern)
                 : null,
             ClientName = row.client_name,
+            ClientId = row.client_id,
             InvoiceNumber = row.invoice_number,
             InvoiceType = row.invoice_type,
             InvoiceStatus = row.invoice_status,
@@ -916,6 +1081,15 @@ public class IncomeService
             TaxInvoiceDate = row.tax_invoice_date?.ToString("yyyy-MM-dd"),
             Notes = row.notes,
             Tags = row.tags ?? [],
+            BillableHoursRegular = row.billable_hours_regular,
+            BillableHours150 = row.billable_hours_150,
+            BillableHours200 = row.billable_hours_200,
+            HourlyRateRegular = row.hourly_rate_regular,
+            HourlyRate150 = row.hourly_rate_150,
+            HourlyRate200 = row.hourly_rate_200,
+            VatApplicable = row.vat_applicable,
+            VatPercentage = row.vat_percentage,
+            PaymentMethod = row.payment_method,
             Allocations = allocations,
             CreatedBy = row.created_by,
             CreatedAt = row.created_at,

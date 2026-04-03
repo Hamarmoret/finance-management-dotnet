@@ -9,7 +9,7 @@ interface LeadModalProps {
   onSaved: () => void;
 }
 
-type ModalTab = 'details' | 'activities';
+type ModalTab = 'details' | 'activities' | 'deal_terms';
 
 const STATUSES = ['new', 'contacted', 'qualified', 'proposal_sent', 'negotiation', 'won', 'lost', 'on_hold'] as const;
 const ACTIVITY_TYPES = ['note', 'call', 'email', 'meeting', 'task'] as const;
@@ -34,6 +34,17 @@ export function LeadModal({ lead, onClose, onSaved }: LeadModalProps) {
   const [expectedCloseDate, setExpectedCloseDate] = useState(lead?.expectedCloseDate ?? '');
   const [notes, setNotes] = useState(lead?.notes ?? '');
   const [pnlCenterId, setPnlCenterId] = useState(lead?.pnlCenterId ?? '');
+
+  // Deal Terms fields
+  const [dealType, setDealType] = useState(lead?.dealType ?? '');
+  const [retainerRenewalDate, setRetainerRenewalDate] = useState(lead?.retainerRenewalDate ?? '');
+  const [followUpDate, setFollowUpDate] = useState(lead?.followUpDate ?? '');
+  const [scopeMonths, setScopeMonths] = useState(lead?.scopeMonths?.toString() ?? '');
+  const [minCommitmentMonths, setMinCommitmentMonths] = useState(lead?.minCommitmentMonths?.toString() ?? '');
+  const [complimentaryHours, setComplimentaryHours] = useState(lead?.complimentaryHours?.toString() ?? '');
+  const [orderNumber, setOrderNumber] = useState(lead?.orderNumber ?? '');
+  const [clientOrderNumber, setClientOrderNumber] = useState(lead?.clientOrderNumber ?? '');
+  const [ndaUrl, setNdaUrl] = useState(lead?.ndaUrl ?? '');
 
   // Activity fields
   const [activities, setActivities] = useState<LeadActivity[]>([]);
@@ -101,6 +112,15 @@ export function LeadModal({ lead, onClose, onSaved }: LeadModalProps) {
         expectedCloseDate: expectedCloseDate || null,
         notes: notes.trim() || null,
         pnlCenterId: pnlCenterId || null,
+        dealType: dealType || null,
+        retainerRenewalDate: retainerRenewalDate || null,
+        followUpDate: followUpDate || null,
+        scopeMonths: scopeMonths ? parseInt(scopeMonths) : null,
+        minCommitmentMonths: minCommitmentMonths ? parseInt(minCommitmentMonths) : null,
+        complimentaryHours: complimentaryHours ? parseFloat(complimentaryHours) : null,
+        orderNumber: orderNumber.trim() || null,
+        clientOrderNumber: clientOrderNumber.trim() || null,
+        ndaUrl: ndaUrl.trim() || null,
       };
       if (isEditing) {
         await api.put(`/leads/${lead.id}`, body);
@@ -165,19 +185,23 @@ export function LeadModal({ lead, onClose, onSaved }: LeadModalProps) {
         {/* Tabs */}
         <div className="border-b border-gray-200 dark:border-gray-700 shrink-0 px-4">
           <nav className="-mb-px flex space-x-6">
-            {(['details', 'activities'] as ModalTab[]).map((tab) => (
+            {([
+              { key: 'details', label: 'Details' },
+              { key: 'deal_terms', label: 'Deal Terms' },
+              { key: 'activities', label: 'Activities' },
+            ] as { key: ModalTab; label: string }[]).map((tab) => (
               <button
-                key={tab}
+                key={tab.key}
                 type="button"
-                onClick={() => setActiveTab(tab)}
-                disabled={tab === 'activities' && !isEditing}
-                className={`py-3 text-sm font-medium border-b-2 transition-colors capitalize ${
-                  activeTab === tab
+                onClick={() => setActiveTab(tab.key)}
+                disabled={tab.key === 'activities' && !isEditing}
+                className={`py-3 text-sm font-medium border-b-2 transition-colors ${
+                  activeTab === tab.key
                     ? 'border-primary-500 text-primary-600'
                     : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 disabled:opacity-40 disabled:cursor-not-allowed'
                 }`}
               >
-                {tab}
+                {tab.label}
               </button>
             ))}
           </nav>
@@ -295,6 +319,56 @@ export function LeadModal({ lead, onClose, onSaved }: LeadModalProps) {
             </form>
           )}
 
+          {/* Deal Terms tab */}
+          {activeTab === 'deal_terms' && (
+            <form id="lead-form-deal" onSubmit={handleSubmit} className="p-6 space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="label">Deal Type</label>
+                  <select className="input mt-1" value={dealType} onChange={(e) => setDealType(e.target.value)}>
+                    <option value="">— Select —</option>
+                    <option value="retainer">Retainer</option>
+                    <option value="project">Project</option>
+                    <option value="one_time">One-time</option>
+                    <option value="other">Other</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="label">Order Number</label>
+                  <input className="input mt-1" value={orderNumber} onChange={(e) => setOrderNumber(e.target.value)} placeholder="Internal order #" />
+                </div>
+                <div>
+                  <label className="label">Client Order Number</label>
+                  <input className="input mt-1" value={clientOrderNumber} onChange={(e) => setClientOrderNumber(e.target.value)} placeholder="Client PO #" />
+                </div>
+                <div>
+                  <label className="label">Retainer Renewal Date</label>
+                  <input className="input mt-1" type="date" value={retainerRenewalDate} onChange={(e) => setRetainerRenewalDate(e.target.value)} />
+                </div>
+                <div>
+                  <label className="label">Follow-up Date</label>
+                  <input className="input mt-1" type="date" value={followUpDate} onChange={(e) => setFollowUpDate(e.target.value)} />
+                </div>
+                <div>
+                  <label className="label">Scope (months)</label>
+                  <input className="input mt-1" type="number" min="0" value={scopeMonths} onChange={(e) => setScopeMonths(e.target.value)} placeholder="e.g. 12" />
+                </div>
+                <div>
+                  <label className="label">Min Commitment (months)</label>
+                  <input className="input mt-1" type="number" min="0" value={minCommitmentMonths} onChange={(e) => setMinCommitmentMonths(e.target.value)} placeholder="e.g. 3" />
+                </div>
+                <div>
+                  <label className="label">Complimentary Hours</label>
+                  <input className="input mt-1" type="number" min="0" step="0.5" value={complimentaryHours} onChange={(e) => setComplimentaryHours(e.target.value)} placeholder="e.g. 5" />
+                </div>
+                <div className="col-span-2">
+                  <label className="label">NDA URL</label>
+                  <input className="input mt-1 w-full" value={ndaUrl} onChange={(e) => setNdaUrl(e.target.value)} placeholder="https://…" />
+                </div>
+              </div>
+            </form>
+          )}
+
           {/* Activities tab */}
           {activeTab === 'activities' && (
             <div className="p-6 space-y-4">
@@ -370,11 +444,16 @@ export function LeadModal({ lead, onClose, onSaved }: LeadModalProps) {
           )}
         </div>
 
-        {/* Footer — only for details tab */}
-        {activeTab === 'details' && (
+        {/* Footer — for details and deal_terms tabs */}
+        {(activeTab === 'details' || activeTab === 'deal_terms') && (
           <div className="flex justify-end gap-3 p-4 border-t border-gray-200 dark:border-gray-700 shrink-0">
             <button type="button" onClick={onClose} className="btn btn-secondary btn-md">Cancel</button>
-            <button type="submit" form="lead-form" disabled={loading} className="btn btn-primary btn-md">
+            <button
+              type="submit"
+              form={activeTab === 'deal_terms' ? 'lead-form-deal' : 'lead-form'}
+              disabled={loading}
+              className="btn btn-primary btn-md"
+            >
               {loading ? 'Saving…' : isEditing ? 'Save Changes' : 'Create Lead'}
             </button>
           </div>
