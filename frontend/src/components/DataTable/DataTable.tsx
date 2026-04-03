@@ -133,13 +133,13 @@ export function DataTable<TData>({
   const visibleColumns = table.getVisibleLeafColumns();
 
   return (
-    <div className="bg-white rounded-xl border overflow-hidden">
+    <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
       {/* Column Visibility Menu */}
-      <div className="flex justify-end p-2 border-b">
+      <div className="flex justify-end p-2 border-b border-gray-200 dark:border-gray-700">
         <div className="relative">
           <button
             onClick={() => setShowColumnMenu(!showColumnMenu)}
-            className="flex items-center gap-2 px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+            className="flex items-center gap-2 px-3 py-1.5 text-sm text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
           >
             <Settings2 className="w-4 h-4" />
             Columns ({visibleColumns.length}/{allColumns.length})
@@ -151,8 +151,8 @@ export function DataTable<TData>({
                 className="fixed inset-0 z-40"
                 onClick={() => setShowColumnMenu(false)}
               />
-              <div className="absolute right-0 mt-1 w-64 bg-white rounded-lg shadow-lg border z-50 py-2 max-h-96 overflow-y-auto">
-                <div className="px-3 py-2 text-xs font-medium text-gray-500 uppercase tracking-wider border-b mb-1">
+              <div className="absolute right-0 mt-1 w-64 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-50 py-2 max-h-96 overflow-y-auto">
+                <div className="px-3 py-2 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider border-b border-gray-200 dark:border-gray-700 mb-1">
                   Show/Hide Columns
                 </div>
                 {allColumns
@@ -160,7 +160,7 @@ export function DataTable<TData>({
                   .map((column) => (
                     <label
                       key={column.id}
-                      className="flex items-center gap-3 px-3 py-2 hover:bg-gray-50 cursor-pointer"
+                      className="flex items-center gap-3 px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer"
                     >
                       <GripVertical className="w-4 h-4 text-gray-400" />
                       <input
@@ -169,7 +169,7 @@ export function DataTable<TData>({
                         onChange={column.getToggleVisibilityHandler()}
                         className="h-4 w-4 text-primary-600 rounded border-gray-300 focus:ring-primary-500"
                       />
-                      <span className="text-sm text-gray-700 capitalize">
+                      <span className="text-sm text-gray-700 dark:text-gray-300 capitalize">
                         {typeof column.columnDef.header === 'string'
                           ? column.columnDef.header
                           : column.id.replace(/([A-Z])/g, ' $1').trim()}
@@ -196,7 +196,7 @@ export function DataTable<TData>({
       {/* Table */}
       <div className="overflow-x-auto">
         <table className="w-full">
-          <thead className="bg-gray-50 border-b">
+          <thead className="bg-gray-50 dark:bg-gray-700/50 border-b border-gray-200 dark:border-gray-700">
             {table.getHeaderGroups().map((headerGroup) => (
               <tr key={headerGroup.id}>
                 {headerGroup.headers.map((header) => {
@@ -206,8 +206,8 @@ export function DataTable<TData>({
                   return (
                     <th
                       key={header.id}
-                      className={`px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider ${
-                        canSort ? 'cursor-pointer select-none hover:bg-gray-100' : ''
+                      className={`px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider ${
+                        canSort ? 'cursor-pointer select-none hover:bg-gray-100 dark:hover:bg-gray-700' : ''
                       }`}
                       onClick={canSort ? header.column.getToggleSortingHandler() : undefined}
                       style={{ width: header.getSize() }}
@@ -237,7 +237,7 @@ export function DataTable<TData>({
               </tr>
             ))}
           </thead>
-          <tbody className="divide-y divide-gray-200">
+          <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
             {loading ? (
               <tr>
                 <td
@@ -251,7 +251,7 @@ export function DataTable<TData>({
               <tr>
                 <td
                   colSpan={visibleColumns.length}
-                  className="px-4 py-12 text-center text-gray-500"
+                  className="px-4 py-12 text-center text-gray-500 dark:text-gray-400"
                 >
                   {emptyMessage}
                 </td>
@@ -260,7 +260,7 @@ export function DataTable<TData>({
               table.getRowModel().rows.map((row) => (
                 <tr
                   key={row.id}
-                  className={`hover:bg-gray-50 ${
+                  className={`hover:bg-gray-50 dark:hover:bg-gray-700/50 ${
                     onRowClick ? 'cursor-pointer' : ''
                   }`}
                   onClick={() => onRowClick?.(row.original)}
