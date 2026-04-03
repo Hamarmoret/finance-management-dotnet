@@ -4,6 +4,7 @@ import { useAuthStore } from './stores/authStore';
 // Layouts
 import AuthLayout from './components/layouts/AuthLayout';
 import DashboardLayout from './components/layouts/DashboardLayout';
+import { ErrorBoundary } from './components/ErrorBoundary';
 
 // Auth pages
 import Login from './pages/auth/Login';
@@ -122,7 +123,7 @@ export default function App() {
         <Route path="income" element={<Income />} />
         <Route path="pnl" element={<PnlCenters />} />
         <Route path="analytics" element={<Analytics />} />
-        <Route path="business-plan" element={<BusinessPlan />} />
+        <Route path="business-plan" element={<ErrorBoundary fallbackLabel="Business Plan failed to render"><BusinessPlan /></ErrorBoundary>} />
         <Route path="settings" element={<Settings />} />
       </Route>
 
