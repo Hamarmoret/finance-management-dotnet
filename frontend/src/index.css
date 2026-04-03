@@ -11,6 +11,26 @@
     @apply bg-gray-50 text-gray-900 dark:bg-gray-900 dark:text-gray-100;
     font-feature-settings: "rlig" 1, "calt" 1;
   }
+
+  /* Auto dark mode for all native form elements that don't have explicit bg- classes */
+  .dark input:not([type="checkbox"]):not([type="radio"]),
+  .dark select,
+  .dark textarea {
+    background-color: rgb(31 41 55);
+    color: rgb(243 244 246);
+    border-color: rgb(75 85 99);
+    color-scheme: dark;
+  }
+
+  .dark input::placeholder,
+  .dark textarea::placeholder {
+    color: rgb(107 114 128);
+  }
+
+  .dark option {
+    background-color: rgb(31 41 55);
+    color: rgb(243 244 246);
+  }
 }
 
 @layer components {
@@ -77,6 +97,26 @@
 
   .card-footer {
     @apply px-6 py-4 border-t border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-700/30;
+  }
+
+  /* Reusable panel: white/dark container for stats bars, filter sections */
+  .panel {
+    @apply bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700;
+  }
+
+  /* Modal dialog box */
+  .modal-box {
+    @apply bg-white dark:bg-gray-800 rounded-xl shadow-xl;
+  }
+
+  /* Sticky modal header */
+  .modal-header {
+    @apply flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700;
+  }
+
+  /* Dropdown menus */
+  .dropdown-menu {
+    @apply bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700;
   }
 }
 

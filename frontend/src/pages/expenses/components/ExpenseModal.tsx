@@ -157,14 +157,14 @@ export function ExpenseModal({
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-xl">
-        <div className="sticky top-0 bg-white flex items-center justify-between p-4 border-b z-10">
-          <h2 className="text-lg font-semibold text-gray-900">
+      <div className="modal-box w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+        <div className="modal-header sticky top-0 z-10 bg-white dark:bg-gray-800">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
             {isEditing ? 'Edit Expense' : 'New Expense'}
           </h2>
           <button
             onClick={onClose}
-            className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+            className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
@@ -180,7 +180,7 @@ export function ExpenseModal({
           {/* Basic Info */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Description <span className="text-red-500">*</span>
               </label>
               <input
@@ -194,14 +194,14 @@ export function ExpenseModal({
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Amount <span className="text-red-500">*</span>
               </label>
               <div className="flex gap-2">
                 <select
                   value={currency}
                   onChange={(e) => setCurrency(e.target.value)}
-                  className="w-24 px-2 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-gray-50 text-sm"
+                  className="w-24 px-2 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-gray-50 dark:bg-gray-700 text-sm"
                 >
                   <option value="ILS">₪ ILS</option>
                   <option value="USD">$ USD</option>
@@ -221,7 +221,7 @@ export function ExpenseModal({
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Date <span className="text-red-500">*</span>
               </label>
               <input
@@ -233,7 +233,7 @@ export function ExpenseModal({
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Category</label>
               <select
                 value={categoryId}
                 onChange={(e) => setCategoryId(e.target.value)}
@@ -249,7 +249,7 @@ export function ExpenseModal({
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Payee / Vendor</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Payee / Vendor</label>
               <input
                 type="text"
                 value={vendor}
@@ -258,14 +258,14 @@ export function ExpenseModal({
                 placeholder="e.g., AWS, John Smith (Salary), Office Rent"
                 maxLength={255}
               />
-              <p className="mt-1 text-xs text-gray-500">Company, employee, landlord, etc.</p>
+              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Company, employee, landlord, etc.</p>
             </div>
           </div>
 
           {/* P&L Allocations */}
           <div>
             <div className="flex items-center justify-between mb-2">
-              <label className="block text-sm font-medium text-gray-700">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                 P&L Center Allocations <span className="text-red-500">*</span>
               </label>
               {pnlCenters.length === 0 && (
@@ -310,7 +310,7 @@ export function ExpenseModal({
                       max="100"
                       step="0.01"
                     />
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500">%</span>
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400">%</span>
                   </div>
                   {allocations.length > 1 && (
                     <button
@@ -393,11 +393,11 @@ export function ExpenseModal({
           </div>
 
           {/* Actions */}
-          <div className="flex justify-end gap-3 pt-4 border-t">
+          <div className="flex justify-end gap-3 pt-4 border-t dark:border-gray-700">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+              className="px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
               disabled={loading}
             >
               Cancel

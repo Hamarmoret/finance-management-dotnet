@@ -33,10 +33,10 @@ interface ViewToggleProps {
 
 function ViewToggle({ view, onChange, showPie = true }: ViewToggleProps) {
   return (
-    <div className="flex rounded-lg border border-gray-200 bg-gray-50 p-0.5">
+    <div className="flex rounded-lg border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 p-0.5">
       <button
         onClick={() => onChange('chart')}
-        className={`p-1.5 rounded ${view === 'chart' ? 'bg-white shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+        className={`p-1.5 rounded ${view === 'chart' ? 'bg-white dark:bg-gray-600 shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}
         title="Bar/Line Chart"
       >
         <LineChart className="w-4 h-4" />
@@ -44,7 +44,7 @@ function ViewToggle({ view, onChange, showPie = true }: ViewToggleProps) {
       {showPie && (
         <button
           onClick={() => onChange('pie')}
-          className={`p-1.5 rounded ${view === 'pie' ? 'bg-white shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+          className={`p-1.5 rounded ${view === 'pie' ? 'bg-white dark:bg-gray-600 shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}
           title="Pie Chart"
         >
           <PieChart className="w-4 h-4" />
@@ -52,7 +52,7 @@ function ViewToggle({ view, onChange, showPie = true }: ViewToggleProps) {
       )}
       <button
         onClick={() => onChange('table')}
-        className={`p-1.5 rounded ${view === 'table' ? 'bg-white shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+        className={`p-1.5 rounded ${view === 'table' ? 'bg-white dark:bg-gray-600 shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}
         title="Table View"
       >
         <Table className="w-4 h-4" />
@@ -292,30 +292,30 @@ export default function Analytics() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
             <BarChart3 className="w-6 h-6 text-primary-600" />
             Analytics
           </h1>
-          <p className="text-gray-600">Insights into your financial performance.</p>
+          <p className="text-gray-600 dark:text-gray-400">Insights into your financial performance.</p>
         </div>
         <div className="flex items-center gap-3">
           <DateRangeFilter value={dateRange} onChange={setDateRange} />
           <div className="relative">
             <button
               onClick={() => setShowWidgetManager(!showWidgetManager)}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium border border-gray-300 rounded-lg hover:bg-gray-50 text-gray-700 transition-colors"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 transition-colors"
               title="Manage widgets"
             >
               <Settings2 className="w-4 h-4" />
               <span className="hidden sm:inline">Widgets</span>
             </button>
             {showWidgetManager && (
-              <div className="absolute right-0 top-full mt-2 w-72 bg-white rounded-xl shadow-xl border z-20 p-3">
+              <div className="absolute right-0 top-full mt-2 w-72 dropdown-menu z-20 p-3">
                 <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-sm font-semibold text-gray-900">Manage Widgets</h3>
+                  <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Manage Widgets</h3>
                   <button
                     onClick={() => setShowWidgetManager(false)}
-                    className="p-1 text-gray-400 hover:text-gray-600 rounded"
+                    className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 rounded"
                   >
                     <X className="w-4 h-4" />
                   </button>
@@ -325,9 +325,9 @@ export default function Analytics() {
                     <button
                       key={id}
                       onClick={() => toggleWidget(id)}
-                      className="w-full flex items-center justify-between px-3 py-2 rounded-lg hover:bg-gray-50 transition-colors text-sm"
+                      className="w-full flex items-center justify-between px-3 py-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors text-sm"
                     >
-                      <span className={visibleWidgets.has(id) ? 'text-gray-900' : 'text-gray-400'}>
+                      <span className={visibleWidgets.has(id) ? 'text-gray-900 dark:text-white' : 'text-gray-400 dark:text-gray-500'}>
                         {WIDGET_LABELS[id]}
                       </span>
                       {visibleWidgets.has(id) ? (
@@ -344,7 +344,7 @@ export default function Analytics() {
           <button
             onClick={fetchAnalyticsData}
             disabled={loading}
-            className="flex items-center justify-center p-1.5 border border-gray-300 rounded-lg hover:bg-gray-50 text-gray-700 transition-colors disabled:opacity-50"
+            className="flex items-center justify-center p-1.5 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 transition-colors disabled:opacity-50"
           >
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
           </button>
@@ -363,8 +363,8 @@ export default function Analytics() {
           <div className="card card-body">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-500">Total Income</p>
-                <p className="text-2xl font-bold text-gray-900">
+                <p className="text-sm text-gray-500 dark:text-gray-400">Total Income</p>
+                <p className="text-2xl font-bold text-gray-900 dark:text-white">
                   {formatCurrency(summary.totalIncome)}
                 </p>
               </div>
@@ -382,7 +382,7 @@ export default function Analytics() {
                 <span className={summary.incomeChange >= 0 ? 'text-success-600' : 'text-danger-600'}>
                   {formatPercentage(summary.incomeChange)}
                 </span>
-                <span className="text-gray-500 ml-1">vs previous period</span>
+                <span className="text-gray-500 dark:text-gray-400 ml-1">vs previous period</span>
               </div>
             )}
           </div>
@@ -390,7 +390,7 @@ export default function Analytics() {
           <div className="card card-body">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-500">Total Expenses</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Total Expenses</p>
                 <p className="text-2xl font-bold text-gray-900">
                   {formatCurrency(summary.totalExpenses)}
                 </p>
@@ -409,7 +409,7 @@ export default function Analytics() {
                 <span className={summary.expenseChange <= 0 ? 'text-success-600' : 'text-danger-600'}>
                   {formatPercentage(summary.expenseChange)}
                 </span>
-                <span className="text-gray-500 ml-1">vs previous period</span>
+                <span className="text-gray-500 dark:text-gray-400 ml-1">vs previous period</span>
               </div>
             )}
           </div>
@@ -417,7 +417,7 @@ export default function Analytics() {
           <div className="card card-body">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-500">Net Profit</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Net Profit</p>
                 <p className={`text-2xl font-bold ${summary.netProfit >= 0 ? 'text-success-600' : 'text-danger-600'}`}>
                   {formatCurrency(summary.netProfit)}
                 </p>
@@ -438,7 +438,7 @@ export default function Analytics() {
                 <span className={summary.profitChange >= 0 ? 'text-success-600' : 'text-danger-600'}>
                   {formatPercentage(summary.profitChange)}
                 </span>
-                <span className="text-gray-500 ml-1">vs previous period</span>
+                <span className="text-gray-500 dark:text-gray-400 ml-1">vs previous period</span>
               </div>
             )}
           </div>
@@ -451,7 +451,7 @@ export default function Analytics() {
         {visibleWidgets.has('revenue-trend') && (
         <div className="card">
           <div className="card-header flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-gray-900">Revenue Trend</h2>
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Revenue Trend</h2>
             <ViewToggle view={revenueView} onChange={setRevenueView} showPie={false} />
           </div>
           <div className="card-body">
@@ -460,17 +460,17 @@ export default function Analytics() {
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
-                  <thead className="bg-gray-50">
+                  <thead className="bg-gray-50 dark:bg-gray-700/50">
                     <tr>
-                      <th className="px-4 py-2 text-left font-medium text-gray-500">Month</th>
-                      <th className="px-4 py-2 text-right font-medium text-gray-500">Income</th>
-                      <th className="px-4 py-2 text-right font-medium text-gray-500">Expenses</th>
-                      <th className="px-4 py-2 text-right font-medium text-gray-500">Profit</th>
+                      <th className="px-4 py-2 text-left font-medium text-gray-500 dark:text-gray-400">Month</th>
+                      <th className="px-4 py-2 text-right font-medium text-gray-500 dark:text-gray-400">Income</th>
+                      <th className="px-4 py-2 text-right font-medium text-gray-500 dark:text-gray-400">Expenses</th>
+                      <th className="px-4 py-2 text-right font-medium text-gray-500 dark:text-gray-400">Profit</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y">
+                  <tbody className="divide-y dark:divide-gray-700">
                     {monthlyData.map((row) => (
-                      <tr key={`${row.month}-${row.year}`} className="hover:bg-gray-50">
+                      <tr key={`${row.month}-${row.year}`} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
                         <td className="px-4 py-2">{row.month} {row.year}</td>
                         <td className="px-4 py-2 text-right text-success-600">{formatCurrency(row.income)}</td>
                         <td className="px-4 py-2 text-right text-danger-600">{formatCurrency(row.expenses)}</td>
@@ -490,7 +490,7 @@ export default function Analytics() {
         {visibleWidgets.has('income-vs-expenses') && (
         <div className="card">
           <div className="card-header flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-gray-900">Income vs Expenses</h2>
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Income vs Expenses</h2>
             <ViewToggle view={incomeExpenseView} onChange={setIncomeExpenseView} showPie={false} />
           </div>
           <div className="card-body">
@@ -501,10 +501,10 @@ export default function Analytics() {
                 <table className="w-full text-sm">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="px-4 py-2 text-left font-medium text-gray-500">Month</th>
-                      <th className="px-4 py-2 text-right font-medium text-gray-500">Income</th>
-                      <th className="px-4 py-2 text-right font-medium text-gray-500">Expenses</th>
-                      <th className="px-4 py-2 text-right font-medium text-gray-500">Net</th>
+                      <th className="px-4 py-2 text-left font-medium text-gray-500 dark:text-gray-400">Month</th>
+                      <th className="px-4 py-2 text-right font-medium text-gray-500 dark:text-gray-400">Income</th>
+                      <th className="px-4 py-2 text-right font-medium text-gray-500 dark:text-gray-400">Expenses</th>
+                      <th className="px-4 py-2 text-right font-medium text-gray-500 dark:text-gray-400">Net</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y">
@@ -534,23 +534,23 @@ export default function Analytics() {
         {visibleWidgets.has('expense-breakdown') && (
         <div className="card">
           <div className="card-header flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-gray-900">Expense Breakdown</h2>
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Expense Breakdown</h2>
             <ViewToggle view={expenseBreakdownView} onChange={setExpenseBreakdownView} />
           </div>
           <div className="card-body">
             {expenseBreakdownView === 'table' ? (
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
-                  <thead className="bg-gray-50">
+                  <thead className="bg-gray-50 dark:bg-gray-700/50">
                     <tr>
-                      <th className="px-4 py-2 text-left font-medium text-gray-500">Category</th>
-                      <th className="px-4 py-2 text-right font-medium text-gray-500">Amount</th>
-                      <th className="px-4 py-2 text-right font-medium text-gray-500">% of Total</th>
+                      <th className="px-4 py-2 text-left font-medium text-gray-500 dark:text-gray-400">Category</th>
+                      <th className="px-4 py-2 text-right font-medium text-gray-500 dark:text-gray-400">Amount</th>
+                      <th className="px-4 py-2 text-right font-medium text-gray-500 dark:text-gray-400">% of Total</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y">
+                  <tbody className="divide-y dark:divide-gray-700">
                     {expensesByCategory.map((cat) => (
-                      <tr key={cat.categoryId} className="hover:bg-gray-50">
+                      <tr key={cat.categoryId} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
                         <td className="px-4 py-2 font-medium">{cat.categoryName}</td>
                         <td className="px-4 py-2 text-right">{formatCurrency(cat.amount)}</td>
                         <td className="px-4 py-2 text-right">{cat.percentage.toFixed(1)}%</td>
@@ -569,24 +569,24 @@ export default function Analytics() {
         {visibleWidgets.has('pnl-comparison') && (
         <div className="card">
           <div className="card-header flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-gray-900">P&L Center Comparison</h2>
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">P&L Center Comparison</h2>
             <ViewToggle view={pnlView} onChange={setPnlView} />
           </div>
           <div className="card-body">
             {pnlView === 'table' ? (
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
-                  <thead className="bg-gray-50">
+                  <thead className="bg-gray-50 dark:bg-gray-700/50">
                     <tr>
-                      <th className="px-4 py-2 text-left font-medium text-gray-500">P&L Center</th>
-                      <th className="px-4 py-2 text-right font-medium text-gray-500">Income</th>
-                      <th className="px-4 py-2 text-right font-medium text-gray-500">Expenses</th>
-                      <th className="px-4 py-2 text-right font-medium text-gray-500">Net Profit</th>
+                      <th className="px-4 py-2 text-left font-medium text-gray-500 dark:text-gray-400">P&L Center</th>
+                      <th className="px-4 py-2 text-right font-medium text-gray-500 dark:text-gray-400">Income</th>
+                      <th className="px-4 py-2 text-right font-medium text-gray-500 dark:text-gray-400">Expenses</th>
+                      <th className="px-4 py-2 text-right font-medium text-gray-500 dark:text-gray-400">Net Profit</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y">
+                  <tbody className="divide-y dark:divide-gray-700">
                     {pnlCenters.map((pnl) => (
-                      <tr key={pnl.id} className="hover:bg-gray-50">
+                      <tr key={pnl.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
                         <td className="px-4 py-2 font-medium">{pnl.name}</td>
                         <td className="px-4 py-2 text-right text-success-600">{formatCurrency(pnl.totalIncome)}</td>
                         <td className="px-4 py-2 text-right text-danger-600">{formatCurrency(pnl.totalExpenses)}</td>
@@ -611,30 +611,30 @@ export default function Analytics() {
       {visibleWidgets.has('income-by-category') && incomeByCategory.length > 0 && (
         <div className="card">
           <div className="card-header">
-            <h2 className="text-lg font-semibold text-gray-900">Income by Category</h2>
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Income by Category</h2>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-gray-50">
+              <thead className="bg-gray-50 dark:bg-gray-700/50">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
                     Category
                   </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
                     Amount
                   </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
                     % of Total
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
                     Distribution
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200">
+              <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                 {incomeByCategory.map((cat) => (
-                  <tr key={cat.categoryId} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-900">
+                  <tr key={cat.categoryId} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                    <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-900 dark:text-white">
                       {cat.categoryName}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right">
@@ -644,7 +644,7 @@ export default function Analytics() {
                       {cat.percentage.toFixed(1)}%
                     </td>
                     <td className="px-6 py-4">
-                      <div className="w-full bg-gray-200 rounded-full h-2 max-w-[200px]">
+                      <div className="w-full bg-gray-200 dark:bg-gray-600 rounded-full h-2 max-w-[200px]">
                         <div
                           className="h-2 rounded-full bg-success-500"
                           style={{ width: `${cat.percentage}%` }}

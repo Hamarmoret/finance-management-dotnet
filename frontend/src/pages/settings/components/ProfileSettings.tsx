@@ -98,7 +98,7 @@ export default function ProfileSettings() {
       {/* Profile Information */}
       <div className="card">
         <div className="card-header">
-          <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
             <User className="w-5 h-5" />
             Profile Information
           </h2>
@@ -158,11 +158,11 @@ export default function ProfileSettings() {
 
             <div>
               <label className="label">Email</label>
-              <div className="mt-1 flex items-center gap-2 text-gray-600">
+              <div className="mt-1 flex items-center gap-2 text-gray-600 dark:text-gray-400">
                 <Mail className="w-4 h-4" />
                 {user?.email}
               </div>
-              <p className="text-xs text-gray-500 mt-1">Email cannot be changed</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Email cannot be changed</p>
             </div>
 
             <div>
@@ -174,7 +174,7 @@ export default function ProfileSettings() {
                       ? 'bg-purple-100 text-purple-700'
                       : user?.role === 'manager'
                       ? 'bg-blue-100 text-blue-700'
-                      : 'bg-gray-100 text-gray-700'
+                      : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
                   }`}
                 >
                   {user?.role}
@@ -208,7 +208,7 @@ export default function ProfileSettings() {
       {/* Change Password */}
       <div className="card">
         <div className="card-header flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
             <Key className="w-5 h-5" />
             Password
           </h2>
@@ -260,7 +260,7 @@ export default function ProfileSettings() {
                     {passwordForm.formState.errors.newPassword.message}
                   </p>
                 )}
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                   Min 12 characters with uppercase, lowercase, number, and special character
                 </p>
               </div>
@@ -318,12 +318,12 @@ export default function ProfileSettings() {
       {/* Account Info */}
       <div className="card">
         <div className="card-header">
-          <h2 className="text-lg font-semibold text-gray-900">Account Information</h2>
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Account Information</h2>
         </div>
         <div className="card-body">
           <dl className="grid grid-cols-2 gap-4 text-sm">
             <div>
-              <dt className="text-gray-500">Account Status</dt>
+              <dt className="text-gray-500 dark:text-gray-400">Account Status</dt>
               <dd className="mt-1">
                 <span
                   className={`px-2 py-1 rounded-full text-xs font-medium ${
@@ -337,13 +337,13 @@ export default function ProfileSettings() {
               </dd>
             </div>
             <div>
-              <dt className="text-gray-500">MFA Status</dt>
+              <dt className="text-gray-500 dark:text-gray-400">MFA Status</dt>
               <dd className="mt-1">
                 <span
                   className={`px-2 py-1 rounded-full text-xs font-medium ${
                     user?.mfaEnabled
                       ? 'bg-success-100 text-success-700'
-                      : 'bg-gray-100 text-gray-700'
+                      : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
                   }`}
                 >
                   {user?.mfaEnabled ? 'Enabled' : 'Disabled'}
@@ -351,7 +351,7 @@ export default function ProfileSettings() {
               </dd>
             </div>
             <div>
-              <dt className="text-gray-500">Member Since</dt>
+              <dt className="text-gray-500 dark:text-gray-400">Member Since</dt>
               <dd className="mt-1 font-medium">
                 {user?.createdAt
                   ? formatDate(user.createdAt)
@@ -359,7 +359,7 @@ export default function ProfileSettings() {
               </dd>
             </div>
             <div>
-              <dt className="text-gray-500">Password Last Changed</dt>
+              <dt className="text-gray-500 dark:text-gray-400">Password Last Changed</dt>
               <dd className="mt-1 font-medium">
                 {user?.passwordChangedAt
                   ? formatDate(user.passwordChangedAt)

@@ -51,14 +51,14 @@ export function PnlCenterModal({ center, onClose, onSaved }: PnlCenterModalProps
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-xl w-full max-w-md mx-4 shadow-xl">
-        <div className="flex items-center justify-between p-4 border-b">
-          <h2 className="text-lg font-semibold text-gray-900">
+      <div className="modal-box w-full max-w-md mx-4">
+        <div className="modal-header">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
             {isEditing ? 'Edit P&L Center' : 'New P&L Center'}
           </h2>
           <button
             onClick={onClose}
-            className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+            className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
@@ -72,7 +72,7 @@ export function PnlCenterModal({ center, onClose, onSaved }: PnlCenterModalProps
           )}
 
           <div>
-            <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Name <span className="text-red-500">*</span>
             </label>
             <input
@@ -88,7 +88,7 @@ export function PnlCenterModal({ center, onClose, onSaved }: PnlCenterModalProps
           </div>
 
           <div>
-            <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="description" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Description
             </label>
             <textarea
@@ -106,7 +106,7 @@ export function PnlCenterModal({ center, onClose, onSaved }: PnlCenterModalProps
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+              className="px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
               disabled={loading}
             >
               Cancel

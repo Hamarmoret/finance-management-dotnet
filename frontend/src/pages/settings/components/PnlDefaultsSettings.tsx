@@ -131,11 +131,11 @@ export default function PnlDefaultsSettings() {
     <div className="max-w-4xl space-y-6">
       <div className="card">
         <div className="card-header">
-          <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
             <PieChart className="w-5 h-5" />
             Default P&L Distribution
           </h2>
-          <p className="text-sm text-gray-500 mt-1">
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
             Set default percentages for distributing expenses across P&L centers. When creating
             expenses, you can quickly apply this distribution with one click.
           </p>
@@ -155,7 +155,7 @@ export default function PnlDefaultsSettings() {
           )}
 
           {pnlCenters.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
+            <div className="text-center py-8 text-gray-500 dark:text-gray-400">
               <AlertCircle className="w-12 h-12 mx-auto mb-4 text-gray-300" />
               <p>No P&L centers found.</p>
               <a
@@ -193,7 +193,7 @@ export default function PnlDefaultsSettings() {
                         max="100"
                         step="0.01"
                       />
-                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500">
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400">
                         %
                       </span>
                     </div>
@@ -211,7 +211,7 @@ export default function PnlDefaultsSettings() {
               </div>
 
               {/* Total indicator */}
-              <div className="flex items-center justify-between py-2 border-t">
+              <div className="flex items-center justify-between py-2 border-t dark:border-gray-700">
                 <button
                   type="button"
                   onClick={addAllocation}
@@ -231,11 +231,11 @@ export default function PnlDefaultsSettings() {
               </div>
 
               {/* Actions */}
-              <div className="flex justify-end gap-3 pt-4 border-t">
+              <div className="flex justify-end gap-3 pt-4 border-t dark:border-gray-700">
                 <button
                   type="button"
                   onClick={handleClear}
-                  className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                  className="px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
                   disabled={saving}
                 >
                   Clear defaults

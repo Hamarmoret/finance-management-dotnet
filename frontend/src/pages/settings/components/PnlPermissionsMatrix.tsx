@@ -121,11 +121,11 @@ export default function PnlPermissionsMatrix() {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
           <Shield className="w-5 h-5" />
           P&L Center Permissions
         </h2>
-        <p className="text-sm text-gray-500">
+        <p className="text-sm text-gray-500 dark:text-gray-400">
           Configure which P&L centers each user can access and their permission level.
         </p>
       </div>
@@ -139,8 +139,8 @@ export default function PnlPermissionsMatrix() {
 
       {/* Legend */}
       <div className="flex items-center gap-4 text-sm">
-        <span className="text-gray-500">Legend:</span>
-        <span className="px-2 py-1 rounded bg-gray-50 text-gray-400 border border-gray-200">
+        <span className="text-gray-500 dark:text-gray-400">Legend:</span>
+        <span className="px-2 py-1 rounded bg-gray-50 dark:bg-gray-700 text-gray-400 dark:text-gray-400 border border-gray-200 dark:border-gray-600">
           None
         </span>
         <span className="px-2 py-1 rounded bg-green-100 text-green-700 border border-green-200">
@@ -157,27 +157,27 @@ export default function PnlPermissionsMatrix() {
       {/* Matrix Table */}
       <div className="card overflow-x-auto">
         <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
+          <thead className="bg-gray-50 dark:bg-gray-700/50">
             <tr>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sticky left-0 bg-gray-50 z-10">
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider sticky left-0 bg-gray-50 dark:bg-gray-700/50 z-10">
                 User
               </th>
               {pnlCenters.map((pnl) => (
                 <th
                   key={pnl.id}
-                  className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  className="px-4 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider"
                 >
                   {pnl.name}
                 </th>
               ))}
             </tr>
           </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
+          <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
             {users
               .filter((u) => u.isActive)
               .map((user) => (
                 <tr key={user.id}>
-                  <td className="px-4 py-3 whitespace-nowrap sticky left-0 bg-white z-10">
+                  <td className="px-4 py-3 whitespace-nowrap sticky left-0 bg-white dark:bg-gray-800 z-10">
                     <div className="flex items-center gap-2">
                       <div className="w-8 h-8 rounded-full bg-primary-100 flex items-center justify-center">
                         <span className="text-primary-700 text-xs font-medium">
@@ -186,10 +186,10 @@ export default function PnlPermissionsMatrix() {
                         </span>
                       </div>
                       <div>
-                        <p className="text-sm font-medium text-gray-900">
+                        <p className="text-sm font-medium text-gray-900 dark:text-white">
                           {user.firstName} {user.lastName}
                         </p>
-                        <p className="text-xs text-gray-500">{user.role}</p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">{user.role}</p>
                       </div>
                     </div>
                   </td>
@@ -237,13 +237,13 @@ export default function PnlPermissionsMatrix() {
 
         {users.length === 0 && (
           <div className="text-center py-12">
-            <p className="text-gray-500">No users found</p>
+            <p className="text-gray-500 dark:text-gray-400">No users found</p>
           </div>
         )}
 
         {pnlCenters.length === 0 && (
           <div className="text-center py-12">
-            <p className="text-gray-500">No P&L centers found. Create one first.</p>
+            <p className="text-gray-500 dark:text-gray-400">No P&L centers found. Create one first.</p>
           </div>
         )}
       </div>

@@ -83,18 +83,18 @@ export function PnlCenterDetail({ center, onClose }: PnlCenterDetailProps) {
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-xl">
+      <div className="modal-box w-full max-w-2xl max-h-[90vh] overflow-y-auto">
         {/* Header */}
-        <div className="sticky top-0 bg-white flex items-center justify-between p-4 border-b z-10">
+        <div className="modal-header sticky top-0 z-10 bg-white dark:bg-gray-800">
           <div>
-            <h2 className="text-lg font-semibold text-gray-900">{center.name}</h2>
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">{center.name}</h2>
             {center.description && (
-              <p className="text-sm text-gray-500 mt-0.5">{center.description}</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">{center.description}</p>
             )}
           </div>
           <button
             onClick={onClose}
-            className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+            className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
@@ -131,14 +131,14 @@ export function PnlCenterDetail({ center, onClose }: PnlCenterDetailProps) {
           </div>
 
           {/* Profit Margin */}
-          <div className="bg-gray-50 rounded-xl p-4">
+          <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-4">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-medium text-gray-700">Profit Margin</span>
+              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Profit Margin</span>
               <span className={`text-sm font-bold ${Number(profitMargin) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                 {profitMargin}%
               </span>
             </div>
-            <div className="h-3 bg-gray-200 rounded-full overflow-hidden">
+            <div className="h-3 bg-gray-200 dark:bg-gray-600 rounded-full overflow-hidden">
               <div
                 className={`h-full rounded-full transition-all ${
                   Number(profitMargin) >= 0 ? 'bg-green-500' : 'bg-red-500'
@@ -150,13 +150,13 @@ export function PnlCenterDetail({ center, onClose }: PnlCenterDetailProps) {
 
           {/* Recent Transactions */}
           <div>
-            <h3 className="text-sm font-semibold text-gray-900 mb-3">Recent Transactions</h3>
+            <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">Recent Transactions</h3>
             {loading ? (
               <div className="flex items-center justify-center py-8">
                 <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-600"></div>
               </div>
             ) : recentTransactions.length === 0 ? (
-              <p className="text-center text-gray-500 py-8 text-sm">
+              <p className="text-center text-gray-500 dark:text-gray-400 py-8 text-sm">
                 No transactions found for this P&L center
               </p>
             ) : (
@@ -164,7 +164,7 @@ export function PnlCenterDetail({ center, onClose }: PnlCenterDetailProps) {
                 {recentTransactions.map((tx) => (
                   <div
                     key={tx.id}
-                    className="flex items-center justify-between py-2 px-3 bg-gray-50 rounded-lg"
+                    className="flex items-center justify-between py-2 px-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg"
                   >
                     <div className="flex items-center gap-3 min-w-0">
                       <div
@@ -173,8 +173,8 @@ export function PnlCenterDetail({ center, onClose }: PnlCenterDetailProps) {
                         }`}
                       />
                       <div className="min-w-0">
-                        <p className="text-sm font-medium text-gray-900 truncate">{tx.description}</p>
-                        <p className="text-xs text-gray-500">
+                        <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{tx.description}</p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">
                           {new Date(tx.date).toLocaleDateString('en-US', {
                             month: 'short',
                             day: 'numeric',
@@ -198,7 +198,7 @@ export function PnlCenterDetail({ center, onClose }: PnlCenterDetailProps) {
           </div>
 
           {/* Quick Navigation */}
-          <div className="flex gap-3 border-t pt-4">
+          <div className="flex gap-3 border-t dark:border-gray-700 pt-4">
             <a
               href={`/income?pnlCenterId=${center.id}`}
               className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-green-50 text-green-700 rounded-lg hover:bg-green-100 transition-colors text-sm font-medium"

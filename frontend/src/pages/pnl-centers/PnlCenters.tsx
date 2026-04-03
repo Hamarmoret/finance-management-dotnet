@@ -85,11 +85,11 @@ export default function PnlCenters() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
             <Building2 className="w-6 h-6 text-primary-600" />
             P&L Centers
           </h1>
-          <p className="text-gray-600 mt-1">
+          <p className="text-gray-600 dark:text-gray-400 mt-1">
             Manage profit and loss centers for your organization
           </p>
         </div>
@@ -111,10 +111,10 @@ export default function PnlCenters() {
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-white rounded-xl border p-6">
+        <div className="panel p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-500">Total Income</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Total Income</p>
               <p className="text-2xl font-bold text-green-600">{formatCurrency(totalIncome)}</p>
             </div>
             <div className="p-3 bg-green-100 rounded-lg">
@@ -125,7 +125,7 @@ export default function PnlCenters() {
         <div className="bg-white rounded-xl border p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-500">Total Expenses</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Total Expenses</p>
               <p className="text-2xl font-bold text-red-600">{formatCurrency(totalExpenses)}</p>
             </div>
             <div className="p-3 bg-red-100 rounded-lg">
@@ -136,7 +136,7 @@ export default function PnlCenters() {
         <div className="bg-white rounded-xl border p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-500">Net Profit</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Net Profit</p>
               <p className={`text-2xl font-bold ${totalProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                 {formatCurrency(totalProfit)}
               </p>
@@ -154,10 +154,10 @@ export default function PnlCenters() {
 
       {/* P&L Centers Grid */}
       {centers.length === 0 ? (
-        <div className="bg-white rounded-xl border p-12 text-center">
+        <div className="panel p-12 text-center">
           <Building2 className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">No P&L Centers</h3>
-          <p className="text-gray-500 mb-4">Get started by creating your first P&L center</p>
+          <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">No P&L Centers</h3>
+          <p className="text-gray-500 dark:text-gray-400 mb-4">Get started by creating your first P&L center</p>
           <button
             onClick={() => setShowModal(true)}
             className="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700"
@@ -171,15 +171,15 @@ export default function PnlCenters() {
           {centers.map((center) => (
             <div
               key={center.id}
-              className="bg-white rounded-xl border hover:shadow-lg transition-shadow cursor-pointer"
+              className="panel hover:shadow-lg transition-shadow cursor-pointer"
               onClick={() => setDetailCenter(center)}
             >
               <div className="p-6">
                 <div className="flex items-start justify-between mb-4">
                   <div>
-                    <h3 className="text-lg font-semibold text-gray-900">{center.name}</h3>
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{center.name}</h3>
                     {center.description && (
-                      <p className="text-sm text-gray-500 mt-1 line-clamp-2">{center.description}</p>
+                      <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 line-clamp-2">{center.description}</p>
                     )}
                   </div>
                   <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
@@ -200,19 +200,19 @@ export default function PnlCenters() {
 
                 <div className="space-y-3">
                   <div className="flex justify-between items-center">
-                    <span className="text-sm text-gray-500">Income</span>
+                    <span className="text-sm text-gray-500 dark:text-gray-400">Income</span>
                     <span className="font-medium text-green-600">
                       {formatCurrency(center.totalIncome)}
                     </span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="text-sm text-gray-500">Expenses</span>
+                    <span className="text-sm text-gray-500 dark:text-gray-400">Expenses</span>
                     <span className="font-medium text-red-600">
                       {formatCurrency(center.totalExpenses)}
                     </span>
                   </div>
-                  <div className="border-t pt-3 flex justify-between items-center">
-                    <span className="text-sm font-medium text-gray-700">Net Profit</span>
+                  <div className="border-t dark:border-gray-700 pt-3 flex justify-between items-center">
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Net Profit</span>
                     <span
                       className={`font-bold ${
                         center.netProfit >= 0 ? 'text-green-600' : 'text-red-600'
@@ -226,7 +226,7 @@ export default function PnlCenters() {
 
               {/* Profit indicator bar */}
               <div className="px-6 pb-4">
-                <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                <div className="h-2 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
                   {center.totalIncome > 0 && (
                     <div
                       className={`h-full ${center.netProfit >= 0 ? 'bg-green-500' : 'bg-red-500'}`}
@@ -248,16 +248,16 @@ export default function PnlCenters() {
       {/* Delete Confirmation Modal */}
       {deleteConfirm && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl p-6 max-w-md w-full mx-4">
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">Delete P&L Center?</h3>
-            <p className="text-gray-600 mb-6">
+          <div className="modal-box p-6 max-w-md w-full mx-4">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Delete P&L Center?</h3>
+            <p className="text-gray-600 dark:text-gray-400 mb-6">
               This will deactivate the P&L center. Any associated income and expenses will remain
               but won't be linked to this center.
             </p>
             <div className="flex justify-end gap-3">
               <button
                 onClick={() => setDeleteConfirm(null)}
-                className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                className="px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
               >
                 Cancel
               </button>

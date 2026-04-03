@@ -54,7 +54,7 @@ function StatusDropdown({
       {open && (
         <>
           <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
-          <div className="absolute right-0 mt-1 w-32 bg-white rounded-lg shadow-lg border z-20">
+          <div className="absolute right-0 mt-1 w-32 dropdown-menu z-20">
             {statuses.map((status) => (
               <button
                 key={status}
@@ -63,7 +63,7 @@ function StatusDropdown({
                   onStatusChange(status);
                   setOpen(false);
                 }}
-                className={`w-full px-3 py-2 text-left text-sm hover:bg-gray-50 first:rounded-t-lg last:rounded-b-lg ${
+                className={`w-full px-3 py-2 text-left text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 first:rounded-t-lg last:rounded-b-lg ${
                   status === currentStatus ? 'bg-primary-50 text-primary-700' : ''
                 }`}
               >
@@ -115,7 +115,7 @@ export function IncomeTable({
         accessorKey: 'incomeDate',
         header: 'Date',
         cell: ({ row }) => (
-          <span className="whitespace-nowrap text-sm text-gray-900">
+          <span className="whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
             {formatDate(row.original.incomeDate)}
           </span>
         ),
@@ -126,7 +126,7 @@ export function IncomeTable({
         header: 'Description',
         cell: ({ row }) => (
           <div className="min-w-[150px]">
-            <div className="text-sm font-medium text-gray-900 line-clamp-1">
+            <div className="text-sm font-medium text-gray-900 dark:text-gray-100 line-clamp-1">
               {row.original.description}
             </div>
           </div>
@@ -137,7 +137,7 @@ export function IncomeTable({
         accessorKey: 'clientName',
         header: 'Client',
         cell: ({ row }) => (
-          <span className="whitespace-nowrap text-sm text-gray-600">
+          <span className="whitespace-nowrap text-sm text-gray-600 dark:text-gray-400">
             {row.original.clientName || <span className="text-gray-400">—</span>}
           </span>
         ),
@@ -164,7 +164,7 @@ export function IncomeTable({
         accessorKey: 'invoiceNumber',
         header: 'Invoice',
         cell: ({ row }) => (
-          <span className="whitespace-nowrap text-sm text-gray-600">
+          <span className="whitespace-nowrap text-sm text-gray-600 dark:text-gray-400">
             {row.original.invoiceNumber || <span className="text-gray-400">—</span>}
           </span>
         ),
@@ -186,7 +186,7 @@ export function IncomeTable({
         accessorKey: 'paymentDueDate',
         header: 'Due Date',
         cell: ({ row }) => (
-          <span className="whitespace-nowrap text-sm text-gray-600">
+          <span className="whitespace-nowrap text-sm text-gray-600 dark:text-gray-400">
             {row.original.paymentDueDate ? formatDate(row.original.paymentDueDate) : '—'}
           </span>
         ),
@@ -196,7 +196,7 @@ export function IncomeTable({
         accessorKey: 'paymentReceivedDate',
         header: 'Received',
         cell: ({ row }) => (
-          <span className="whitespace-nowrap text-sm text-gray-600">
+          <span className="whitespace-nowrap text-sm text-gray-600 dark:text-gray-400">
             {row.original.paymentReceivedDate ? formatDate(row.original.paymentReceivedDate) : '—'}
           </span>
         ),
@@ -206,7 +206,7 @@ export function IncomeTable({
         accessorKey: 'proformaInvoiceDate',
         header: 'Proforma Date',
         cell: ({ row }) => (
-          <span className="whitespace-nowrap text-sm text-gray-600">
+          <span className="whitespace-nowrap text-sm text-gray-600 dark:text-gray-400">
             {row.original.proformaInvoiceDate ? formatDate(row.original.proformaInvoiceDate) : '—'}
           </span>
         ),
@@ -216,7 +216,7 @@ export function IncomeTable({
         accessorKey: 'taxInvoiceDate',
         header: 'Tax Invoice Date',
         cell: ({ row }) => (
-          <span className="whitespace-nowrap text-sm text-gray-600">
+          <span className="whitespace-nowrap text-sm text-gray-600 dark:text-gray-400">
             {row.original.taxInvoiceDate ? formatDate(row.original.taxInvoiceDate) : '—'}
           </span>
         ),
@@ -277,7 +277,7 @@ export function IncomeTable({
             {row.original.tags?.slice(0, 3).map((tag) => (
               <span
                 key={tag}
-                className="inline-flex items-center px-2 py-0.5 rounded text-xs bg-gray-100 text-gray-600"
+                className="inline-flex items-center px-2 py-0.5 rounded text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300"
               >
                 {tag}
               </span>

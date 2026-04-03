@@ -115,11 +115,11 @@ export default function UserManagement() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
             <Users className="w-5 h-5" />
             User Management
           </h2>
-          <p className="text-sm text-gray-500">
+          <p className="text-sm text-gray-500 dark:text-gray-400">
             Manage user accounts, roles, and access permissions.
           </p>
         </div>
@@ -165,28 +165,28 @@ export default function UserManagement() {
       {/* Users Table */}
       <div className="card overflow-hidden">
         <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
+          <thead className="bg-gray-50 dark:bg-gray-700/50">
             <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                 User
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                 Role
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                 Status
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                 MFA
               </th>
-              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                 Actions
               </th>
             </tr>
           </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
+          <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
             {filteredUsers.map((user) => (
-              <tr key={user.id} className={!user.isActive ? 'bg-gray-50' : ''}>
+              <tr key={user.id} className={!user.isActive ? 'bg-gray-50 dark:bg-gray-700/30' : ''}>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="flex items-center">
                     <div className="w-10 h-10 rounded-full bg-primary-100 flex items-center justify-center">
@@ -196,10 +196,10 @@ export default function UserManagement() {
                       </span>
                     </div>
                     <div className="ml-4">
-                      <div className="text-sm font-medium text-gray-900">
+                      <div className="text-sm font-medium text-gray-900 dark:text-white">
                         {user.firstName} {user.lastName}
                       </div>
-                      <div className="text-sm text-gray-500">{user.email}</div>
+                      <div className="text-sm text-gray-500 dark:text-gray-400">{user.email}</div>
                     </div>
                   </div>
                 </td>
@@ -208,7 +208,7 @@ export default function UserManagement() {
                     value={user.role}
                     onChange={(e) => handleRoleChange(user.id, e.target.value as UserRole)}
                     disabled={actionLoading === user.id}
-                    className="text-sm border-gray-300 rounded-md focus:ring-primary-500 focus:border-primary-500"
+                    className="text-sm border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 rounded-md focus:ring-primary-500 focus:border-primary-500"
                   >
                     <option value="viewer">Viewer</option>
                     <option value="manager">Manager</option>
@@ -220,7 +220,7 @@ export default function UserManagement() {
                     className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
                       user.isActive
                         ? 'bg-success-100 text-success-800'
-                        : 'bg-gray-100 text-gray-800'
+                        : 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300'
                     }`}
                   >
                     {user.isActive ? 'Active' : 'Inactive'}
@@ -231,7 +231,7 @@ export default function UserManagement() {
                     className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
                       user.mfaEnabled
                         ? 'bg-success-100 text-success-800'
-                        : 'bg-gray-100 text-gray-800'
+                        : 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300'
                     }`}
                   >
                     {user.mfaEnabled ? 'Enabled' : 'Disabled'}
@@ -289,7 +289,7 @@ export default function UserManagement() {
         {filteredUsers.length === 0 && (
           <div className="text-center py-12">
             <Users className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <p className="text-gray-500">No users found</p>
+            <p className="text-gray-500 dark:text-gray-400">No users found</p>
           </div>
         )}
       </div>

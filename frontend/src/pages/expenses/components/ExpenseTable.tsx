@@ -46,7 +46,7 @@ export function ExpenseTable({
         accessorKey: 'expenseDate',
         header: 'Date',
         cell: ({ row }) => (
-          <span className="whitespace-nowrap text-sm text-gray-900">
+          <span className="whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
             {formatDate(row.original.expenseDate)}
           </span>
         ),
@@ -57,7 +57,7 @@ export function ExpenseTable({
         header: 'Description',
         cell: ({ row }) => (
           <div className="min-w-[150px]">
-            <div className="text-sm font-medium text-gray-900 line-clamp-1">
+            <div className="text-sm font-medium text-gray-900 dark:text-gray-100 line-clamp-1">
               {row.original.description}
             </div>
             {row.original.tags && row.original.tags.length > 0 && (
@@ -65,7 +65,7 @@ export function ExpenseTable({
                 {row.original.tags.slice(0, 3).map((tag) => (
                   <span
                     key={tag}
-                    className="inline-flex items-center px-2 py-0.5 rounded text-xs bg-gray-100 text-gray-600"
+                    className="inline-flex items-center px-2 py-0.5 rounded text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300"
                   >
                     {tag}
                   </span>
@@ -102,7 +102,7 @@ export function ExpenseTable({
         accessorKey: 'vendor',
         header: 'Payee / Vendor',
         cell: ({ row }) => (
-          <span className="whitespace-nowrap text-sm text-gray-600">
+          <span className="whitespace-nowrap text-sm text-gray-600 dark:text-gray-400">
             {row.original.vendor || <span className="text-gray-400">—</span>}
           </span>
         ),
@@ -163,7 +163,7 @@ export function ExpenseTable({
             {row.original.tags?.slice(0, 3).map((tag) => (
               <span
                 key={tag}
-                className="inline-flex items-center px-2 py-0.5 rounded text-xs bg-gray-100 text-gray-600"
+                className="inline-flex items-center px-2 py-0.5 rounded text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300"
               >
                 {tag}
               </span>
@@ -182,7 +182,7 @@ export function ExpenseTable({
         accessorKey: 'notes',
         header: 'Notes',
         cell: ({ row }) => (
-          <span className="text-sm text-gray-600 line-clamp-1 max-w-[150px]">
+          <span className="text-sm text-gray-600 dark:text-gray-400 line-clamp-1 max-w-[150px]">
             {row.original.notes || <span className="text-gray-400">—</span>}
           </span>
         ),

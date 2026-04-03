@@ -213,11 +213,11 @@ export default function ActivityLog() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
             <Activity className="w-5 h-5" />
             User Activity
           </h2>
-          <p className="text-sm text-gray-500">
+          <p className="text-sm text-gray-500 dark:text-gray-400">
             Recent activity log across all users. {total > 0 && `${total} total entries.`}
           </p>
         </div>
@@ -243,7 +243,7 @@ export default function ActivityLog() {
         <select
           value={filterUserId}
           onChange={(e) => { setFilterUserId(e.target.value); setPage(1); }}
-          className="text-sm border-gray-300 rounded-md focus:ring-primary-500 focus:border-primary-500"
+          className="text-sm border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 rounded-md focus:ring-primary-500 focus:border-primary-500"
         >
           <option value="">All users</option>
           {users.map((u) => (
@@ -262,26 +262,26 @@ export default function ActivityLog() {
       ) : (
         <div className="card overflow-hidden">
           <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
+            <thead className="bg-gray-50 dark:bg-gray-700/50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                   Time
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                   User
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                   Action
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                   Details
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                   IP Address
                 </th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
+            <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
               {logs.map((log) => {
                 const config = ACTION_CONFIG[log.action] || {
                   label: log.action,
@@ -292,17 +292,17 @@ export default function ActivityLog() {
                 const details = getActionDetails(log);
 
                 return (
-                  <tr key={log.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500" title={new Date(log.createdAt).toLocaleString()}>
+                  <tr key={log.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400" title={new Date(log.createdAt).toLocaleString()}>
                       {formatRelativeTime(log.createdAt)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       {log.userFirstName ? (
                         <div>
-                          <div className="text-sm font-medium text-gray-900">
+                          <div className="text-sm font-medium text-gray-900 dark:text-white">
                             {log.userFirstName} {log.userLastName}
                           </div>
-                          <div className="text-xs text-gray-500">{log.userEmail}</div>
+                          <div className="text-xs text-gray-500 dark:text-gray-400">{log.userEmail}</div>
                         </div>
                       ) : (
                         <span className="text-sm text-gray-400 italic">System</span>
@@ -314,7 +314,7 @@ export default function ActivityLog() {
                         {config.label}
                       </span>
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-600 max-w-xs truncate">
+                    <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400 max-w-xs truncate">
                       {details || (
                         <span className="text-gray-400">
                           {ENTITY_LABELS[log.entityType] || log.entityType}
@@ -333,14 +333,14 @@ export default function ActivityLog() {
           {logs.length === 0 && (
             <div className="text-center py-12">
               <Activity className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-500">No activity logs found</p>
+              <p className="text-gray-500 dark:text-gray-400">No activity logs found</p>
             </div>
           )}
 
           {/* Pagination */}
           {totalPages > 1 && (
-            <div className="flex items-center justify-between px-6 py-3 border-t bg-gray-50">
-              <p className="text-sm text-gray-500">
+            <div className="flex items-center justify-between px-6 py-3 border-t dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50">
+              <p className="text-sm text-gray-500 dark:text-gray-400">
                 Page {page} of {totalPages} ({total} entries)
               </p>
               <div className="flex items-center gap-2">
