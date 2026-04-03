@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import axios from 'axios';
 import { User } from '@finance/shared';
 import { api, scheduleTokenRefresh } from '../services/api';
 
@@ -145,8 +146,13 @@ export const useAuthStore = create<AuthState>()(
         try {
           const response = await api.get('/users/me');
           set({ user: response.data.data, isAuthenticated: true });
-        } catch {
-          set({ user: null, isAuthenticated: false });
+        } catch (err) {
+          // Only clear auth on confirmed 401 (real auth failure).
+          // Network errors / 5xx should not log the user out.
+          if (axios.isAxiosError(err) && err.response?.status === 401) {
+            set({ user: null, isAuthenticated: false });
+          }
+          throw err;
         }
       },
 

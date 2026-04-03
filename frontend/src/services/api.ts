@@ -184,10 +184,17 @@ export function scheduleTokenRefresh() {
   const expiry = getTokenExpiry(accessToken);
   if (!expiry) return;
 
-  // Refresh 2 minutes before expiry (or immediately if less than 2 min left)
   const now = Date.now();
   const timeUntilExpiry = expiry - now;
-  const refreshIn = Math.max(0, timeUntilExpiry - 2 * 60 * 1000);
+
+  // If token is already expired (or expires within 2 min), skip the proactive refresh.
+  // The 401 interceptor handles this — scheduling a timer with delay=0 would race
+  // with the interceptor and cause both to call /auth/refresh simultaneously with the
+  // same refresh token, invalidating one of them and triggering a spurious logout.
+  if (timeUntilExpiry <= 2 * 60 * 1000) return;
+
+  // Refresh 2 minutes before expiry
+  const refreshIn = timeUntilExpiry - 2 * 60 * 1000;
 
   refreshTimer = setTimeout(async () => {
     try {
