@@ -234,7 +234,7 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="p-8 space-y-6 bg-gray-50 min-h-full">
+    <div className="p-8 space-y-6 bg-gray-50 dark:bg-gray-900 min-h-full">
       {error && (
         <div className="bg-danger-50 text-danger-700 px-4 py-3 rounded-lg flex items-center gap-2">
           <AlertCircle className="w-4 h-4 shrink-0" />
@@ -266,12 +266,12 @@ export default function Dashboard() {
             positiveIsGood
             icon={<DollarSign className="w-5 h-5" />}
           />
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+          <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
             <div className="bg-primary-600 h-10 flex items-center px-5">
               <span className="text-white font-medium text-sm">Pending Invoices</span>
             </div>
             <div className="p-5">
-              <p className="text-3xl font-bold text-gray-900 mb-2">
+              <p className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
                 {formatCurrency(summaryData.pendingValue)}
               </p>
               <p className="text-sm text-gray-500 flex items-center gap-1.5">
@@ -292,9 +292,9 @@ export default function Dashboard() {
       {/* Bottom Section */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Recent Transactions */}
-        <div className="lg:col-span-5 bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-          <div className="px-5 py-4 border-b border-gray-200 flex items-center justify-between gap-3">
-            <h3 className="text-base font-semibold text-gray-800 shrink-0">Recent Transactions</h3>
+        <div className="lg:col-span-5 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
+          <div className="px-5 py-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between gap-3">
+            <h3 className="text-base font-semibold text-gray-800 dark:text-white shrink-0">Recent Transactions</h3>
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
               <input
@@ -308,7 +308,7 @@ export default function Dashboard() {
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
               <thead>
-                <tr className="bg-gray-50 border-b border-gray-200 text-gray-500">
+                <tr className="bg-gray-50 dark:bg-gray-700/50 border-b border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400">
                   <th className="px-5 py-3 font-medium whitespace-nowrap">Date</th>
                   <th className="px-5 py-3 font-medium">Description</th>
                   <th className="px-5 py-3 font-medium">Category</th>
@@ -326,9 +326,9 @@ export default function Dashboard() {
                   filteredTransactions.map(t => (
                     <tr
                       key={`${t.type}-${t.id}`}
-                      className="hover:bg-gray-50 transition-colors"
+                      className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
                     >
-                      <td className="px-5 py-3.5 text-gray-500 whitespace-nowrap">
+                      <td className="px-5 py-3.5 text-gray-500 dark:text-gray-400 whitespace-nowrap">
                         {formatDateShort(t.date)}
                       </td>
                       <td className="px-5 py-3.5">
@@ -344,12 +344,12 @@ export default function Dashboard() {
                               ? <TrendingUp className="w-3.5 h-3.5" />
                               : <TrendingDown className="w-3.5 h-3.5" />}
                           </div>
-                          <span className="font-medium text-gray-800 truncate max-w-[160px]">
+                          <span className="font-medium text-gray-800 dark:text-gray-100 truncate max-w-[160px]">
                             {t.description}
                           </span>
                         </div>
                       </td>
-                      <td className="px-5 py-3.5 text-gray-500">{t.category}</td>
+                      <td className="px-5 py-3.5 text-gray-500 dark:text-gray-400">{t.category}</td>
                       <td
                         className={`px-5 py-3.5 text-right font-semibold whitespace-nowrap ${
                           t.type === 'income' ? 'text-success-600' : 'text-danger-600'
@@ -364,7 +364,7 @@ export default function Dashboard() {
               </tbody>
             </table>
           </div>
-          <div className="px-5 py-3 border-t border-gray-200 bg-gray-50">
+          <div className="px-5 py-3 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/30">
             <Link
               to="/expenses"
               className="text-sm text-primary-600 hover:text-primary-700 font-medium"
@@ -375,9 +375,9 @@ export default function Dashboard() {
         </div>
 
         {/* Cash Flow Chart */}
-        <div className="lg:col-span-4 bg-white rounded-xl border border-gray-200 shadow-sm p-5 flex flex-col">
+        <div className="lg:col-span-4 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm p-5 flex flex-col">
           <div className="flex items-center justify-between mb-4 gap-2">
-            <h3 className="text-base font-semibold text-gray-800 shrink-0">Cash Flow</h3>
+            <h3 className="text-base font-semibold text-gray-800 dark:text-white shrink-0">Cash Flow</h3>
             <div className="flex rounded-lg border border-gray-200 overflow-hidden text-xs font-medium">
               {(['3M', '6M', '1Y', 'All'] as Timeframe[]).map(tf => (
                 <button
@@ -386,7 +386,7 @@ export default function Dashboard() {
                   className={`px-3 py-1.5 transition-colors ${
                     chartTimeframe === tf
                       ? 'bg-primary-600 text-white'
-                      : 'text-gray-600 hover:bg-gray-50'
+                      : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
                   }`}
                 >
                   {tf}
@@ -454,7 +454,7 @@ export default function Dashboard() {
         </div>
 
         {/* Quick Actions */}
-        <div className="lg:col-span-3 bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+        <div className="lg:col-span-3 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
           <div className="bg-primary-600 h-12 flex items-center px-5">
             <h3 className="text-white font-medium text-sm">Quick Actions</h3>
           </div>
@@ -500,13 +500,13 @@ function SummaryCard({ title, value, change, positiveIsGood }: SummaryCardProps)
   const changeAbs = Math.abs(change);
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+    <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
       <div className="bg-primary-600 h-10 flex items-center px-5">
         <span className="text-white font-medium text-sm">{title}</span>
       </div>
       <div className="p-5">
-        <p className="text-3xl font-bold text-gray-900 mb-2">{value}</p>
-        <p className="text-sm text-gray-500 flex items-center gap-1">
+        <p className="text-3xl font-bold text-gray-900 dark:text-white mb-2">{value}</p>
+        <p className="text-sm text-gray-500 dark:text-gray-400 flex items-center gap-1">
           <span
             className={`flex items-center gap-0.5 font-medium ${
               isGood ? 'text-success-600' : 'text-danger-600'
