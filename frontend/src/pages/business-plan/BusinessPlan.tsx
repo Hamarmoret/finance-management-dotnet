@@ -257,18 +257,18 @@ export default function BusinessPlan() {
   }, [selectedPlanId, activeScenarioId]);
 
   // Get scenario-specific data
-  const scenarioDrivers = planWithEngine?.drivers.filter(
+  const scenarioDrivers = planWithEngine?.drivers?.filter(
     (d) => d.scenarioId === null || d.scenarioId === activeScenarioId
-  ) || [];
-  const scenarioRevenueModels = planWithEngine?.revenueModels.filter(
+  ) ?? [];
+  const scenarioRevenueModels = planWithEngine?.revenueModels?.filter(
     (m) => m.scenarioId === null || m.scenarioId === activeScenarioId
-  ) || [];
-  const scenarioStaffing = planWithEngine?.staffingPlan.filter(
+  ) ?? [];
+  const scenarioStaffing = planWithEngine?.staffingPlan?.filter(
     (s) => s.scenarioId === null || s.scenarioId === activeScenarioId
-  ) || [];
-  const scenarioResults = planWithEngine?.calculatedResults.filter(
+  ) ?? [];
+  const scenarioResults = planWithEngine?.calculatedResults?.filter(
     (r) => r.scenarioId === activeScenarioId
-  ) || [];
+  ) ?? [];
 
   // Calculate totals from actuals comparison
   const totalProjectedRevenue = actualsComparison.reduce((sum, p) => sum + p.projected.revenue, 0);
@@ -285,8 +285,8 @@ export default function BusinessPlan() {
   const engineTotalHeadcount = scenarioResults.length > 0 ? scenarioResults[scenarioResults.length - 1]?.totalHeadcount || 0 : 0;
 
   // Calculate goal completion
-  const completedGoals = selectedPlan?.goals.filter((g) => g.status === 'completed').length || 0;
-  const totalGoals = selectedPlan?.goals.length || 0;
+  const completedGoals = selectedPlan?.goals?.filter((g) => g.status === 'completed').length ?? 0;
+  const totalGoals = selectedPlan?.goals?.length ?? 0;
   const goalCompletionRate = totalGoals > 0 ? (completedGoals / totalGoals) * 100 : 0;
 
   // Log to prevent unused variable warnings (will be used in future UI)
@@ -348,8 +348,8 @@ export default function BusinessPlan() {
                         }`}
                       >
                         <div>
-                          <p className="font-medium">{plan.name}</p>
-                          <p className="text-xs text-gray-500">FY {plan.fiscalYear}</p>
+                          <p className="font-medium dark:text-white">{plan.name}</p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">FY {plan.fiscalYear}</p>
                         </div>
                         <span
                           className={`text-xs px-2 py-0.5 rounded-full ${
@@ -392,8 +392,8 @@ export default function BusinessPlan() {
       {plans.length === 0 ? (
         <div className="card card-body text-center py-12">
           <Target className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-          <h2 className="text-lg font-semibold text-gray-900">No Business Plans Yet</h2>
-          <p className="text-gray-600 mt-2 mb-4">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">No Business Plans Yet</h2>
+          <p className="text-gray-600 dark:text-gray-400 mt-2 mb-4">
             Create your first business plan to set financial targets and track goals.
           </p>
           <button
@@ -443,8 +443,8 @@ export default function BusinessPlan() {
                 <div className="card card-body">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm text-gray-500">Projected Revenue</p>
-                      <p className="text-2xl font-bold text-gray-900">
+                      <p className="text-sm text-gray-500 dark:text-gray-400">Projected Revenue</p>
+                      <p className="text-2xl font-bold text-gray-900 dark:text-white">
                         {formatCurrency(engineTotalRevenue || selectedPlan.targetRevenue)}
                       </p>
                     </div>
@@ -454,8 +454,8 @@ export default function BusinessPlan() {
                   </div>
                   {totalActualRevenue > 0 && (
                     <div className="mt-2 text-sm">
-                      <span className="text-gray-500">Actual: </span>
-                      <span className="font-medium">{formatCurrency(totalActualRevenue)}</span>
+                      <span className="text-gray-500 dark:text-gray-400">Actual: </span>
+                      <span className="font-medium dark:text-gray-200">{formatCurrency(totalActualRevenue)}</span>
                     </div>
                   )}
                 </div>
@@ -463,8 +463,8 @@ export default function BusinessPlan() {
                 <div className="card card-body">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm text-gray-500">Projected Costs</p>
-                      <p className="text-2xl font-bold text-gray-900">
+                      <p className="text-sm text-gray-500 dark:text-gray-400">Projected Costs</p>
+                      <p className="text-2xl font-bold text-gray-900 dark:text-white">
                         {formatCurrency(engineTotalCosts || selectedPlan.targetExpenses)}
                       </p>
                     </div>
@@ -477,8 +477,8 @@ export default function BusinessPlan() {
                 <div className="card card-body">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm text-gray-500">Projected Profit</p>
-                      <p className="text-2xl font-bold text-gray-900">
+                      <p className="text-sm text-gray-500 dark:text-gray-400">Projected Profit</p>
+                      <p className="text-2xl font-bold text-gray-900 dark:text-white">
                         {formatCurrency(engineTotalProfit || selectedPlan.targetProfit)}
                       </p>
                     </div>
@@ -491,15 +491,15 @@ export default function BusinessPlan() {
                 <div className="card card-body">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm text-gray-500">Total Headcount</p>
-                      <p className="text-2xl font-bold text-gray-900">{engineTotalHeadcount}</p>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">Total Headcount</p>
+                      <p className="text-2xl font-bold text-gray-900 dark:text-white">{engineTotalHeadcount}</p>
                     </div>
                     <div className="w-12 h-12 bg-purple-50 rounded-full flex items-center justify-center">
                       <Users className="w-6 h-6 text-purple-600" />
                     </div>
                   </div>
                   <div className="mt-2">
-                    <p className="text-sm text-gray-500">
+                    <p className="text-sm text-gray-500 dark:text-gray-400">
                       {completedGoals}/{totalGoals} goals complete
                     </p>
                   </div>
@@ -511,24 +511,24 @@ export default function BusinessPlan() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {selectedPlan.mission && (
                     <div className="card card-body">
-                      <h3 className="text-sm font-medium text-gray-500 mb-2">Mission</h3>
-                      <p className="text-gray-900">{selectedPlan.mission}</p>
+                      <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">Mission</h3>
+                      <p className="text-gray-900 dark:text-white">{selectedPlan.mission}</p>
                     </div>
                   )}
                   {selectedPlan.vision && (
                     <div className="card card-body">
-                      <h3 className="text-sm font-medium text-gray-500 mb-2">Vision</h3>
-                      <p className="text-gray-900">{selectedPlan.vision}</p>
+                      <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">Vision</h3>
+                      <p className="text-gray-900 dark:text-white">{selectedPlan.vision}</p>
                     </div>
                   )}
                 </div>
               )}
 
               {/* Goals Summary */}
-              {selectedPlan.goals.length > 0 && (
+              {(selectedPlan.goals?.length ?? 0) > 0 && (
                 <div className="card">
                   <div className="card-header flex items-center justify-between">
-                    <h2 className="text-lg font-semibold text-gray-900">Goals Overview</h2>
+                    <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Goals Overview</h2>
                     <button
                       onClick={() => setActiveTab('goals')}
                       className="text-sm text-primary-600 hover:text-primary-700"
@@ -537,7 +537,7 @@ export default function BusinessPlan() {
                     </button>
                   </div>
                   <div className="divide-y">
-                    {selectedPlan.goals.slice(0, 5).map((goal) => (
+                    {selectedPlan.goals?.slice(0, 5).map((goal) => (
                       <div key={goal.id} className="px-6 py-4 flex items-center justify-between">
                         <div className="flex items-center gap-3">
                           <div
@@ -562,8 +562,8 @@ export default function BusinessPlan() {
                             )}
                           </div>
                           <div>
-                            <p className="font-medium text-gray-900">{goal.title}</p>
-                            <p className="text-xs text-gray-500 capitalize">{goal.category}</p>
+                            <p className="font-medium text-gray-900 dark:text-white">{goal.title}</p>
+                            <p className="text-xs text-gray-500 dark:text-gray-400 capitalize">{goal.category}</p>
                           </div>
                         </div>
                         <div className="flex items-center gap-4">
@@ -581,7 +581,7 @@ export default function BusinessPlan() {
                               />
                             </div>
                           </div>
-                          <span className="text-sm text-gray-500 w-12 text-right">{goal.progress}%</span>
+                          <span className="text-sm text-gray-500 dark:text-gray-400 w-12 text-right">{goal.progress}%</span>
                         </div>
                       </div>
                     ))}
@@ -685,8 +685,8 @@ export default function BusinessPlan() {
       ) : (
         <div className="card card-body text-center py-12">
           <Target className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-          <h2 className="text-lg font-semibold text-gray-900">Select a Plan</h2>
-          <p className="text-gray-600 mt-2">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Select a Plan</h2>
+          <p className="text-gray-600 dark:text-gray-400 mt-2">
             Choose a business plan from the dropdown above or create a new one.
           </p>
         </div>
