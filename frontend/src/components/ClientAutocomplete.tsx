@@ -11,7 +11,7 @@ interface ClientAutocompleteProps {
 }
 
 export function ClientAutocomplete({
-  clientId,
+  clientId: _clientId,
   clientName,
   onSelect,
   placeholder = 'Client name',
