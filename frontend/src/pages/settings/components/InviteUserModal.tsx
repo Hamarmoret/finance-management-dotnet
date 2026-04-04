@@ -56,9 +56,14 @@ export default function InviteUserModal({ onClose, onSaved }: InviteUserModalPro
         password: data.password,
       });
 
-      // Note: After registration, we'd need to update the role via admin API
-      // For now, users register as viewers by default
-      // An admin can change the role after the user is created
+      // Apply the selected role (register always creates viewer by default)
+      if (data.role !== 'viewer') {
+        const usersRes = await api.get('/users', { params: { search: data.email, limit: 1 } });
+        const newUser = usersRes.data.data?.[0];
+        if (newUser) {
+          await api.patch(`/users/${newUser.id}/role`, { role: data.role });
+        }
+      }
 
       setSuccess(true);
       setTimeout(() => {
