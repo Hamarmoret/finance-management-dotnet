@@ -143,12 +143,16 @@ public class PnlCentersService
         _logger = logger;
     }
 
-    public async Task<List<PnlCenterWithStatsDto>> GetAllAsync(bool includeInactive = false)
+    public async Task<List<PnlCenterWithStatsDto>> GetAllAsync(bool includeInactive = false, DateTime? startDate = null, DateTime? endDate = null)
     {
         await using var conn = _db.CreateConnection();
         await conn.OpenAsync();
 
         var whereClause = includeInactive ? "" : "WHERE pc.is_active = true";
+        var incomeDateFilter = "";
+        var expenseDateFilter = "";
+        if (startDate.HasValue) { incomeDateFilter += " AND i.income_date >= @StartDate"; expenseDateFilter += " AND e.expense_date >= @StartDate"; }
+        if (endDate.HasValue) { incomeDateFilter += " AND i.income_date <= @EndDate"; expenseDateFilter += " AND e.expense_date <= @EndDate"; }
 
         var rows = await conn.QueryAsync<PnlCenterRow>(
             $"""
@@ -164,6 +168,7 @@ public class PnlCentersService
                     SUM(ia.allocated_amount) as total_income
                 FROM income_allocations ia
                 JOIN income i ON i.id = ia.income_id
+                WHERE 1=1{incomeDateFilter}
                 GROUP BY ia.pnl_center_id
             ) income_stats ON income_stats.pnl_center_id = pc.id
             LEFT JOIN (
@@ -172,11 +177,13 @@ public class PnlCentersService
                     SUM(ea.allocated_amount) as total_expenses
                 FROM expense_allocations ea
                 JOIN expenses e ON e.id = ea.expense_id
+                WHERE 1=1{expenseDateFilter}
                 GROUP BY ea.pnl_center_id
             ) expense_stats ON expense_stats.pnl_center_id = pc.id
             {whereClause}
             ORDER BY pc.name ASC
-            """);
+            """,
+            new { StartDate = startDate, EndDate = endDate });
 
         return rows.Select(MapToStatsDto).ToList();
     }

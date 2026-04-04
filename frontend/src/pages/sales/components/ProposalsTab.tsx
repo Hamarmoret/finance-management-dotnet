@@ -17,7 +17,12 @@ const STATUS_COLORS: Record<ProposalStatus, string> = {
   converted: 'bg-success-50 text-success-600 dark:bg-success-900/20 dark:text-success-400',
 };
 
-export default function ProposalsTab() {
+interface ProposalsTabProps {
+  startDate?: string;
+  endDate?: string;
+}
+
+export default function ProposalsTab({ startDate, endDate }: ProposalsTabProps) {
   const [proposals, setProposals] = useState<Proposal[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -40,6 +45,8 @@ export default function ProposalsTab() {
       const params = new URLSearchParams({ page: page.toString(), limit: limit.toString() });
       if (search) params.append('search', search);
       if (statusFilter) params.append('status', statusFilter);
+      if (startDate) params.append('startDate', startDate);
+      if (endDate) params.append('endDate', endDate);
       const res = await api.get(`/proposals?${params}`);
       setProposals(res.data.data ?? []);
       setTotal(res.data.pagination?.total ?? 0);
@@ -49,10 +56,10 @@ export default function ProposalsTab() {
     } finally {
       setLoading(false);
     }
-  }, [page, search, statusFilter]);
+  }, [page, search, statusFilter, startDate, endDate]);
 
   useEffect(() => { fetchProposals(); }, [fetchProposals]);
-  useEffect(() => { setPage(1); }, [search, statusFilter]);
+  useEffect(() => { setPage(1); }, [search, statusFilter, startDate, endDate]);
 
   const totalValue = proposals.reduce((s, p) => s + p.total, 0);
   const acceptedCount = proposals.filter((p) => p.status === 'accepted').length;

@@ -20,7 +20,12 @@ const STATUS_COLORS: Record<LeadStatus, string> = {
 
 const ACTIVE_STATUSES: LeadStatus[] = ['new', 'contacted', 'qualified', 'proposal_sent', 'negotiation', 'on_hold'];
 
-export default function LeadsTab() {
+interface LeadsTabProps {
+  startDate?: string;
+  endDate?: string;
+}
+
+export default function LeadsTab({ startDate, endDate }: LeadsTabProps) {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [statusCounts, setStatusCounts] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
@@ -44,6 +49,8 @@ export default function LeadsTab() {
       const params = new URLSearchParams({ page: page.toString(), limit: limit.toString() });
       if (search) params.append('search', search);
       if (statusFilter) params.append('status', statusFilter);
+      if (startDate) params.append('startDate', startDate);
+      if (endDate) params.append('endDate', endDate);
       const res = await api.get(`/leads?${params}`);
       setLeads(res.data.data ?? []);
       setTotal(res.data.pagination?.total ?? 0);
@@ -53,7 +60,7 @@ export default function LeadsTab() {
     } finally {
       setLoading(false);
     }
-  }, [page, search, statusFilter]);
+  }, [page, search, statusFilter, startDate, endDate]);
 
   // Fetch counts for all statuses (to show in status chips)
   const fetchCounts = useCallback(async () => {
@@ -72,7 +79,7 @@ export default function LeadsTab() {
 
   useEffect(() => { fetchLeads(); }, [fetchLeads]);
   useEffect(() => { fetchCounts(); }, [fetchCounts]);
-  useEffect(() => { setPage(1); }, [search, statusFilter]);
+  useEffect(() => { setPage(1); }, [search, statusFilter, startDate, endDate]);
 
   const pipelineValue = leads
     .filter((l) => ACTIVE_STATUSES.includes(l.status as LeadStatus))

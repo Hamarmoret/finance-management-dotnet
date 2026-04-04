@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
+﻿import { useState, useCallback, useRef } from 'react';
 import { Upload, X, File, Image, FileText, Loader2, AlertCircle } from 'lucide-react';
 import { api, getErrorMessage } from '../../services/api';
 
@@ -200,7 +200,7 @@ export function FileUpload({
 
   return (
     <div className="space-y-3">
-      <label className="block text-sm font-medium text-gray-700">{label}</label>
+      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">{label}</label>
 
       {/* Drop Zone */}
       <div
@@ -211,8 +211,8 @@ export function FileUpload({
         onClick={() => inputRef.current?.click()}
         className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors ${
           dragActive
-            ? 'border-primary-500 bg-primary-50'
-            : 'border-gray-300 hover:border-primary-400 hover:bg-gray-50'
+            ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20'
+            : 'border-gray-300 dark:border-gray-600 hover:border-primary-400 hover:bg-gray-50 dark:hover:bg-gray-700/50'
         } ${uploading ? 'pointer-events-none opacity-60' : ''}`}
       >
         <input
@@ -228,15 +228,15 @@ export function FileUpload({
         {uploading ? (
           <div className="flex flex-col items-center gap-2">
             <Loader2 className="w-8 h-8 text-primary-500 animate-spin" />
-            <p className="text-sm text-gray-600">Uploading...</p>
+            <p className="text-sm text-gray-600 dark:text-gray-400">Uploading...</p>
           </div>
         ) : (
           <div className="flex flex-col items-center gap-2">
             <Upload className="w-8 h-8 text-gray-400" />
-            <p className="text-sm text-gray-600">
+            <p className="text-sm text-gray-600 dark:text-gray-400">
               <span className="font-medium text-primary-600">Click to upload</span> or drag and drop
             </p>
-            <p className="text-xs text-gray-500">
+            <p className="text-xs text-gray-500 dark:text-gray-400">
               PDF, images, Word, Excel, CSV (max {maxSizeMB}MB each)
             </p>
           </div>
@@ -259,17 +259,17 @@ export function FileUpload({
             return (
               <div
                 key={file.id}
-                className="flex items-center justify-between p-3 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors"
+                className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
                 onClick={() => handleViewFile(file)}
               >
                 <div className="flex items-center gap-3 min-w-0">
-                  <div className="flex-shrink-0 w-10 h-10 bg-gray-200 rounded-lg flex items-center justify-center">
-                    <FileIcon className="w-5 h-5 text-gray-500" />
+                  <div className="flex-shrink-0 w-10 h-10 bg-gray-200 dark:bg-gray-600 rounded-lg flex items-center justify-center">
+                    <FileIcon className="w-5 h-5 text-gray-500 dark:text-gray-300" />
                   </div>
                   <div className="min-w-0">
-                    <p className="text-sm font-medium text-gray-900 truncate">{file.name}</p>
+                    <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{file.name}</p>
                     {file.size > 0 && (
-                      <p className="text-xs text-gray-500">{formatFileSize(file.size)}</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">{formatFileSize(file.size)}</p>
                     )}
                   </div>
                 </div>
@@ -290,7 +290,7 @@ export function FileUpload({
       )}
 
       {/* File count indicator */}
-      <p className="text-xs text-gray-500">
+      <p className="text-xs text-gray-500 dark:text-gray-400">
         {files.length} of {maxFiles} files
       </p>
     </div>

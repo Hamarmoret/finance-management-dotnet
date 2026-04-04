@@ -23,9 +23,12 @@ public class PnlCentersController : ControllerBase
     /// List all P&amp;L centers with stats
     /// </summary>
     [HttpGet]
-    public async Task<IActionResult> GetAll([FromQuery] bool includeInactive = false)
+    public async Task<IActionResult> GetAll(
+        [FromQuery] bool includeInactive = false,
+        [FromQuery] DateTime? startDate = null,
+        [FromQuery] DateTime? endDate = null)
     {
-        var pnlCenters = await _pnlCentersService.GetAllAsync(includeInactive);
+        var pnlCenters = await _pnlCentersService.GetAllAsync(includeInactive, startDate, endDate);
         return Ok(ApiResponse<List<PnlCenterWithStatsDto>>.Ok(pnlCenters));
     }
 

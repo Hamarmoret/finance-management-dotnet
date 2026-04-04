@@ -4,6 +4,7 @@ import { api, getErrorMessage } from '../../services/api';
 import type { Income as IncomeType, IncomeCategory, PnlCenterWithStats } from '@finance/shared';
 import { IncomeModal } from './components/IncomeModal';
 import { IncomeTable } from './components/IncomeTable';
+import { PeriodSelector, getPeriodLabel } from '../../components/PeriodSelector';
 
 function formatCurrency(amount: number): string {
   return new Intl.NumberFormat('en-US', {
@@ -183,13 +184,19 @@ export default function Income() {
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
             <Wallet className="w-6 h-6 text-primary-600" />
             Income
           </h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-1">Track and manage your income and invoices</p>
+          <p className="text-gray-600 dark:text-gray-400 mt-1">{getPeriodLabel(startDate, endDate)}</p>
+          <PeriodSelector
+            startDate={startDate}
+            endDate={endDate}
+            onChange={(s, e) => { setStartDate(s); setEndDate(e); setPage(1); }}
+            className="mt-2"
+          />
         </div>
         <div className="flex items-center gap-2">
           {/* CSV dropdown */}
@@ -334,7 +341,7 @@ export default function Income() {
 
         {/* Expanded Filters */}
         {showFilters && (
-          <div className="mt-4 pt-4 border-t dark:border-gray-700 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+          <div className="mt-4 pt-4 border-t dark:border-gray-700 grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Category</label>
               <select
@@ -388,30 +395,6 @@ export default function Income() {
                 <option value="overdue">Overdue</option>
                 <option value="cancelled">Cancelled</option>
               </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Start Date</label>
-              <input
-                type="date"
-                value={startDate}
-                onChange={(e) => {
-                  setStartDate(e.target.value);
-                  setPage(1);
-                }}
-                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">End Date</label>
-              <input
-                type="date"
-                value={endDate}
-                onChange={(e) => {
-                  setEndDate(e.target.value);
-                  setPage(1);
-                }}
-                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500"
-              />
             </div>
           </div>
         )}

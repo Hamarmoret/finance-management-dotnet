@@ -24,9 +24,11 @@ public class ProposalsController : ControllerBase
         [FromQuery] int limit = 20,
         [FromQuery] string? search = null,
         [FromQuery] string? status = null,
-        [FromQuery] string? clientId = null)
+        [FromQuery] string? clientId = null,
+        [FromQuery] string? startDate = null,
+        [FromQuery] string? endDate = null)
     {
-        var (proposals, total) = await _proposalsService.GetAllAsync(page, limit, search, status, clientId);
+        var (proposals, total) = await _proposalsService.GetAllAsync(page, limit, search, status, clientId, startDate, endDate);
 
         return Ok(new PaginatedResponse<ProposalDto>
         {

@@ -237,3 +237,40 @@ Extended all CSV importers to accept Phase 2 new columns:
 - **Income import** (`CsvImportService.cs`): added `payment_method`, `vat_applicable`, `vat_percentage`, `billable_hours_regular/150/200`, `hourly_rate_regular/150/200`. Template updated with 22 columns.
 - **Clients import** (`CsvImportController.cs`): added `industry`, `business_type`, `utm_source`, `utm_medium`, `utm_campaign`. Template updated with 15 columns.
 - **Leads import** (`CsvImportController.cs`): added all 9 deal terms fields (`deal_type`, `order_number`, `client_order_number`, `scope_months`, `min_commitment_months`, `complimentary_hours`, `retainer_renewal_date`, `follow_up_date`, `nda_url`). Template updated with 21 columns.
+
+## UI Fixes & Period Selector (Latest Session)
+
+### Currency Spacing Fix
+- `frontend/src/utils/formatters.ts` — changed locale from `en-GB` to `en-US` + `currencyDisplay: 'narrowSymbol'`. Now shows `$1,000` instead of `US$1,000`. Applies to all pages using `formatCurrency`/`formatCurrencyPrecise`.
+
+### Dark Mode Fixes
+- `RecurringToggle/RecurringToggle.tsx` — added `dark:` variants to all labels, inputs, selects, pattern editor background, summary box
+- `FileUpload/FileUpload.tsx` — added `dark:` variants to drop zone, file rows, icon backgrounds, text
+- `Analytics.tsx` — added `dark:text-white` to Total Expenses value (was `text-gray-900` only)
+- `ExpenseModal` dark mode was already addressed via RecurringToggle + FileUpload component fixes
+
+### Dashboard Improvements
+- Period selector (`1M/3M/6M/1Y/All + Custom`) in header filters summary cards, chart, and recent transactions
+- Transaction rows are now clickable — opens a detail popup with amount, date, category, description, P&L center, client/vendor, invoice status badge
+- Removed misleading "View all transactions" link (was pointing only to `/expenses`)
+- Default period: last 6 months
+
+### Reusable PeriodSelector Component
+**New file: `frontend/src/components/PeriodSelector.tsx`**
+- Props: `startDate`, `endDate`, `onChange(s, e)`, `className`
+- Preset buttons: 1M / 3M / 6M / 1Y / All
+- Custom button: reveals two date pickers (start + end), pre-filled with current dates
+- Exported `getPeriodLabel(startDate, endDate)` — returns human-readable string for page subtitles
+- Internal `customMode` state so clicking Custom always shows inputs even if dates match a preset
+
+Used in: Dashboard, Expenses, Income, P&L Centers, Sales (Leads + Proposals tabs)
+
+### Period Filtering — Backend Extensions
+- `PnlCentersService.GetAllAsync` + `PnlCentersController` — added optional `startDate`/`endDate` query params; filters income/expense allocations by date in SQL
+- `ProposalsService.GetAllAsync` + `ProposalsController` — added optional `startDate`/`endDate` query params; filters by `issue_date`
+- `LeadsController` already supported `startDate`/`endDate` — no change needed
+
+### Expenses & Income Pages
+- Period selector now in the page header (replaces the Start/End Date fields that were in the expanded filters panel)
+- Page subtitle shows active period label
+- Filter panel retained for Category, P&L Center, Status (Income only)

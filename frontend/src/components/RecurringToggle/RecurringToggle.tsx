@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { RefreshCw, Calendar } from 'lucide-react';
 import type { RecurringPattern } from '@finance/shared';
 
@@ -76,7 +76,7 @@ export function RecurringToggle({
             onChange={() => handleToggle(false)}
             className="w-4 h-4 text-primary-600 border-gray-300 focus:ring-primary-500"
           />
-          <span className="text-sm text-gray-700">One-time</span>
+          <span className="text-sm text-gray-700 dark:text-gray-300">One-time</span>
         </label>
         <label className="flex items-center gap-2 cursor-pointer">
           <input
@@ -86,7 +86,7 @@ export function RecurringToggle({
             onChange={() => handleToggle(true)}
             className="w-4 h-4 text-primary-600 border-gray-300 focus:ring-primary-500"
           />
-          <span className="text-sm text-gray-700 flex items-center gap-1">
+          <span className="text-sm text-gray-700 dark:text-gray-300 flex items-center gap-1">
             <RefreshCw className="w-3.5 h-3.5" />
             Recurring
           </span>
@@ -95,17 +95,17 @@ export function RecurringToggle({
 
       {/* Pattern Editor */}
       {isRecurring && (
-        <div className="bg-gray-50 rounded-lg p-4 space-y-4">
+        <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4 space-y-4">
           <div className="grid grid-cols-2 gap-4">
             {/* Frequency */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Frequency
               </label>
               <select
                 value={frequency}
                 onChange={(e) => setFrequency(e.target.value as RecurringPattern['frequency'])}
-                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
               >
                 <option value="daily">Daily</option>
                 <option value="weekly">Weekly</option>
@@ -116,7 +116,7 @@ export function RecurringToggle({
 
             {/* Interval */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Every
               </label>
               <div className="flex items-center gap-2">
@@ -126,9 +126,9 @@ export function RecurringToggle({
                   max={365}
                   value={interval}
                   onChange={(e) => setInterval(Math.max(1, parseInt(e.target.value) || 1))}
-                  className="w-20 px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                  className="w-20 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                 />
-                <span className="text-sm text-gray-600">
+                <span className="text-sm text-gray-600 dark:text-gray-400">
                   {frequency === 'daily' && (interval === 1 ? 'day' : 'days')}
                   {frequency === 'weekly' && (interval === 1 ? 'week' : 'weeks')}
                   {frequency === 'monthly' && (interval === 1 ? 'month' : 'months')}
@@ -141,13 +141,13 @@ export function RecurringToggle({
           {/* Day of Week (for weekly) */}
           {frequency === 'weekly' && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Day of Week
               </label>
               <select
                 value={dayOfWeek ?? 1}
                 onChange={(e) => setDayOfWeek(parseInt(e.target.value))}
-                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
               >
                 {DAYS_OF_WEEK.map((day) => (
                   <option key={day.value} value={day.value}>
@@ -161,13 +161,13 @@ export function RecurringToggle({
           {/* Day of Month (for monthly) */}
           {frequency === 'monthly' && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Day of Month
               </label>
               <select
                 value={dayOfMonth ?? 1}
                 onChange={(e) => setDayOfMonth(parseInt(e.target.value))}
-                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
               >
                 {Array.from({ length: 31 }, (_, i) => i + 1).map((day) => (
                   <option key={day} value={day}>
@@ -182,8 +182,8 @@ export function RecurringToggle({
 
           {/* End Date (optional) */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              End Date <span className="text-gray-400 font-normal">(optional)</span>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              End Date <span className="text-gray-400 dark:text-gray-500 font-normal">(optional)</span>
             </label>
             <div className="relative">
               <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -191,18 +191,18 @@ export function RecurringToggle({
                 type="date"
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
-                className="w-full pl-10 pr-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                className="w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
               />
             </div>
-            <p className="mt-1 text-xs text-gray-500">
+            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
               Leave empty for no end date
             </p>
           </div>
 
           {/* Summary */}
-          <div className="bg-white rounded-lg p-3 border">
-            <p className="text-sm text-gray-600">
-              <span className="font-medium text-gray-900">Repeats: </span>
+          <div className="bg-white dark:bg-gray-700 rounded-lg p-3 border border-gray-200 dark:border-gray-600">
+            <p className="text-sm text-gray-600 dark:text-gray-300">
+              <span className="font-medium text-gray-900 dark:text-white">Repeats: </span>
               {interval === 1 ? '' : `Every ${interval} `}
               {frequency === 'daily' && (interval === 1 ? 'Every day' : 'days')}
               {frequency === 'weekly' &&

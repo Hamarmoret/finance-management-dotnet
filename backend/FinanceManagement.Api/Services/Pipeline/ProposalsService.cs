@@ -108,7 +108,8 @@ public class ProposalsService
     }
 
     public async Task<(List<ProposalDto> Proposals, int Total)> GetAllAsync(
-        int page = 1, int limit = 20, string? search = null, string? status = null, string? clientId = null)
+        int page = 1, int limit = 20, string? search = null, string? status = null, string? clientId = null,
+        string? startDate = null, string? endDate = null)
     {
         await using var conn = _db.CreateConnection();
         await conn.OpenAsync();
@@ -132,6 +133,18 @@ public class ProposalsService
         {
             conditions.Add("p.client_id = @ClientId::uuid");
             parameters.Add("ClientId", clientId);
+        }
+
+        if (!string.IsNullOrEmpty(startDate))
+        {
+            conditions.Add("p.issue_date >= @StartDate::date");
+            parameters.Add("StartDate", startDate);
+        }
+
+        if (!string.IsNullOrEmpty(endDate))
+        {
+            conditions.Add("p.issue_date <= @EndDate::date");
+            parameters.Add("EndDate", endDate);
         }
 
         var whereClause = conditions.Count > 0 ? $"WHERE {string.Join(" AND ", conditions)}" : "";

@@ -73,9 +73,10 @@ export function formatDateTime(dateStr: string | Date | null | undefined): strin
  * @returns Formatted currency string
  */
 export function formatCurrency(amount: number, currency = 'USD'): string {
-  return new Intl.NumberFormat('en-GB', {
+  return new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency,
+    currencyDisplay: 'narrowSymbol',
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
   }).format(amount);
@@ -88,9 +89,10 @@ export function formatCurrency(amount: number, currency = 'USD'): string {
  * @returns Formatted currency string with 2 decimal places
  */
 export function formatCurrencyPrecise(amount: number, currency = 'USD'): string {
-  return new Intl.NumberFormat('en-GB', {
+  return new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency,
+    currencyDisplay: 'narrowSymbol',
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(amount);

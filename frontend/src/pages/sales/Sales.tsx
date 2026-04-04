@@ -3,6 +3,7 @@ import { Briefcase, Building2, TrendingUp, FileText } from 'lucide-react';
 import ClientsTab from './components/ClientsTab';
 import LeadsTab from './components/LeadsTab';
 import ProposalsTab from './components/ProposalsTab';
+import { PeriodSelector, getPeriodLabel } from '../../components/PeriodSelector';
 
 type SalesTab = 'clients' | 'leads' | 'proposals';
 
@@ -14,18 +15,28 @@ const tabs: { id: SalesTab; label: string; icon: typeof Building2 }[] = [
 
 export default function Sales() {
   const [activeTab, setActiveTab] = useState<SalesTab>('clients');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
 
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-          <Briefcase className="w-6 h-6 text-primary-600" />
-          Sales
-        </h1>
-        <p className="text-gray-600 dark:text-gray-400 mt-1">
-          Manage clients, leads, and proposals.
-        </p>
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+            <Briefcase className="w-6 h-6 text-primary-600" />
+            Sales
+          </h1>
+          <p className="text-gray-600 dark:text-gray-400 mt-1">{getPeriodLabel(startDate, endDate)}</p>
+          {activeTab !== 'clients' && (
+            <PeriodSelector
+              startDate={startDate}
+              endDate={endDate}
+              onChange={(s, e) => { setStartDate(s); setEndDate(e); }}
+              className="mt-2"
+            />
+          )}
+        </div>
       </div>
 
       {/* Tabs */}
@@ -50,8 +61,8 @@ export default function Sales() {
 
       {/* Tab Content */}
       {activeTab === 'clients' && <ClientsTab />}
-      {activeTab === 'leads' && <LeadsTab />}
-      {activeTab === 'proposals' && <ProposalsTab />}
+      {activeTab === 'leads' && <LeadsTab startDate={startDate} endDate={endDate} />}
+      {activeTab === 'proposals' && <ProposalsTab startDate={startDate} endDate={endDate} />}
     </div>
   );
 }

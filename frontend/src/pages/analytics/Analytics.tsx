@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import {
   BarChart3,
   TrendingUp,
@@ -391,8 +391,7 @@ export default function Analytics() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-500 dark:text-gray-400">Total Expenses</p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {formatCurrency(summary.totalExpenses)}
+                <p className="text-2xl font-bold text-gray-900 dark:text-white">{formatCurrency(summary.totalExpenses)}
                 </p>
               </div>
               <div className="w-12 h-12 bg-danger-50 rounded-full flex items-center justify-center">

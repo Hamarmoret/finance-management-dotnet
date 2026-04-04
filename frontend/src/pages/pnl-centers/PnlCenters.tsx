@@ -4,6 +4,7 @@ import { api, getErrorMessage } from '../../services/api';
 import type { PnlCenterWithStats } from '@finance/shared';
 import { PnlCenterModal } from './components/PnlCenterModal';
 import { PnlCenterDetail } from './components/PnlCenterDetail';
+import { PeriodSelector, getPeriodLabel } from '../../components/PeriodSelector';
 
 function formatCurrency(amount: number): string {
   return new Intl.NumberFormat('en-US', {
@@ -22,16 +23,19 @@ export default function PnlCenters() {
   const [editingCenter, setEditingCenter] = useState<PnlCenterWithStats | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [detailCenter, setDetailCenter] = useState<PnlCenterWithStats | null>(null);
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
 
   useEffect(() => {
     fetchCenters();
-  }, []);
+  }, [startDate, endDate]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function fetchCenters() {
     try {
       setLoading(true);
       const response = await api.get<{ success: boolean; data: PnlCenterWithStats[] }>(
-        '/pnl-centers'
+        '/pnl-centers',
+        { params: { ...(startDate && { startDate }), ...(endDate && { endDate }) } }
       );
       setCenters(response.data.data);
       setError(null);
@@ -83,19 +87,23 @@ export default function PnlCenters() {
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
             <Building2 className="w-6 h-6 text-primary-600" />
             P&L Centers
           </h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-1">
-            Manage profit and loss centers for your organization
-          </p>
+          <p className="text-gray-600 dark:text-gray-400 mt-1">{getPeriodLabel(startDate, endDate)}</p>
+          <PeriodSelector
+            startDate={startDate}
+            endDate={endDate}
+            onChange={(s, e) => { setStartDate(s); setEndDate(e); }}
+            className="mt-2"
+          />
         </div>
         <button
           onClick={() => setShowModal(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
+          className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors shrink-0"
         >
           <Plus className="w-4 h-4" />
           Add P&L Center
