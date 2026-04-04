@@ -126,6 +126,23 @@ using (var scope = app.Services.CreateScope())
     await migrationRunner.RunAsync();
 }
 
+// Promote designated account owner (runs independently of migration runner)
+try
+{
+    await using var ownerConn = dbContext.CreateConnection();
+    await ownerConn.OpenAsync();
+    var affected = await ownerConn.ExecuteAsync(
+        "UPDATE users SET role = 'owner', updated_at = NOW() WHERE LOWER(email) = 'ofer@hackerseye.com' AND role != 'owner'");
+    if (affected > 0)
+        Log.Information("Account owner promotion applied: ofer@hackerseye.com promoted to owner");
+    else
+        Log.Information("Account owner check: ofer@hackerseye.com already owner or not found");
+}
+catch (Exception ex)
+{
+    Log.Error(ex, "Failed to promote account owner — check role constraint includes 'owner'");
+}
+
 // Middleware pipeline
 app.UseMiddleware<ErrorHandlingMiddleware>();
 app.UseCors();
