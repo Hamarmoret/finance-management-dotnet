@@ -12,7 +12,8 @@ public static class AuthExtensions
         context.User.FindFirstValue("userId");
 
     public static string? GetUserRole(this HttpContext context) =>
-        context.User.FindFirstValue("role");
+        // JwtBearer maps "role" → ClaimTypes.Role during token validation; check both
+        context.User.FindFirstValue(ClaimTypes.Role) ?? context.User.FindFirstValue("role");
 
     public static string? GetUserEmail(this HttpContext context) =>
         context.User.FindFirstValue(ClaimTypes.Email);
