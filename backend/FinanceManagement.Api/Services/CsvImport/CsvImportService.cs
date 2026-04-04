@@ -68,13 +68,13 @@ public class CsvImportService
         var sb = new StringBuilder();
 
         // Row 1: Headers
-        sb.AppendLine("description,amount,currency,income_date,category,client_name,invoice_number,invoice_type,invoice_status,payment_due_date,payment_received_date,notes,tags");
+        sb.AppendLine("description,amount,currency,income_date,category,client_name,invoice_number,invoice_type,invoice_status,payment_due_date,payment_received_date,payment_method,vat_applicable,vat_percentage,billable_hours_regular,billable_hours_150,billable_hours_200,hourly_rate_regular,hourly_rate_150,hourly_rate_200,notes,tags");
 
         // Row 2: Example data
-        sb.AppendLine("\"Web Development Project\",5000.00,USD,2025-01-15,Freelance,Acme Corp,INV-001,standard,paid,2025-02-15,2025-02-10,\"Payment for website redesign\",\"web,design,client-a\"");
+        sb.AppendLine("\"Web Development Project\",5000.00,USD,2025-01-15,Freelance,Acme Corp,INV-001,standard,paid,2025-02-15,2025-02-10,bank_transfer,true,17,8,,,,,,\"Payment for website redesign\",\"web,design,client-a\"");
 
         // Row 3: Column descriptions
-        sb.AppendLine("\"Required: text description\",\"Required: numeric amount\",\"Optional: 3-letter code (default USD)\",\"Required: date YYYY-MM-DD\",\"Optional: category name\",\"Optional: client name\",\"Optional: invoice reference\",\"Optional: standard/proforma/tax/credit_note/receipt\",\"Optional: draft/sent/paid/overdue/cancelled\",\"Optional: date YYYY-MM-DD\",\"Optional: date YYYY-MM-DD\",\"Optional: free text notes\",\"Optional: comma-separated tags\"");
+        sb.AppendLine("\"Required: text description\",\"Required: numeric amount\",\"Optional: 3-letter code (default USD)\",\"Required: date YYYY-MM-DD\",\"Optional: category name\",\"Optional: client name\",\"Optional: invoice reference\",\"Optional: standard/proforma/tax/credit_note/receipt\",\"Optional: draft/sent/paid/overdue/cancelled\",\"Optional: date YYYY-MM-DD\",\"Optional: date YYYY-MM-DD\",\"Optional: cash/check/credit_card/bank_transfer/other\",\"Optional: true/false\",\"Optional: VAT %\",\"Optional: regular hours\",\"Optional: hours x1.5\",\"Optional: hours x2\",\"Optional: regular rate\",\"Optional: rate x1.5\",\"Optional: rate x2\",\"Optional: free text notes\",\"Optional: comma-separated tags\"");
 
         return sb.ToString();
     }
@@ -130,6 +130,7 @@ public class CsvImportService
                 var invoiceType = ValidateEnum(GetOptional(record, "invoice_type"), ValidInvoiceTypes, "invoice_type", i);
                 var invoiceStatus = ValidateEnum(GetOptional(record, "invoice_status"), ValidInvoiceStatuses, "invoice_status", i);
                 var notes = GetOptional(record, "notes");
+                var paymentMethod = ValidateEnum(GetOptional(record, "payment_method"), ValidPaymentMethods, "payment_method", i);
 
                 DateTime? paymentDueDate = null;
                 var paymentDueDateStr = GetOptional(record, "payment_due_date");
@@ -140,6 +141,42 @@ public class CsvImportService
                 var paymentReceivedDateStr = GetOptional(record, "payment_received_date");
                 if (!string.IsNullOrWhiteSpace(paymentReceivedDateStr))
                     paymentReceivedDate = ParseDate(paymentReceivedDateStr, i, "payment_received_date");
+
+                // VAT
+                bool vatApplicable = false;
+                var vatApplicableStr = GetOptional(record, "vat_applicable");
+                if (!string.IsNullOrWhiteSpace(vatApplicableStr))
+                    bool.TryParse(vatApplicableStr, out vatApplicable);
+
+                decimal? vatPercentage = null;
+                var vatPercentageStr = GetOptional(record, "vat_percentage");
+                if (!string.IsNullOrWhiteSpace(vatPercentageStr))
+                    vatPercentage = ParseDecimal(vatPercentageStr, i, "vat_percentage");
+
+                // Billable hours
+                decimal? billableHoursRegular = null;
+                var bhrStr = GetOptional(record, "billable_hours_regular");
+                if (!string.IsNullOrWhiteSpace(bhrStr)) billableHoursRegular = ParseDecimal(bhrStr, i, "billable_hours_regular");
+
+                decimal? billableHours150 = null;
+                var bh150Str = GetOptional(record, "billable_hours_150");
+                if (!string.IsNullOrWhiteSpace(bh150Str)) billableHours150 = ParseDecimal(bh150Str, i, "billable_hours_150");
+
+                decimal? billableHours200 = null;
+                var bh200Str = GetOptional(record, "billable_hours_200");
+                if (!string.IsNullOrWhiteSpace(bh200Str)) billableHours200 = ParseDecimal(bh200Str, i, "billable_hours_200");
+
+                decimal? hourlyRateRegular = null;
+                var hrrStr = GetOptional(record, "hourly_rate_regular");
+                if (!string.IsNullOrWhiteSpace(hrrStr)) hourlyRateRegular = ParseDecimal(hrrStr, i, "hourly_rate_regular");
+
+                decimal? hourlyRate150 = null;
+                var hr150Str = GetOptional(record, "hourly_rate_150");
+                if (!string.IsNullOrWhiteSpace(hr150Str)) hourlyRate150 = ParseDecimal(hr150Str, i, "hourly_rate_150");
+
+                decimal? hourlyRate200 = null;
+                var hr200Str = GetOptional(record, "hourly_rate_200");
+                if (!string.IsNullOrWhiteSpace(hr200Str)) hourlyRate200 = ParseDecimal(hr200Str, i, "hourly_rate_200");
 
                 // Parse tags (comma-separated within the field)
                 string[]? tags = null;
@@ -152,12 +189,18 @@ public class CsvImportService
                         description, amount, currency, income_date, client_name,
                         invoice_number, invoice_type, invoice_status,
                         payment_due_date, payment_received_date,
+                        payment_method, vat_applicable, vat_percentage,
+                        billable_hours_regular, billable_hours_150, billable_hours_200,
+                        hourly_rate_regular, hourly_rate_150, hourly_rate_200,
                         notes, tags, created_by
                     )
                     VALUES (
                         @Description, @Amount, @Currency, @IncomeDate, @ClientName,
                         @InvoiceNumber, @InvoiceType, @InvoiceStatus,
                         @PaymentDueDate, @PaymentReceivedDate,
+                        @PaymentMethod, @VatApplicable, @VatPercentage,
+                        @BillableHoursRegular, @BillableHours150, @BillableHours200,
+                        @HourlyRateRegular, @HourlyRate150, @HourlyRate200,
                         @Notes, @Tags, @CreatedBy::uuid
                     )
                     """,
@@ -173,6 +216,15 @@ public class CsvImportService
                         InvoiceStatus = invoiceStatus,
                         PaymentDueDate = paymentDueDate,
                         PaymentReceivedDate = paymentReceivedDate,
+                        PaymentMethod = paymentMethod,
+                        VatApplicable = vatApplicable,
+                        VatPercentage = vatPercentage,
+                        BillableHoursRegular = billableHoursRegular,
+                        BillableHours150 = billableHours150,
+                        BillableHours200 = billableHours200,
+                        HourlyRateRegular = hourlyRateRegular,
+                        HourlyRate150 = hourlyRate150,
+                        HourlyRate200 = hourlyRate200,
                         Notes = notes,
                         Tags = tags ?? Array.Empty<string>(),
                         CreatedBy = userId,

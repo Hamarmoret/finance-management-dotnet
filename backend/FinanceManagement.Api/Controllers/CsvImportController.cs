@@ -144,6 +144,11 @@ public class CsvImportController : ControllerBase
                 var country = GetOptional(record, "country");
                 var website = GetOptional(record, "website");
                 var notes = GetOptional(record, "notes");
+                var industry = GetOptional(record, "industry");
+                var businessType = GetOptional(record, "business_type");
+                var utmSource = GetOptional(record, "utm_source");
+                var utmMedium = GetOptional(record, "utm_medium");
+                var utmCampaign = GetOptional(record, "utm_campaign");
                 var tagsStr = GetOptional(record, "tags");
 
                 string[]? tags = null;
@@ -153,8 +158,10 @@ public class CsvImportController : ControllerBase
                 }
 
                 await conn.ExecuteAsync("""
-                    INSERT INTO clients (name, company_name, email, phone, address, city, country, website, notes, tags, created_by)
-                    VALUES (@Name, @CompanyName, @Email, @Phone, @Address, @City, @Country, @Website, @Notes, @Tags, @CreatedBy::uuid)
+                    INSERT INTO clients (name, company_name, email, phone, address, city, country, website,
+                        industry, business_type, utm_source, utm_medium, utm_campaign, notes, tags, created_by)
+                    VALUES (@Name, @CompanyName, @Email, @Phone, @Address, @City, @Country, @Website,
+                        @Industry, @BusinessType, @UtmSource, @UtmMedium, @UtmCampaign, @Notes, @Tags, @CreatedBy::uuid)
                     """,
                     new
                     {
@@ -166,6 +173,11 @@ public class CsvImportController : ControllerBase
                         City = city,
                         Country = country,
                         Website = website,
+                        Industry = industry,
+                        BusinessType = businessType,
+                        UtmSource = utmSource,
+                        UtmMedium = utmMedium,
+                        UtmCampaign = utmCampaign,
                         Notes = notes,
                         Tags = tags,
                         CreatedBy = userId,
@@ -260,12 +272,44 @@ public class CsvImportController : ControllerBase
                         $"Invalid status '{status}'. Must be one of: {string.Join(", ", validStatuses)}");
                 status = status.ToLowerInvariant();
 
+                // Deal terms
+                var dealType = GetOptional(record, "deal_type");
+                var orderNumber = GetOptional(record, "order_number");
+                var clientOrderNumber = GetOptional(record, "client_order_number");
+                var ndaUrl = GetOptional(record, "nda_url");
+
+                int? scopeMonths = null;
+                var scopeMonthsStr = GetOptional(record, "scope_months");
+                if (!string.IsNullOrWhiteSpace(scopeMonthsStr) && int.TryParse(scopeMonthsStr, out var sm)) scopeMonths = sm;
+
+                int? minCommitmentMonths = null;
+                var minCommitStr = GetOptional(record, "min_commitment_months");
+                if (!string.IsNullOrWhiteSpace(minCommitStr) && int.TryParse(minCommitStr, out var mc)) minCommitmentMonths = mc;
+
+                decimal? complimentaryHours = null;
+                var complHoursStr = GetOptional(record, "complimentary_hours");
+                if (!string.IsNullOrWhiteSpace(complHoursStr)) complimentaryHours = ParseDecimal(complHoursStr, i, "complimentary_hours");
+
+                DateTime? retainerRenewalDate = null;
+                var rrdStr = GetOptional(record, "retainer_renewal_date");
+                if (!string.IsNullOrWhiteSpace(rrdStr)) retainerRenewalDate = ParseDate(rrdStr, i, "retainer_renewal_date");
+
+                DateTime? followUpDate = null;
+                var fudStr = GetOptional(record, "follow_up_date");
+                if (!string.IsNullOrWhiteSpace(fudStr)) followUpDate = ParseDate(fudStr, i, "follow_up_date");
+
                 await conn.ExecuteAsync("""
                     INSERT INTO leads (title, description, contact_name, contact_email, company_name,
                         source, estimated_value, currency, probability, status, expected_close_date,
+                        deal_type, order_number, client_order_number, nda_url,
+                        scope_months, min_commitment_months, complimentary_hours,
+                        retainer_renewal_date, follow_up_date,
                         notes, assigned_to, created_by)
                     VALUES (@Title, @Description, @ContactName, @ContactEmail, @CompanyName,
                         @Source, @EstimatedValue, @Currency, @Probability, @Status, @ExpectedCloseDate,
+                        @DealType, @OrderNumber, @ClientOrderNumber, @NdaUrl,
+                        @ScopeMonths, @MinCommitmentMonths, @ComplimentaryHours,
+                        @RetainerRenewalDate, @FollowUpDate,
                         @Notes, @AssignedTo::uuid, @CreatedBy::uuid)
                     """,
                     new
@@ -281,6 +325,15 @@ public class CsvImportController : ControllerBase
                         Probability = probability,
                         Status = status,
                         ExpectedCloseDate = expectedCloseDate,
+                        DealType = dealType,
+                        OrderNumber = orderNumber,
+                        ClientOrderNumber = clientOrderNumber,
+                        NdaUrl = ndaUrl,
+                        ScopeMonths = scopeMonths,
+                        MinCommitmentMonths = minCommitmentMonths,
+                        ComplimentaryHours = complimentaryHours,
+                        RetainerRenewalDate = retainerRenewalDate,
+                        FollowUpDate = followUpDate,
                         Notes = notes,
                         AssignedTo = userId,
                         CreatedBy = userId,
@@ -315,8 +368,8 @@ public class CsvImportController : ControllerBase
     {
         var headers = type.ToLowerInvariant() switch
         {
-            "clients" => "name,company_name,email,phone,address,city,country,website,notes,tags",
-            "leads" => "title,description,contact_name,contact_email,company_name,source,estimated_value,currency,probability,status,expected_close_date,notes",
+            "clients" => "name,company_name,email,phone,address,city,country,website,industry,business_type,utm_source,utm_medium,utm_campaign,notes,tags",
+            "leads" => "title,description,contact_name,contact_email,company_name,source,estimated_value,currency,probability,status,expected_close_date,deal_type,order_number,client_order_number,scope_months,min_commitment_months,complimentary_hours,retainer_renewal_date,follow_up_date,nda_url,notes",
             _ => throw new AppException($"Unknown template type '{type}'. Valid types: expenses, income, clients, leads", 400, "VALIDATION_ERROR"),
         };
 

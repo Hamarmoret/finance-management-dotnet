@@ -230,5 +230,10 @@ New `/sales` page (tabbed, mirrors Settings pattern) with 3 tabs:
 - `frontend/src/pages/sales/components/LeadModal.tsx` — added "Deal Terms" tab (3rd tab) with all 9 deal terms fields
 - `frontend/src/pages/income/components/IncomeModal.tsx` — replaced clientName text input with ClientAutocomplete, added Payment Method select, VAT toggle+%, Billable Hours collapsible section (6 fields)
 
-### Phase 3 Planned (not yet built)
-- CSV Import extensions: contacts import, leads-enrichment import, income billing columns
+### Phase 3 — CSV Import Extensions (Complete)
+
+Extended all CSV importers to accept Phase 2 new columns:
+
+- **Income import** (`CsvImportService.cs`): added `payment_method`, `vat_applicable`, `vat_percentage`, `billable_hours_regular/150/200`, `hourly_rate_regular/150/200`. Template updated with 22 columns.
+- **Clients import** (`CsvImportController.cs`): added `industry`, `business_type`, `utm_source`, `utm_medium`, `utm_campaign`. Template updated with 15 columns.
+- **Leads import** (`CsvImportController.cs`): added all 9 deal terms fields (`deal_type`, `order_number`, `client_order_number`, `scope_months`, `min_commitment_months`, `complimentary_hours`, `retainer_renewal_date`, `follow_up_date`, `nda_url`). Template updated with 21 columns.
