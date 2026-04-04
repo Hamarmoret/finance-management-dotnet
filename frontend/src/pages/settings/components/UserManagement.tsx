@@ -282,13 +282,13 @@ export default function UserManagement() {
                         )}
                       </button>
                     )}
-                    {/* Delete — hidden for owner; hidden for admins unless current user is owner */}
-                    {user.role !== 'owner' && (user.role !== 'admin' || isOwner) && (
+                    {/* Delete — hidden only for the owner row itself */}
+                    {user.role !== 'owner' && (
                       <button
                         onClick={() => handleDeleteUser(user)}
                         disabled={actionLoading === user.id}
-                        className="text-danger-600 hover:text-danger-900"
-                        title="Delete user permanently"
+                        className="text-danger-600 hover:text-danger-900 disabled:opacity-40"
+                        title={user.role === 'admin' && !isOwner ? 'Only the account owner can delete admins' : 'Delete user permanently'}
                       >
                         {actionLoading === user.id ? (
                           <Loader2 className="w-4 h-4 animate-spin" />

@@ -55,7 +55,9 @@ public class MigrationRunner
         ("010_contact_persons_client_enrichment", Sql010ContactPersonsClientEnrichment),
         ("011_leads_deal_terms", Sql011LeadsDealTerms),
         ("012_income_client_billing", Sql012IncomeClientBilling),
-        ("013_owner_role", Sql013OwnerRole),
+        ("013a_drop_role_constraint", Sql013aDropRoleConstraint),
+        ("013b_add_owner_to_role_constraint", Sql013bAddOwnerToRoleConstraint),
+        ("013c_promote_owner", Sql013cPromoteOwner),
     ];
 
     #region SQL Migrations
@@ -590,16 +592,15 @@ public class MigrationRunner
         CREATE INDEX IF NOT EXISTS idx_income_client_id ON income(client_id);
         """;
 
-    private const string Sql013OwnerRole = """
-        ALTER TABLE users DROP CONSTRAINT IF EXISTS valid_role;
-        ALTER TABLE users ADD CONSTRAINT valid_role
-            CHECK (role IN ('admin', 'manager', 'viewer', 'owner'));
-        DO $$
-        BEGIN
-            UPDATE users SET role = 'owner', updated_at = NOW()
-            WHERE email = 'ofer@hackerseye.com' AND role != 'owner';
-        END $$;
-        """;
+    // Split into 3 single-statement migrations — Npgsql requires one statement per ExecuteAsync call
+    private const string Sql013aDropRoleConstraint =
+        "ALTER TABLE users DROP CONSTRAINT IF EXISTS valid_role";
+
+    private const string Sql013bAddOwnerToRoleConstraint =
+        "ALTER TABLE users ADD CONSTRAINT valid_role CHECK (role IN ('admin', 'manager', 'viewer', 'owner'))";
+
+    private const string Sql013cPromoteOwner =
+        "UPDATE users SET role = 'owner', updated_at = NOW() WHERE LOWER(email) = 'ofer@hackerseye.com' AND role != 'owner'";
 
     #endregion
 }

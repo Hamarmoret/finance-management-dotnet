@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { User, Mail, Loader2, Check, Key } from 'lucide-react';
+import { User, Mail, Loader2, Check, Key, Crown } from 'lucide-react';
 import { useAuthStore } from '../../../stores/authStore';
 import { api, getErrorMessage } from '../../../services/api';
 import { formatDate } from '../../../utils/formatters';
@@ -168,17 +168,24 @@ export default function ProfileSettings() {
             <div>
               <label className="label">Role</label>
               <div className="mt-1">
-                <span
-                  className={`px-2 py-1 rounded-full text-xs font-medium ${
-                    user?.role === 'admin'
-                      ? 'bg-purple-100 text-purple-700'
-                      : user?.role === 'manager'
-                      ? 'bg-blue-100 text-blue-700'
-                      : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
-                  }`}
-                >
-                  {user?.role}
-                </span>
+                {user?.role === 'owner' ? (
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-semibold bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-300">
+                    <Crown className="w-4 h-4" />
+                    Account Owner
+                  </span>
+                ) : (
+                  <span
+                    className={`px-2 py-1 rounded-full text-xs font-medium capitalize ${
+                      user?.role === 'admin'
+                        ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300'
+                        : user?.role === 'manager'
+                        ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
+                        : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
+                    }`}
+                  >
+                    {user?.role}
+                  </span>
+                )}
               </div>
             </div>
 
