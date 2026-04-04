@@ -1,0 +1,88 @@
+steps:
+  # ── Build both images in parallel ──────────────────────────────────────────
+
+  - id: 'build-backend'
+    name: 'gcr.io/cloud-builders/docker'
+    waitFor: ['-']
+    args:
+      - build
+      - -f
+      - Dockerfile.backend
+      - -t
+      - gcr.io/$PROJECT_ID/finance-backend-dotnet:$BUILD_ID
+      - -t
+      - gcr.io/$PROJECT_ID/finance-backend-dotnet:latest
+      - .
+
+  - id: 'build-frontend'
+    name: 'gcr.io/cloud-builders/docker'
+    waitFor: ['-']
+    args:
+      - build
+      - -f
+      - Dockerfile.frontend
+      - --build-arg
+      - VITE_API_URL=${_API_URL}
+      - -t
+      - gcr.io/$PROJECT_ID/finance-frontend-dotnet:$BUILD_ID
+      - -t
+      - gcr.io/$PROJECT_ID/finance-frontend-dotnet:latest
+      - .
+
+  # ── Push both images ────────────────────────────────────────────────────────
+
+  - id: 'push-backend'
+    name: 'gcr.io/cloud-builders/docker'
+    waitFor: ['build-backend']
+    args: [push, gcr.io/$PROJECT_ID/finance-backend-dotnet:latest]
+
+  - id: 'push-frontend'
+    name: 'gcr.io/cloud-builders/docker'
+    waitFor: ['build-frontend']
+    args: [push, gcr.io/$PROJECT_ID/finance-frontend-dotnet:latest]
+
+  # ── Deploy both to Cloud Run ────────────────────────────────────────────────
+
+  - id: 'deploy-backend'
+    name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    waitFor: ['push-backend']
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - finance-backend-dotnet
+      - --image
+      - gcr.io/$PROJECT_ID/finance-backend-dotnet:latest
+      - --region
+      - me-west1
+      - --platform
+      - managed
+      - --quiet
+
+  - id: 'deploy-frontend'
+    name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    waitFor: ['push-frontend']
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - finance-frontend-dotnet
+      - --image
+      - gcr.io/$PROJECT_ID/finance-frontend-dotnet:latest
+      - --region
+      - me-west1
+      - --platform
+      - managed
+      - --quiet
+
+substitutions:
+  _API_URL: 'https://finance-backend-dotnet-233195483413.me-west1.run.app/api'
+
+images:
+  - gcr.io/$PROJECT_ID/finance-backend-dotnet:$BUILD_ID
+  - gcr.io/$PROJECT_ID/finance-backend-dotnet:latest
+  - gcr.io/$PROJECT_ID/finance-frontend-dotnet:$BUILD_ID
+  - gcr.io/$PROJECT_ID/finance-frontend-dotnet:latest
+
+options:
+  logging: CLOUD_LOGGING_ONLY
