@@ -189,7 +189,7 @@ public class UsersService
         };
     }
 
-    public async Task<UserDto> UpdateRoleAsync(Guid id, string role, Guid adminUserId)
+    public async Task<UserDto> UpdateRoleAsync(Guid id, string role, Guid adminUserId, string requesterRole)
     {
         await using var conn = _db.CreateConnection();
         await conn.OpenAsync();
@@ -201,10 +201,18 @@ public class UsersService
         if (user == null)
             throw new AppException("User not found", 404, "NOT_FOUND");
 
+        // Owner's role is immutable
+        if (user.Role == "owner")
+            throw new AppException("Cannot change the account owner's role", 403, "FORBIDDEN");
+
+        // Only owner can assign admin role
+        if (role == "owner")
+            throw new AppException("Cannot assign the owner role", 403, "FORBIDDEN");
+
         if (user.Role == role)
             return user.ToDto();
 
-        // Prevent demoting the last admin
+        // Prevent demoting the last admin (owner doesn't count toward admin quorum)
         if (user.Role == "admin" && role != "admin")
         {
             var adminCount = await conn.ExecuteScalarAsync<int>(
@@ -226,7 +234,7 @@ public class UsersService
         return updated.ToDto();
     }
 
-    public async Task<UserDto> ToggleActiveAsync(Guid id, bool isActive, Guid adminUserId)
+    public async Task<UserDto> ToggleActiveAsync(Guid id, bool isActive, Guid adminUserId, string requesterRole)
     {
         await using var conn = _db.CreateConnection();
         await conn.OpenAsync();
@@ -241,7 +249,11 @@ public class UsersService
         if (id == adminUserId)
             throw new AppException("Cannot modify your own active status", 400, "BAD_REQUEST");
 
-        // Prevent deactivating the last admin
+        // Owner account cannot be deactivated
+        if (user.Role == "owner")
+            throw new AppException("Cannot deactivate the account owner", 403, "FORBIDDEN");
+
+        // Prevent deactivating the last admin (owner doesn't count toward admin quorum)
         if (!isActive && user.Role == "admin")
         {
             var adminCount = await conn.ExecuteScalarAsync<int>(
@@ -263,7 +275,7 @@ public class UsersService
         return updated.ToDto();
     }
 
-    public async Task DeleteAsync(Guid id, Guid adminUserId)
+    public async Task DeleteAsync(Guid id, Guid adminUserId, string requesterRole)
     {
         await using var conn = _db.CreateConnection();
         await conn.OpenAsync();
@@ -278,7 +290,15 @@ public class UsersService
         if (id == adminUserId)
             throw new AppException("Cannot delete your own account", 400, "BAD_REQUEST");
 
-        // Prevent deleting the last admin
+        // Owner account can never be deleted
+        if (user.Role == "owner")
+            throw new AppException("Cannot delete the account owner", 403, "FORBIDDEN");
+
+        // Only owner can delete admin users
+        if (user.Role == "admin" && requesterRole != "owner")
+            throw new AppException("Only the account owner can delete admin users", 403, "FORBIDDEN");
+
+        // Prevent deleting the last admin (only matters when owner is deleting admins)
         if (user.Role == "admin")
         {
             var adminCount = await conn.ExecuteScalarAsync<int>(
@@ -364,10 +384,13 @@ public class UsersService
         return await GetPnlPermissionsInternalAsync(conn, userId);
     }
 
-    public async Task<UserDto> InviteUserAsync(string email, string firstName, string lastName, string role, Guid adminUserId)
+    public async Task<UserDto> InviteUserAsync(string email, string firstName, string lastName, string role, Guid adminUserId, string requesterRole)
     {
         await using var conn = _db.CreateConnection();
         await conn.OpenAsync();
+
+        if (role == "owner")
+            throw new AppException("Cannot assign the owner role", 403, "FORBIDDEN");
 
         // Check if email already exists
         var exists = await conn.ExecuteScalarAsync<bool>(

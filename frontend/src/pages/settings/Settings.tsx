@@ -13,7 +13,7 @@ type TabType = 'profile' | 'categories' | 'pnl-defaults' | 'users' | 'permission
 export default function Settings() {
   const { user } = useAuthStore();
   const [activeTab, setActiveTab] = useState<TabType>('profile');
-  const isAdmin = user?.role === 'admin';
+  const isAdmin = user?.role === 'admin' || user?.role === 'owner';
 
   const tabs: { id: TabType; label: string; icon: typeof User; adminOnly?: boolean }[] = [
     { id: 'profile', label: 'Profile', icon: User },

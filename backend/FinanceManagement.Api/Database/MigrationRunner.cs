@@ -55,6 +55,7 @@ public class MigrationRunner
         ("010_contact_persons_client_enrichment", Sql010ContactPersonsClientEnrichment),
         ("011_leads_deal_terms", Sql011LeadsDealTerms),
         ("012_income_client_billing", Sql012IncomeClientBilling),
+        ("013_owner_role", Sql013OwnerRole),
     ];
 
     #region SQL Migrations
@@ -587,6 +588,14 @@ public class MigrationRunner
         ALTER TABLE income ADD COLUMN IF NOT EXISTS vat_percentage DECIMAL(5,2);
         ALTER TABLE income ADD COLUMN IF NOT EXISTS payment_method VARCHAR(50);
         CREATE INDEX IF NOT EXISTS idx_income_client_id ON income(client_id);
+        """;
+
+    private const string Sql013OwnerRole = """
+        ALTER TABLE users DROP CONSTRAINT IF EXISTS valid_role;
+        ALTER TABLE users ADD CONSTRAINT valid_role
+            CHECK (role IN ('admin', 'manager', 'viewer', 'owner'));
+        UPDATE users SET role = 'owner'
+            WHERE email = 'ofer@hackerseye.com' AND role = 'admin';
         """;
 
     #endregion

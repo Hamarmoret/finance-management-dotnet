@@ -65,7 +65,8 @@ public class UsersController : ControllerBase
     {
         RequireAdmin();
         var adminUserId = Guid.Parse(HttpContext.GetUserId()!);
-        var user = await _usersService.UpdateRoleAsync(id, request.Role, adminUserId);
+        var requesterRole = HttpContext.GetUserRole()!;
+        var user = await _usersService.UpdateRoleAsync(id, request.Role, adminUserId, requesterRole);
         return Ok(ApiResponse<UserDto>.Ok(user));
     }
 
@@ -78,7 +79,8 @@ public class UsersController : ControllerBase
     {
         RequireAdmin();
         var adminUserId = Guid.Parse(HttpContext.GetUserId()!);
-        var user = await _usersService.ToggleActiveAsync(id, request.IsActive, adminUserId);
+        var requesterRole = HttpContext.GetUserRole()!;
+        var user = await _usersService.ToggleActiveAsync(id, request.IsActive, adminUserId, requesterRole);
         return Ok(ApiResponse<UserDto>.Ok(user));
     }
 
@@ -91,7 +93,8 @@ public class UsersController : ControllerBase
     {
         RequireAdmin();
         var adminUserId = Guid.Parse(HttpContext.GetUserId()!);
-        await _usersService.DeleteAsync(id, adminUserId);
+        var requesterRole = HttpContext.GetUserRole()!;
+        await _usersService.DeleteAsync(id, adminUserId, requesterRole);
         return Ok(ApiResponse<object>.Ok(new { message = "User permanently deleted" }));
     }
 
@@ -128,8 +131,9 @@ public class UsersController : ControllerBase
     {
         RequireAdmin();
         var adminUserId = Guid.Parse(HttpContext.GetUserId()!);
+        var requesterRole = HttpContext.GetUserRole()!;
         var user = await _usersService.InviteUserAsync(
-            request.Email, request.FirstName, request.LastName, request.Role, adminUserId);
+            request.Email, request.FirstName, request.LastName, request.Role, adminUserId, requesterRole);
         return StatusCode(201, ApiResponse<UserDto>.Ok(user));
     }
 
@@ -140,7 +144,7 @@ public class UsersController : ControllerBase
     private void RequireAdmin()
     {
         var role = HttpContext.GetUserRole();
-        if (role != "admin")
+        if (role != "admin" && role != "owner")
             throw new AppException("Admin access required", 403, "FORBIDDEN");
     }
 }

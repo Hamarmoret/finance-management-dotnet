@@ -9,9 +9,11 @@ import {
   Shield,
   Plus,
   Trash2,
+  Crown,
 } from 'lucide-react';
 import { User, UserRole } from '@finance/shared';
 import { api, getErrorMessage } from '../../../services/api';
+import { useAuthStore } from '../../../stores/authStore';
 import UserEditModal from './UserEditModal';
 import InviteUserModal from './InviteUserModal';
 
@@ -20,6 +22,9 @@ interface UserWithPermissions extends User {
 }
 
 export default function UserManagement() {
+  const { user: currentUser } = useAuthStore();
+  const isOwner = currentUser?.role === 'owner';
+
   const [users, setUsers] = useState<UserWithPermissions[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -204,16 +209,23 @@ export default function UserManagement() {
                   </div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
-                  <select
-                    value={user.role}
-                    onChange={(e) => handleRoleChange(user.id, e.target.value as UserRole)}
-                    disabled={actionLoading === user.id}
-                    className="text-sm border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 rounded-md focus:ring-primary-500 focus:border-primary-500"
-                  >
-                    <option value="viewer">Viewer</option>
-                    <option value="manager">Manager</option>
-                    <option value="admin">Admin</option>
-                  </select>
+                  {user.role === 'owner' ? (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-300">
+                      <Crown className="w-3 h-3" />
+                      Owner
+                    </span>
+                  ) : (
+                    <select
+                      value={user.role}
+                      onChange={(e) => handleRoleChange(user.id, e.target.value as UserRole)}
+                      disabled={actionLoading === user.id}
+                      className="text-sm border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 rounded-md focus:ring-primary-500 focus:border-primary-500"
+                    >
+                      <option value="viewer">Viewer</option>
+                      <option value="manager">Manager</option>
+                      <option value="admin">Admin</option>
+                    </select>
+                  )}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <span
@@ -249,36 +261,42 @@ export default function UserManagement() {
                     >
                       <Shield className="w-4 h-4" />
                     </button>
-                    <button
-                      onClick={() => handleToggleActive(user.id, user.isActive)}
-                      disabled={actionLoading === user.id}
-                      className={`${
-                        user.isActive
-                          ? 'text-warning-600 hover:text-warning-900'
-                          : 'text-success-600 hover:text-success-900'
-                      }`}
-                      title={user.isActive ? 'Deactivate user' : 'Reactivate user'}
-                    >
-                      {actionLoading === user.id ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                      ) : user.isActive ? (
-                        <UserX className="w-4 h-4" />
-                      ) : (
-                        <UserCheck className="w-4 h-4" />
-                      )}
-                    </button>
-                    <button
-                      onClick={() => handleDeleteUser(user)}
-                      disabled={actionLoading === user.id}
-                      className="text-danger-600 hover:text-danger-900"
-                      title="Delete user permanently"
-                    >
-                      {actionLoading === user.id ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                      ) : (
-                        <Trash2 className="w-4 h-4" />
-                      )}
-                    </button>
+                    {/* Deactivate/reactivate — hidden for owner */}
+                    {user.role !== 'owner' && (
+                      <button
+                        onClick={() => handleToggleActive(user.id, user.isActive)}
+                        disabled={actionLoading === user.id}
+                        className={`${
+                          user.isActive
+                            ? 'text-warning-600 hover:text-warning-900'
+                            : 'text-success-600 hover:text-success-900'
+                        }`}
+                        title={user.isActive ? 'Deactivate user' : 'Reactivate user'}
+                      >
+                        {actionLoading === user.id ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : user.isActive ? (
+                          <UserX className="w-4 h-4" />
+                        ) : (
+                          <UserCheck className="w-4 h-4" />
+                        )}
+                      </button>
+                    )}
+                    {/* Delete — hidden for owner; hidden for admins unless current user is owner */}
+                    {user.role !== 'owner' && (user.role !== 'admin' || isOwner) && (
+                      <button
+                        onClick={() => handleDeleteUser(user)}
+                        disabled={actionLoading === user.id}
+                        className="text-danger-600 hover:text-danger-900"
+                        title="Delete user permanently"
+                      >
+                        {actionLoading === user.id ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <Trash2 className="w-4 h-4" />
+                        )}
+                      </button>
+                    )}
                   </div>
                 </td>
               </tr>

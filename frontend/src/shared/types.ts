@@ -2,7 +2,7 @@
 // User & Authentication Types
 // =============================================
 
-export type UserRole = 'admin' | 'manager' | 'viewer';
+export type UserRole = 'owner' | 'admin' | 'manager' | 'viewer';
 export type PermissionLevel = 'view' | 'edit' | 'admin';
 
 export interface User {
