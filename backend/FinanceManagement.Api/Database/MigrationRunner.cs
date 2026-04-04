@@ -594,8 +594,11 @@ public class MigrationRunner
         ALTER TABLE users DROP CONSTRAINT IF EXISTS valid_role;
         ALTER TABLE users ADD CONSTRAINT valid_role
             CHECK (role IN ('admin', 'manager', 'viewer', 'owner'));
-        UPDATE users SET role = 'owner'
-            WHERE email = 'ofer@hackerseye.com' AND role = 'admin';
+        DO $$
+        BEGIN
+            UPDATE users SET role = 'owner', updated_at = NOW()
+            WHERE email = 'ofer@hackerseye.com' AND role != 'owner';
+        END $$;
         """;
 
     #endregion
