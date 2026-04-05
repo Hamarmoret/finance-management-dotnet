@@ -6,6 +6,7 @@ export default defineConfig({
     resolve: {
         alias: {
             '@': path.resolve(__dirname, './src'),
+            '@finance/shared': path.resolve(__dirname, './src/shared/index.ts'),
         },
     },
     server: {
@@ -13,7 +14,7 @@ export default defineConfig({
         host: true,
         proxy: {
             '/api': {
-                target: process.env.VITE_API_URL || 'http://localhost:3001',
+                target: 'https://finance-backend-dotnet-233195483413.me-west1.run.app',
                 changeOrigin: true,
             },
         },

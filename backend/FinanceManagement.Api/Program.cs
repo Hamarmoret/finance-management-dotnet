@@ -97,6 +97,7 @@ builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<PasswordResetService>();
 builder.Services.AddScoped<ExpensesService>();
 builder.Services.AddScoped<IncomeService>();
+builder.Services.AddScoped<IncomeContractsService>();
 builder.Services.AddScoped<PnlCentersService>();
 builder.Services.AddScoped<UsersService>();
 builder.Services.AddScoped<ClientsService>();

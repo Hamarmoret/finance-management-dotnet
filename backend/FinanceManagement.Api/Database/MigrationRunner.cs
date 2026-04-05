@@ -58,6 +58,10 @@ public class MigrationRunner
         ("013a_drop_role_constraint", Sql013aDropRoleConstraint),
         ("013b_add_owner_to_role_constraint", Sql013bAddOwnerToRoleConstraint),
         ("013c_promote_owner", Sql013cPromoteOwner),
+        ("014a_income_contracts", Sql014aIncomeContracts),
+        ("014b_income_milestones", Sql014bIncomeMilestones),
+        ("014c_income_contracts_triggers", Sql014cIncomeContractsTriggers),
+        ("014d_proposals_contract_column", Sql014dProposalsContractColumn),
     ];
 
     #region SQL Migrations
@@ -601,6 +605,107 @@ public class MigrationRunner
 
     private const string Sql013cPromoteOwner =
         "UPDATE users SET role = 'owner', updated_at = NOW() WHERE LOWER(email) = 'ofer@hackerseye.com' AND role != 'owner'";
+
+    private const string Sql014aIncomeContracts = """
+        CREATE SEQUENCE IF NOT EXISTS contract_number_seq START 1000;
+
+        CREATE OR REPLACE FUNCTION generate_contract_number()
+        RETURNS TEXT AS $$
+        DECLARE
+          year_part TEXT;
+          seq_num BIGINT;
+        BEGIN
+          year_part := to_char(CURRENT_DATE, 'YYYY');
+          seq_num := nextval('contract_number_seq');
+          RETURN 'CTR-' || year_part || '-' || LPAD(seq_num::TEXT, 4, '0');
+        END;
+        $$ LANGUAGE plpgsql;
+
+        CREATE TABLE IF NOT EXISTS income_contracts (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          title VARCHAR(255) NOT NULL,
+          contract_number VARCHAR(50) UNIQUE DEFAULT generate_contract_number(),
+          contract_type VARCHAR(20) NOT NULL,
+          status VARCHAR(30) NOT NULL DEFAULT 'active',
+          client_id UUID REFERENCES clients(id) ON DELETE SET NULL,
+          client_name VARCHAR(255),
+          proposal_id UUID REFERENCES proposals(id) ON DELETE SET NULL,
+          category_id UUID REFERENCES income_categories(id) ON DELETE SET NULL,
+          pnl_center_id UUID REFERENCES pnl_centers(id) ON DELETE SET NULL,
+          currency VARCHAR(3) DEFAULT 'ILS',
+          total_value DECIMAL(15,2) NOT NULL,
+          vat_applicable BOOLEAN DEFAULT FALSE,
+          vat_percentage DECIMAL(5,2),
+          payment_terms_days INTEGER DEFAULT 30,
+          start_date DATE,
+          end_date DATE,
+          retainer_monthly_amount DECIMAL(15,2),
+          retainer_billing_day INTEGER,
+          notes TEXT,
+          tags TEXT[] DEFAULT '{}',
+          created_by UUID REFERENCES users(id) ON DELETE SET NULL,
+          created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+          CONSTRAINT valid_contract_type CHECK (contract_type IN ('project','retainer')),
+          CONSTRAINT valid_contract_status CHECK (status IN ('active','completed','cancelled','on_hold')),
+          CONSTRAINT valid_billing_day CHECK (retainer_billing_day IS NULL OR (retainer_billing_day >= 1 AND retainer_billing_day <= 28))
+        );
+        CREATE INDEX IF NOT EXISTS idx_income_contracts_client ON income_contracts(client_id);
+        CREATE INDEX IF NOT EXISTS idx_income_contracts_proposal ON income_contracts(proposal_id);
+        CREATE INDEX IF NOT EXISTS idx_income_contracts_status ON income_contracts(status);
+        CREATE INDEX IF NOT EXISTS idx_income_contracts_type ON income_contracts(contract_type);
+        CREATE INDEX IF NOT EXISTS idx_income_contracts_created_by ON income_contracts(created_by)
+        """;
+
+    private const string Sql014bIncomeMilestones = """
+        CREATE TABLE IF NOT EXISTS income_milestones (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          contract_id UUID NOT NULL REFERENCES income_contracts(id) ON DELETE CASCADE,
+          sort_order INTEGER NOT NULL DEFAULT 0,
+          description VARCHAR(500) NOT NULL,
+          amount_due DECIMAL(15,2) NOT NULL,
+          currency VARCHAR(3) DEFAULT 'ILS',
+          due_date DATE NOT NULL,
+          status VARCHAR(30) NOT NULL DEFAULT 'pending',
+          proforma_invoice_number VARCHAR(100),
+          proforma_invoice_date DATE,
+          proforma_amount DECIMAL(15,2),
+          tax_invoice_number VARCHAR(100),
+          tax_invoice_date DATE,
+          payment_received_date DATE,
+          payment_method VARCHAR(50),
+          actual_amount_paid DECIMAL(15,2),
+          income_id UUID REFERENCES income(id) ON DELETE SET NULL,
+          notes TEXT,
+          created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+          CONSTRAINT valid_milestone_status CHECK (status IN ('pending','proforma_issued','invoice_sent','paid','overdue')),
+          CONSTRAINT positive_milestone_amount CHECK (amount_due > 0)
+        );
+        CREATE INDEX IF NOT EXISTS idx_income_milestones_contract ON income_milestones(contract_id);
+        CREATE INDEX IF NOT EXISTS idx_income_milestones_due_date ON income_milestones(due_date);
+        CREATE INDEX IF NOT EXISTS idx_income_milestones_status ON income_milestones(status);
+        CREATE INDEX IF NOT EXISTS idx_income_milestones_income ON income_milestones(income_id)
+        """;
+
+    private const string Sql014cIncomeContractsTriggers = """
+        CREATE OR REPLACE FUNCTION update_income_contracts_updated_at()
+        RETURNS TRIGGER AS $$ BEGIN NEW.updated_at = CURRENT_TIMESTAMP; RETURN NEW; END; $$ LANGUAGE plpgsql;
+        DROP TRIGGER IF EXISTS trigger_update_income_contracts_updated_at ON income_contracts;
+        CREATE TRIGGER trigger_update_income_contracts_updated_at
+          BEFORE UPDATE ON income_contracts FOR EACH ROW
+          EXECUTE FUNCTION update_income_contracts_updated_at();
+
+        CREATE OR REPLACE FUNCTION update_income_milestones_updated_at()
+        RETURNS TRIGGER AS $$ BEGIN NEW.updated_at = CURRENT_TIMESTAMP; RETURN NEW; END; $$ LANGUAGE plpgsql;
+        DROP TRIGGER IF EXISTS trigger_update_income_milestones_updated_at ON income_milestones;
+        CREATE TRIGGER trigger_update_income_milestones_updated_at
+          BEFORE UPDATE ON income_milestones FOR EACH ROW
+          EXECUTE FUNCTION update_income_milestones_updated_at()
+        """;
+
+    private const string Sql014dProposalsContractColumn =
+        "ALTER TABLE proposals ADD COLUMN IF NOT EXISTS converted_to_contract_id UUID REFERENCES income_contracts(id) ON DELETE SET NULL";
 
     #endregion
 }

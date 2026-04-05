@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Plus, Search, Pencil, Trash2, AlertCircle, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus, Search, Pencil, Trash2, AlertCircle, ChevronLeft, ChevronRight, GitBranch } from 'lucide-react';
 import { api, getErrorMessage } from '../../../services/api';
-import type { Proposal, ProposalStatus } from '@finance/shared';
+import type { Proposal, ProposalStatus, IncomeContract } from '@finance/shared';
 import { formatCurrency } from '../../../utils/formatters';
 import { ProposalModal } from './ProposalModal';
+import ConvertProposalModal from '../../income/components/ConvertProposalModal';
 
 const ALL_STATUSES: ProposalStatus[] = ['draft', 'sent', 'viewed', 'accepted', 'rejected', 'expired', 'converted'];
 
@@ -37,6 +38,8 @@ export default function ProposalsTab({ startDate, endDate }: ProposalsTabProps) 
   const [showModal, setShowModal] = useState(false);
   const [editingProposal, setEditingProposal] = useState<Proposal | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const [convertingProposal, setConvertingProposal] = useState<Proposal | null>(null);
+  const [convertSuccess, setConvertSuccess] = useState<string | null>(null);
 
   const fetchProposals = useCallback(async () => {
     setLoading(true);
@@ -79,6 +82,13 @@ export default function ProposalsTab({ startDate, endDate }: ProposalsTabProps) 
     setShowModal(false);
     setEditingProposal(null);
     fetchProposals();
+  };
+
+  const handleConverted = (contract: IncomeContract) => {
+    setConvertingProposal(null);
+    setConvertSuccess(`Converted to contract: ${contract.contractNumber ?? contract.title}`);
+    fetchProposals();
+    setTimeout(() => setConvertSuccess(null), 5000);
   };
 
   return (
@@ -138,6 +148,12 @@ export default function ProposalsTab({ startDate, endDate }: ProposalsTabProps) 
         </div>
       )}
 
+      {convertSuccess && (
+        <div className="flex items-center gap-2 text-success-700 dark:text-success-400 text-sm bg-success-50 dark:bg-success-900/20 px-3 py-2 rounded-md border border-success-200 dark:border-success-800">
+          <GitBranch className="w-4 h-4 shrink-0" /> {convertSuccess}
+        </div>
+      )}
+
       {/* Table */}
       <div className="panel overflow-hidden">
         <div className="overflow-x-auto">
@@ -177,6 +193,15 @@ export default function ProposalsTab({ startDate, endDate }: ProposalsTabProps) 
                     </td>
                     <td className="px-4 py-3 text-right">
                       <div className="flex items-center justify-end gap-2">
+                        {p.status === 'accepted' && !p.convertedToContractId && (
+                          <button
+                            onClick={() => setConvertingProposal(p)}
+                            className="p-1.5 text-gray-400 hover:text-success-600 dark:hover:text-success-400 transition-colors"
+                            title="Convert to Contract"
+                          >
+                            <GitBranch className="w-4 h-4" />
+                          </button>
+                        )}
                         <button onClick={() => { setEditingProposal(p); setShowModal(true); }} className="p-1.5 text-gray-400 hover:text-primary-600 dark:hover:text-primary-400 transition-colors" title="Edit">
                           <Pencil className="w-4 h-4" />
                         </button>
@@ -214,6 +239,14 @@ export default function ProposalsTab({ startDate, endDate }: ProposalsTabProps) 
           proposal={editingProposal}
           onClose={() => { setShowModal(false); setEditingProposal(null); }}
           onSaved={handleSaved}
+        />
+      )}
+
+      {convertingProposal && (
+        <ConvertProposalModal
+          proposal={convertingProposal}
+          onClose={() => setConvertingProposal(null)}
+          onConverted={handleConverted}
         />
       )}
     </div>

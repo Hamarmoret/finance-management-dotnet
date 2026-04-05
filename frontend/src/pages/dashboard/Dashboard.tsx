@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { api, getErrorMessage } from '../../services/api';
 import type { ReactNode } from 'react';
+import ContractAlertsWidget from './components/ContractAlertsWidget';
 import {
   TrendingUp,
   TrendingDown,
@@ -346,6 +347,9 @@ export default function Dashboard() {
           </div>
         </div>
       )}
+
+      {/* Contract Alerts */}
+      <ContractAlertsWidget />
 
       {/* Bottom Section */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">

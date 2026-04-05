@@ -1,0 +1,1349 @@
+using System.Text.Json.Serialization;
+using Dapper;
+using FinanceManagement.Api.Database;
+using FinanceManagement.Api.Middleware;
+
+namespace FinanceManagement.Api.Services.Income;
+
+// =============================================
+// DTOs
+// =============================================
+
+public class IncomeContractSummaryDto
+{
+    [JsonPropertyName("id")]
+    public Guid Id { get; set; }
+
+    [JsonPropertyName("title")]
+    public string Title { get; set; } = string.Empty;
+
+    [JsonPropertyName("contractNumber")]
+    public string? ContractNumber { get; set; }
+
+    [JsonPropertyName("contractType")]
+    public string ContractType { get; set; } = string.Empty;
+
+    [JsonPropertyName("status")]
+    public string Status { get; set; } = string.Empty;
+
+    [JsonPropertyName("clientId")]
+    public Guid? ClientId { get; set; }
+
+    [JsonPropertyName("clientName")]
+    public string? ClientName { get; set; }
+
+    [JsonPropertyName("currency")]
+    public string Currency { get; set; } = "ILS";
+
+    [JsonPropertyName("totalValue")]
+    public decimal TotalValue { get; set; }
+
+    [JsonPropertyName("totalPaid")]
+    public decimal TotalPaid { get; set; }
+
+    [JsonPropertyName("totalOutstanding")]
+    public decimal TotalOutstanding { get; set; }
+
+    [JsonPropertyName("overdueCount")]
+    public int OverdueCount { get; set; }
+
+    [JsonPropertyName("upcomingCount")]
+    public int UpcomingCount { get; set; }
+
+    [JsonPropertyName("milestoneCount")]
+    public int MilestoneCount { get; set; }
+
+    [JsonPropertyName("paidCount")]
+    public int PaidCount { get; set; }
+
+    [JsonPropertyName("startDate")]
+    public string? StartDate { get; set; }
+
+    [JsonPropertyName("endDate")]
+    public string? EndDate { get; set; }
+
+    [JsonPropertyName("createdAt")]
+    public DateTime CreatedAt { get; set; }
+
+    [JsonPropertyName("updatedAt")]
+    public DateTime UpdatedAt { get; set; }
+}
+
+public class IncomeContractDto : IncomeContractSummaryDto
+{
+    [JsonPropertyName("proposalId")]
+    public Guid? ProposalId { get; set; }
+
+    [JsonPropertyName("categoryId")]
+    public Guid? CategoryId { get; set; }
+
+    [JsonPropertyName("pnlCenterId")]
+    public Guid? PnlCenterId { get; set; }
+
+    [JsonPropertyName("vatApplicable")]
+    public bool VatApplicable { get; set; }
+
+    [JsonPropertyName("vatPercentage")]
+    public decimal? VatPercentage { get; set; }
+
+    [JsonPropertyName("paymentTermsDays")]
+    public int PaymentTermsDays { get; set; }
+
+    [JsonPropertyName("retainerMonthlyAmount")]
+    public decimal? RetainerMonthlyAmount { get; set; }
+
+    [JsonPropertyName("retainerBillingDay")]
+    public int? RetainerBillingDay { get; set; }
+
+    [JsonPropertyName("notes")]
+    public string? Notes { get; set; }
+
+    [JsonPropertyName("tags")]
+    public string[] Tags { get; set; } = [];
+
+    [JsonPropertyName("createdBy")]
+    public Guid? CreatedBy { get; set; }
+
+    [JsonPropertyName("milestones")]
+    public List<IncomeMilestoneDto> Milestones { get; set; } = [];
+}
+
+public class IncomeMilestoneDto
+{
+    [JsonPropertyName("id")]
+    public Guid Id { get; set; }
+
+    [JsonPropertyName("contractId")]
+    public Guid ContractId { get; set; }
+
+    [JsonPropertyName("contractTitle")]
+    public string? ContractTitle { get; set; }
+
+    [JsonPropertyName("clientName")]
+    public string? ClientName { get; set; }
+
+    [JsonPropertyName("sortOrder")]
+    public int SortOrder { get; set; }
+
+    [JsonPropertyName("description")]
+    public string Description { get; set; } = string.Empty;
+
+    [JsonPropertyName("amountDue")]
+    public decimal AmountDue { get; set; }
+
+    [JsonPropertyName("currency")]
+    public string Currency { get; set; } = "ILS";
+
+    [JsonPropertyName("dueDate")]
+    public string DueDate { get; set; } = string.Empty;
+
+    [JsonPropertyName("status")]
+    public string Status { get; set; } = string.Empty;
+
+    [JsonPropertyName("proformaInvoiceNumber")]
+    public string? ProformaInvoiceNumber { get; set; }
+
+    [JsonPropertyName("proformaInvoiceDate")]
+    public string? ProformaInvoiceDate { get; set; }
+
+    [JsonPropertyName("proformaAmount")]
+    public decimal? ProformaAmount { get; set; }
+
+    [JsonPropertyName("taxInvoiceNumber")]
+    public string? TaxInvoiceNumber { get; set; }
+
+    [JsonPropertyName("taxInvoiceDate")]
+    public string? TaxInvoiceDate { get; set; }
+
+    [JsonPropertyName("paymentReceivedDate")]
+    public string? PaymentReceivedDate { get; set; }
+
+    [JsonPropertyName("paymentMethod")]
+    public string? PaymentMethod { get; set; }
+
+    [JsonPropertyName("actualAmountPaid")]
+    public decimal? ActualAmountPaid { get; set; }
+
+    [JsonPropertyName("incomeId")]
+    public Guid? IncomeId { get; set; }
+
+    [JsonPropertyName("notes")]
+    public string? Notes { get; set; }
+
+    [JsonPropertyName("createdAt")]
+    public DateTime CreatedAt { get; set; }
+
+    [JsonPropertyName("updatedAt")]
+    public DateTime UpdatedAt { get; set; }
+}
+
+// Projected milestone (unpaid) for forecasting
+public class MilestoneProjectionDto
+{
+    [JsonPropertyName("month")]
+    public string Month { get; set; } = string.Empty; // "YYYY-MM"
+
+    [JsonPropertyName("projectedAmount")]
+    public decimal ProjectedAmount { get; set; }
+
+    [JsonPropertyName("milestoneCount")]
+    public int MilestoneCount { get; set; }
+
+    [JsonPropertyName("overdueAmount")]
+    public decimal OverdueAmount { get; set; }
+}
+
+// =============================================
+// Request models
+// =============================================
+
+public class CreateContractRequest
+{
+    [JsonPropertyName("title")]
+    public string Title { get; set; } = string.Empty;
+
+    [JsonPropertyName("contractType")]
+    public string ContractType { get; set; } = string.Empty;
+
+    [JsonPropertyName("clientId")]
+    public Guid? ClientId { get; set; }
+
+    [JsonPropertyName("clientName")]
+    public string? ClientName { get; set; }
+
+    [JsonPropertyName("proposalId")]
+    public Guid? ProposalId { get; set; }
+
+    [JsonPropertyName("categoryId")]
+    public Guid? CategoryId { get; set; }
+
+    [JsonPropertyName("pnlCenterId")]
+    public Guid? PnlCenterId { get; set; }
+
+    [JsonPropertyName("currency")]
+    public string Currency { get; set; } = "ILS";
+
+    [JsonPropertyName("totalValue")]
+    public decimal TotalValue { get; set; }
+
+    [JsonPropertyName("vatApplicable")]
+    public bool VatApplicable { get; set; }
+
+    [JsonPropertyName("vatPercentage")]
+    public decimal? VatPercentage { get; set; }
+
+    [JsonPropertyName("paymentTermsDays")]
+    public int PaymentTermsDays { get; set; } = 30;
+
+    [JsonPropertyName("startDate")]
+    public string? StartDate { get; set; }
+
+    [JsonPropertyName("endDate")]
+    public string? EndDate { get; set; }
+
+    [JsonPropertyName("retainerMonthlyAmount")]
+    public decimal? RetainerMonthlyAmount { get; set; }
+
+    [JsonPropertyName("retainerBillingDay")]
+    public int? RetainerBillingDay { get; set; }
+
+    [JsonPropertyName("notes")]
+    public string? Notes { get; set; }
+
+    [JsonPropertyName("tags")]
+    public string[]? Tags { get; set; }
+
+    [JsonPropertyName("milestones")]
+    public List<CreateMilestoneRequest> Milestones { get; set; } = [];
+}
+
+public class UpdateContractRequest
+{
+    [JsonPropertyName("title")]
+    public string? Title { get; set; }
+
+    [JsonPropertyName("status")]
+    public string? Status { get; set; }
+
+    [JsonPropertyName("clientId")]
+    public Guid? ClientId { get; set; }
+
+    [JsonPropertyName("clientName")]
+    public string? ClientName { get; set; }
+
+    [JsonPropertyName("categoryId")]
+    public Guid? CategoryId { get; set; }
+
+    [JsonPropertyName("pnlCenterId")]
+    public Guid? PnlCenterId { get; set; }
+
+    [JsonPropertyName("currency")]
+    public string? Currency { get; set; }
+
+    [JsonPropertyName("totalValue")]
+    public decimal? TotalValue { get; set; }
+
+    [JsonPropertyName("vatApplicable")]
+    public bool? VatApplicable { get; set; }
+
+    [JsonPropertyName("vatPercentage")]
+    public decimal? VatPercentage { get; set; }
+
+    [JsonPropertyName("paymentTermsDays")]
+    public int? PaymentTermsDays { get; set; }
+
+    [JsonPropertyName("startDate")]
+    public string? StartDate { get; set; }
+
+    [JsonPropertyName("endDate")]
+    public string? EndDate { get; set; }
+
+    [JsonPropertyName("retainerMonthlyAmount")]
+    public decimal? RetainerMonthlyAmount { get; set; }
+
+    [JsonPropertyName("retainerBillingDay")]
+    public int? RetainerBillingDay { get; set; }
+
+    [JsonPropertyName("notes")]
+    public string? Notes { get; set; }
+
+    [JsonPropertyName("tags")]
+    public string[]? Tags { get; set; }
+}
+
+public class CreateMilestoneRequest
+{
+    [JsonPropertyName("description")]
+    public string Description { get; set; } = string.Empty;
+
+    [JsonPropertyName("amountDue")]
+    public decimal AmountDue { get; set; }
+
+    [JsonPropertyName("dueDate")]
+    public string DueDate { get; set; } = string.Empty;
+
+    [JsonPropertyName("sortOrder")]
+    public int SortOrder { get; set; }
+
+    [JsonPropertyName("notes")]
+    public string? Notes { get; set; }
+}
+
+public class UpdateMilestoneRequest
+{
+    [JsonPropertyName("description")]
+    public string? Description { get; set; }
+
+    [JsonPropertyName("amountDue")]
+    public decimal? AmountDue { get; set; }
+
+    [JsonPropertyName("dueDate")]
+    public string? DueDate { get; set; }
+
+    [JsonPropertyName("status")]
+    public string? Status { get; set; }
+
+    [JsonPropertyName("proformaInvoiceNumber")]
+    public string? ProformaInvoiceNumber { get; set; }
+
+    [JsonPropertyName("proformaInvoiceDate")]
+    public string? ProformaInvoiceDate { get; set; }
+
+    [JsonPropertyName("proformaAmount")]
+    public decimal? ProformaAmount { get; set; }
+
+    [JsonPropertyName("taxInvoiceNumber")]
+    public string? TaxInvoiceNumber { get; set; }
+
+    [JsonPropertyName("taxInvoiceDate")]
+    public string? TaxInvoiceDate { get; set; }
+
+    [JsonPropertyName("notes")]
+    public string? Notes { get; set; }
+
+    [JsonPropertyName("sortOrder")]
+    public int? SortOrder { get; set; }
+}
+
+public class GenerateRetainerMilestonesRequest
+{
+    [JsonPropertyName("startDate")]
+    public string StartDate { get; set; } = string.Empty;
+
+    [JsonPropertyName("monthCount")]
+    public int MonthCount { get; set; }
+}
+
+public class MarkMilestonePaidRequest
+{
+    [JsonPropertyName("paymentReceivedDate")]
+    public string PaymentReceivedDate { get; set; } = string.Empty;
+
+    [JsonPropertyName("paymentMethod")]
+    public string? PaymentMethod { get; set; }
+
+    [JsonPropertyName("actualAmountPaid")]
+    public decimal? ActualAmountPaid { get; set; }
+
+    [JsonPropertyName("allocations")]
+    public List<AllocationInput> Allocations { get; set; } = [];
+}
+
+public class ConvertProposalToContractRequest
+{
+    [JsonPropertyName("proposalId")]
+    public Guid ProposalId { get; set; }
+
+    [JsonPropertyName("contractType")]
+    public string ContractType { get; set; } = string.Empty;
+
+    [JsonPropertyName("title")]
+    public string? Title { get; set; }
+
+    [JsonPropertyName("paymentTermsDays")]
+    public int? PaymentTermsDays { get; set; }
+
+    [JsonPropertyName("startDate")]
+    public string? StartDate { get; set; }
+
+    [JsonPropertyName("endDate")]
+    public string? EndDate { get; set; }
+
+    [JsonPropertyName("milestones")]
+    public List<CreateMilestoneRequest> Milestones { get; set; } = [];
+
+    // Retainer-specific
+    [JsonPropertyName("retainerMonthlyAmount")]
+    public decimal? RetainerMonthlyAmount { get; set; }
+
+    [JsonPropertyName("retainerBillingDay")]
+    public int? RetainerBillingDay { get; set; }
+
+    [JsonPropertyName("retainerMonthCount")]
+    public int? RetainerMonthCount { get; set; }
+}
+
+public class ContractFilters
+{
+    public int Page { get; set; } = 1;
+    public int Limit { get; set; } = 20;
+    public string? ClientId { get; set; }
+    public string? ContractType { get; set; }
+    public string? Status { get; set; }
+    public string? Search { get; set; }
+}
+
+// =============================================
+// DB row types
+// =============================================
+
+public class DbContractRow
+{
+    public Guid id { get; set; }
+    public string title { get; set; } = string.Empty;
+    public string? contract_number { get; set; }
+    public string contract_type { get; set; } = string.Empty;
+    public string status { get; set; } = string.Empty;
+    public Guid? client_id { get; set; }
+    public string? client_name { get; set; }
+    public Guid? proposal_id { get; set; }
+    public Guid? category_id { get; set; }
+    public Guid? pnl_center_id { get; set; }
+    public string currency { get; set; } = "ILS";
+    public decimal total_value { get; set; }
+    public bool vat_applicable { get; set; }
+    public decimal? vat_percentage { get; set; }
+    public int payment_terms_days { get; set; }
+    public DateTime? start_date { get; set; }
+    public DateTime? end_date { get; set; }
+    public decimal? retainer_monthly_amount { get; set; }
+    public int? retainer_billing_day { get; set; }
+    public string? notes { get; set; }
+    public string[]? tags { get; set; }
+    public Guid? created_by { get; set; }
+    public DateTime created_at { get; set; }
+    public DateTime updated_at { get; set; }
+    // Aggregated from LATERAL join
+    public decimal total_paid { get; set; }
+    public decimal total_outstanding { get; set; }
+    public int overdue_count { get; set; }
+    public int upcoming_count { get; set; }
+    public int milestone_count { get; set; }
+    public int paid_count { get; set; }
+}
+
+public class DbMilestoneRow
+{
+    public Guid id { get; set; }
+    public Guid contract_id { get; set; }
+    public string? contract_title { get; set; }
+    public string? client_name { get; set; }
+    public int sort_order { get; set; }
+    public string description { get; set; } = string.Empty;
+    public decimal amount_due { get; set; }
+    public string currency { get; set; } = "ILS";
+    public DateTime due_date { get; set; }
+    public string status { get; set; } = string.Empty;
+    public string? proforma_invoice_number { get; set; }
+    public DateTime? proforma_invoice_date { get; set; }
+    public decimal? proforma_amount { get; set; }
+    public string? tax_invoice_number { get; set; }
+    public DateTime? tax_invoice_date { get; set; }
+    public DateTime? payment_received_date { get; set; }
+    public string? payment_method { get; set; }
+    public decimal? actual_amount_paid { get; set; }
+    public Guid? income_id { get; set; }
+    public string? notes { get; set; }
+    public DateTime created_at { get; set; }
+    public DateTime updated_at { get; set; }
+}
+
+public class DbProposalMinRow
+{
+    public Guid id { get; set; }
+    public string? title { get; set; }
+    public Guid? client_id { get; set; }
+    public string? client_name { get; set; }
+    public decimal total { get; set; }
+    public string currency { get; set; } = "USD";
+    public string status { get; set; } = string.Empty;
+    public Guid? converted_to_contract_id { get; set; }
+}
+
+// =============================================
+// Service
+// =============================================
+
+public class IncomeContractsService
+{
+    private readonly DbContext _db;
+    private readonly IncomeService _incomeService;
+    private readonly ILogger<IncomeContractsService> _logger;
+
+    public IncomeContractsService(
+        DbContext db,
+        IncomeService incomeService,
+        ILogger<IncomeContractsService> logger)
+    {
+        _db = db;
+        _incomeService = incomeService;
+        _logger = logger;
+    }
+
+    // ── Contracts ─────────────────────────────────────────────────────────────
+
+    public async Task<(List<IncomeContractSummaryDto> Items, int Total)> GetAllAsync(ContractFilters filters)
+    {
+        await using var conn = _db.CreateConnection();
+        await conn.OpenAsync();
+
+        var where = new List<string>();
+        var p = new DynamicParameters();
+
+        if (!string.IsNullOrWhiteSpace(filters.ClientId))
+        {
+            where.Add("ic.client_id = @ClientId");
+            p.Add("ClientId", Guid.Parse(filters.ClientId));
+        }
+        if (!string.IsNullOrWhiteSpace(filters.ContractType))
+        {
+            where.Add("ic.contract_type = @ContractType");
+            p.Add("ContractType", filters.ContractType);
+        }
+        if (!string.IsNullOrWhiteSpace(filters.Status))
+        {
+            where.Add("ic.status = @Status");
+            p.Add("Status", filters.Status);
+        }
+        if (!string.IsNullOrWhiteSpace(filters.Search))
+        {
+            where.Add("(ic.title ILIKE @Search OR ic.client_name ILIKE @Search OR ic.contract_number ILIKE @Search)");
+            p.Add("Search", $"%{filters.Search}%");
+        }
+
+        var whereClause = where.Count > 0 ? "WHERE " + string.Join(" AND ", where) : "";
+
+        var total = await conn.ExecuteScalarAsync<int>(
+            $"SELECT COUNT(*) FROM income_contracts ic {whereClause}", p);
+
+        var offset = (filters.Page - 1) * filters.Limit;
+        p.Add("Limit", filters.Limit);
+        p.Add("Offset", offset);
+
+        var sql = $"""
+            SELECT
+                ic.*,
+                COALESCE(ms.total_paid, 0) as total_paid,
+                COALESCE(ms.total_outstanding, 0) as total_outstanding,
+                COALESCE(ms.overdue_count, 0) as overdue_count,
+                COALESCE(ms.upcoming_count, 0) as upcoming_count,
+                COALESCE(ms.milestone_count, 0) as milestone_count,
+                COALESCE(ms.paid_count, 0) as paid_count
+            FROM income_contracts ic
+            LEFT JOIN LATERAL (
+                SELECT
+                    SUM(CASE WHEN m.status = 'paid' THEN COALESCE(m.actual_amount_paid, m.amount_due) ELSE 0 END) as total_paid,
+                    SUM(CASE WHEN m.status != 'paid' THEN m.amount_due ELSE 0 END) as total_outstanding,
+                    COUNT(*) FILTER (WHERE m.status != 'paid' AND m.due_date < CURRENT_DATE) as overdue_count,
+                    COUNT(*) FILTER (WHERE m.status != 'paid' AND m.due_date >= CURRENT_DATE AND m.due_date <= CURRENT_DATE + 7) as upcoming_count,
+                    COUNT(*) as milestone_count,
+                    COUNT(*) FILTER (WHERE m.status = 'paid') as paid_count
+                FROM income_milestones m
+                WHERE m.contract_id = ic.id
+            ) ms ON TRUE
+            {whereClause}
+            ORDER BY ic.created_at DESC
+            LIMIT @Limit OFFSET @Offset
+            """;
+
+        var rows = await conn.QueryAsync<DbContractRow>(sql, p);
+        return (rows.Select(MapContractSummary).ToList(), total);
+    }
+
+    public async Task<IncomeContractDto?> GetByIdAsync(Guid id)
+    {
+        await using var conn = _db.CreateConnection();
+        await conn.OpenAsync();
+
+        var sql = """
+            SELECT
+                ic.*,
+                COALESCE(ms.total_paid, 0) as total_paid,
+                COALESCE(ms.total_outstanding, 0) as total_outstanding,
+                COALESCE(ms.overdue_count, 0) as overdue_count,
+                COALESCE(ms.upcoming_count, 0) as upcoming_count,
+                COALESCE(ms.milestone_count, 0) as milestone_count,
+                COALESCE(ms.paid_count, 0) as paid_count
+            FROM income_contracts ic
+            LEFT JOIN LATERAL (
+                SELECT
+                    SUM(CASE WHEN m.status = 'paid' THEN COALESCE(m.actual_amount_paid, m.amount_due) ELSE 0 END) as total_paid,
+                    SUM(CASE WHEN m.status != 'paid' THEN m.amount_due ELSE 0 END) as total_outstanding,
+                    COUNT(*) FILTER (WHERE m.status != 'paid' AND m.due_date < CURRENT_DATE) as overdue_count,
+                    COUNT(*) FILTER (WHERE m.status != 'paid' AND m.due_date >= CURRENT_DATE AND m.due_date <= CURRENT_DATE + 7) as upcoming_count,
+                    COUNT(*) as milestone_count,
+                    COUNT(*) FILTER (WHERE m.status = 'paid') as paid_count
+                FROM income_milestones m
+                WHERE m.contract_id = ic.id
+            ) ms ON TRUE
+            WHERE ic.id = @Id
+            """;
+
+        var row = await conn.QuerySingleOrDefaultAsync<DbContractRow>(sql, new { Id = id });
+        if (row == null) return null;
+
+        var milestones = await GetMilestonesInternalAsync(conn, id);
+        var dto = MapContractDetail(row);
+        dto.Milestones = milestones;
+        return dto;
+    }
+
+    public async Task<IncomeContractDto> CreateAsync(CreateContractRequest request, Guid userId)
+    {
+        await using var conn = _db.CreateConnection();
+        await conn.OpenAsync();
+        await using var tx = await conn.BeginTransactionAsync();
+
+        try
+        {
+            var row = await conn.QuerySingleAsync<DbContractRow>(
+                """
+                INSERT INTO income_contracts (
+                    title, contract_type, status, client_id, client_name,
+                    proposal_id, category_id, pnl_center_id, currency, total_value,
+                    vat_applicable, vat_percentage, payment_terms_days,
+                    start_date, end_date, retainer_monthly_amount, retainer_billing_day,
+                    notes, tags, created_by
+                ) VALUES (
+                    @Title, @ContractType, 'active', @ClientId, @ClientName,
+                    @ProposalId, @CategoryId, @PnlCenterId, @Currency, @TotalValue,
+                    @VatApplicable, @VatPercentage, @PaymentTermsDays,
+                    @StartDate::date, @EndDate::date, @RetainerMonthlyAmount, @RetainerBillingDay,
+                    @Notes, @Tags, @CreatedBy
+                )
+                RETURNING *,
+                    0::decimal as total_paid, 0::decimal as total_outstanding,
+                    0 as overdue_count, 0 as upcoming_count,
+                    0 as milestone_count, 0 as paid_count
+                """,
+                new
+                {
+                    request.Title,
+                    ContractType = request.ContractType,
+                    ClientId = request.ClientId,
+                    ClientName = request.ClientName,
+                    ProposalId = request.ProposalId,
+                    CategoryId = request.CategoryId,
+                    PnlCenterId = request.PnlCenterId,
+                    Currency = request.Currency,
+                    TotalValue = request.TotalValue,
+                    VatApplicable = request.VatApplicable,
+                    VatPercentage = request.VatPercentage,
+                    PaymentTermsDays = request.PaymentTermsDays,
+                    StartDate = request.StartDate,
+                    EndDate = request.EndDate,
+                    RetainerMonthlyAmount = request.RetainerMonthlyAmount,
+                    RetainerBillingDay = request.RetainerBillingDay,
+                    Notes = request.Notes,
+                    Tags = request.Tags ?? [],
+                    CreatedBy = userId,
+                }, tx);
+
+            var milestones = new List<IncomeMilestoneDto>();
+            if (request.Milestones.Count > 0)
+                milestones = await InsertMilestonesAsync(conn, tx, row.id, request.Milestones, row.currency);
+
+            await tx.CommitAsync();
+
+            var dto = MapContractDetail(row);
+            dto.Milestones = milestones;
+            return dto;
+        }
+        catch
+        {
+            await tx.RollbackAsync();
+            throw;
+        }
+    }
+
+    public async Task<IncomeContractDto> UpdateAsync(Guid id, UpdateContractRequest request, Guid userId)
+    {
+        await using var conn = _db.CreateConnection();
+        await conn.OpenAsync();
+
+        var sets = new List<string>();
+        var p = new DynamicParameters();
+        p.Add("Id", id);
+
+        if (request.Title != null) { sets.Add("title = @Title"); p.Add("Title", request.Title); }
+        if (request.Status != null) { sets.Add("status = @Status"); p.Add("Status", request.Status); }
+        if (request.ClientId != null) { sets.Add("client_id = @ClientId"); p.Add("ClientId", request.ClientId); }
+        if (request.ClientName != null) { sets.Add("client_name = @ClientName"); p.Add("ClientName", request.ClientName); }
+        if (request.CategoryId != null) { sets.Add("category_id = @CategoryId"); p.Add("CategoryId", request.CategoryId); }
+        if (request.PnlCenterId != null) { sets.Add("pnl_center_id = @PnlCenterId"); p.Add("PnlCenterId", request.PnlCenterId); }
+        if (request.Currency != null) { sets.Add("currency = @Currency"); p.Add("Currency", request.Currency); }
+        if (request.TotalValue != null) { sets.Add("total_value = @TotalValue"); p.Add("TotalValue", request.TotalValue); }
+        if (request.VatApplicable != null) { sets.Add("vat_applicable = @VatApplicable"); p.Add("VatApplicable", request.VatApplicable); }
+        if (request.VatPercentage != null) { sets.Add("vat_percentage = @VatPercentage"); p.Add("VatPercentage", request.VatPercentage); }
+        if (request.PaymentTermsDays != null) { sets.Add("payment_terms_days = @PaymentTermsDays"); p.Add("PaymentTermsDays", request.PaymentTermsDays); }
+        if (request.StartDate != null) { sets.Add("start_date = @StartDate::date"); p.Add("StartDate", request.StartDate); }
+        if (request.EndDate != null) { sets.Add("end_date = @EndDate::date"); p.Add("EndDate", request.EndDate); }
+        if (request.RetainerMonthlyAmount != null) { sets.Add("retainer_monthly_amount = @RetainerMonthlyAmount"); p.Add("RetainerMonthlyAmount", request.RetainerMonthlyAmount); }
+        if (request.RetainerBillingDay != null) { sets.Add("retainer_billing_day = @RetainerBillingDay"); p.Add("RetainerBillingDay", request.RetainerBillingDay); }
+        if (request.Notes != null) { sets.Add("notes = @Notes"); p.Add("Notes", request.Notes); }
+        if (request.Tags != null) { sets.Add("tags = @Tags"); p.Add("Tags", request.Tags); }
+
+        if (sets.Count == 0)
+            return (await GetByIdAsync(id))!;
+
+        if (await conn.QuerySingleOrDefaultAsync<DbContractRow>(
+            $"""
+            UPDATE income_contracts SET {string.Join(", ", sets)}
+            WHERE id = @Id
+            RETURNING *,
+                0::decimal as total_paid, 0::decimal as total_outstanding,
+                0 as overdue_count, 0 as upcoming_count,
+                0 as milestone_count, 0 as paid_count
+            """, p) == null)
+            throw new AppException("Contract not found", 404, "NOT_FOUND");
+
+        return (await GetByIdAsync(id))!;
+    }
+
+    public async Task DeleteAsync(Guid id)
+    {
+        await using var conn = _db.CreateConnection();
+        await conn.OpenAsync();
+
+        var affected = await conn.ExecuteAsync(
+            "DELETE FROM income_contracts WHERE id = @Id", new { Id = id });
+
+        if (affected == 0)
+            throw new AppException("Contract not found", 404, "NOT_FOUND");
+    }
+
+    // ── Milestones ────────────────────────────────────────────────────────────
+
+    public async Task<List<IncomeMilestoneDto>> GetMilestonesAsync(Guid contractId)
+    {
+        await using var conn = _db.CreateConnection();
+        await conn.OpenAsync();
+        return await GetMilestonesInternalAsync(conn, contractId);
+    }
+
+    public async Task<IncomeMilestoneDto> CreateMilestoneAsync(Guid contractId, CreateMilestoneRequest request)
+    {
+        await using var conn = _db.CreateConnection();
+        await conn.OpenAsync();
+
+        var contract = await conn.QuerySingleOrDefaultAsync<DbContractRow>(
+            """
+            SELECT *, 0::decimal as total_paid, 0::decimal as total_outstanding,
+                0 as overdue_count, 0 as upcoming_count, 0 as milestone_count, 0 as paid_count
+            FROM income_contracts WHERE id = @Id
+            """,
+            new { Id = contractId });
+
+        if (contract == null)
+            throw new AppException("Contract not found", 404, "NOT_FOUND");
+
+        var row = await conn.QuerySingleAsync<DbMilestoneRow>(
+            """
+            INSERT INTO income_milestones (contract_id, description, amount_due, currency, due_date, sort_order, notes)
+            VALUES (@ContractId, @Description, @AmountDue, @Currency, @DueDate::date, @SortOrder, @Notes)
+            RETURNING *
+            """,
+            new
+            {
+                ContractId = contractId,
+                request.Description,
+                request.AmountDue,
+                Currency = contract.currency,
+                DueDate = request.DueDate,
+                SortOrder = request.SortOrder,
+                request.Notes,
+            });
+
+        return MapMilestone(row, contract.title, contract.client_name);
+    }
+
+    public async Task<IncomeMilestoneDto> UpdateMilestoneAsync(Guid milestoneId, UpdateMilestoneRequest request)
+    {
+        await using var conn = _db.CreateConnection();
+        await conn.OpenAsync();
+
+        var existing = await conn.QuerySingleOrDefaultAsync<DbMilestoneRow>(
+            "SELECT m.*, ic.title as contract_title, ic.client_name FROM income_milestones m JOIN income_contracts ic ON ic.id = m.contract_id WHERE m.id = @Id",
+            new { Id = milestoneId });
+
+        if (existing == null)
+            throw new AppException("Milestone not found", 404, "NOT_FOUND");
+
+        var sets = new List<string>();
+        var p = new DynamicParameters();
+        p.Add("Id", milestoneId);
+
+        if (request.Description != null) { sets.Add("description = @Description"); p.Add("Description", request.Description); }
+        if (request.AmountDue != null) { sets.Add("amount_due = @AmountDue"); p.Add("AmountDue", request.AmountDue); }
+        if (request.DueDate != null) { sets.Add("due_date = @DueDate::date"); p.Add("DueDate", request.DueDate); }
+        if (request.Status != null && request.Status != "paid") // paid only via mark-paid
+        {
+            sets.Add("status = @Status");
+            p.Add("Status", request.Status);
+        }
+        if (request.ProformaInvoiceNumber != null) { sets.Add("proforma_invoice_number = @ProformaInvoiceNumber"); p.Add("ProformaInvoiceNumber", request.ProformaInvoiceNumber); }
+        if (request.ProformaInvoiceDate != null) { sets.Add("proforma_invoice_date = @ProformaInvoiceDate::date"); p.Add("ProformaInvoiceDate", request.ProformaInvoiceDate); }
+        if (request.ProformaAmount != null) { sets.Add("proforma_amount = @ProformaAmount"); p.Add("ProformaAmount", request.ProformaAmount); }
+        if (request.TaxInvoiceNumber != null) { sets.Add("tax_invoice_number = @TaxInvoiceNumber"); p.Add("TaxInvoiceNumber", request.TaxInvoiceNumber); }
+        if (request.TaxInvoiceDate != null) { sets.Add("tax_invoice_date = @TaxInvoiceDate::date"); p.Add("TaxInvoiceDate", request.TaxInvoiceDate); }
+        if (request.Notes != null) { sets.Add("notes = @Notes"); p.Add("Notes", request.Notes); }
+        if (request.SortOrder != null) { sets.Add("sort_order = @SortOrder"); p.Add("SortOrder", request.SortOrder); }
+
+        if (sets.Count == 0)
+            return MapMilestone(existing, existing.contract_title, existing.client_name);
+
+        var updated = await conn.QuerySingleAsync<DbMilestoneRow>(
+            $"UPDATE income_milestones SET {string.Join(", ", sets)} WHERE id = @Id RETURNING *, null::text as contract_title, null::text as client_name",
+            p);
+
+        return MapMilestone(updated, existing.contract_title, existing.client_name);
+    }
+
+    public async Task DeleteMilestoneAsync(Guid milestoneId)
+    {
+        await using var conn = _db.CreateConnection();
+        await conn.OpenAsync();
+
+        var existing = await conn.QuerySingleOrDefaultAsync<DbMilestoneRow>(
+            "SELECT * FROM income_milestones WHERE id = @Id", new { Id = milestoneId });
+
+        if (existing == null)
+            throw new AppException("Milestone not found", 404, "NOT_FOUND");
+
+        if (existing.status == "paid")
+            throw new AppException("Cannot delete a paid milestone", 400, "BAD_REQUEST");
+
+        await conn.ExecuteAsync("DELETE FROM income_milestones WHERE id = @Id", new { Id = milestoneId });
+    }
+
+    // ── Generate retainer milestones ──────────────────────────────────────────
+
+    public async Task<List<IncomeMilestoneDto>> GenerateRetainerMilestonesAsync(
+        Guid contractId, GenerateRetainerMilestonesRequest request, Guid userId)
+    {
+        await using var conn = _db.CreateConnection();
+        await conn.OpenAsync();
+
+        var contract = await conn.QuerySingleOrDefaultAsync<DbContractRow>(
+            """
+            SELECT *, 0::decimal as total_paid, 0::decimal as total_outstanding,
+                0 as overdue_count, 0 as upcoming_count, 0 as milestone_count, 0 as paid_count
+            FROM income_contracts WHERE id = @Id
+            """,
+            new { Id = contractId });
+
+        if (contract == null)
+            throw new AppException("Contract not found", 404, "NOT_FOUND");
+
+        if (contract.contract_type != "retainer")
+            throw new AppException("Only retainer contracts support milestone generation", 400, "VALIDATION_ERROR");
+
+        if (contract.retainer_monthly_amount == null)
+            throw new AppException("Retainer monthly amount is not set on this contract", 400, "VALIDATION_ERROR");
+
+        var startDate = DateOnly.Parse(request.StartDate);
+        var billingDay = contract.retainer_billing_day ?? startDate.Day;
+        var monthlyAmount = contract.retainer_monthly_amount.Value;
+
+        // Get max existing sort_order
+        var maxSort = await conn.ExecuteScalarAsync<int?>(
+            "SELECT MAX(sort_order) FROM income_milestones WHERE contract_id = @ContractId",
+            new { ContractId = contractId }) ?? 0;
+
+        var toInsert = new List<CreateMilestoneRequest>();
+        for (var i = 0; i < request.MonthCount; i++)
+        {
+            var totalMonths = startDate.Month - 1 + i;
+            var year = startDate.Year + totalMonths / 12;
+            var month = totalMonths % 12 + 1;
+            var day = Math.Min(billingDay, DateTime.DaysInMonth(year, month));
+            var billingDate = new DateOnly(year, month, day);
+            var dueDate = billingDate.AddDays(contract.payment_terms_days);
+
+            toInsert.Add(new CreateMilestoneRequest
+            {
+                Description = $"Retainer – {billingDate:MMMM yyyy}",
+                AmountDue = monthlyAmount,
+                DueDate = dueDate.ToString("yyyy-MM-dd"),
+                SortOrder = maxSort + i + 1,
+            });
+        }
+
+        await using var tx = await conn.BeginTransactionAsync();
+        try
+        {
+            var result = await InsertMilestonesAsync(conn, tx, contractId, toInsert, contract.currency);
+            await tx.CommitAsync();
+            return result;
+        }
+        catch
+        {
+            await tx.RollbackAsync();
+            throw;
+        }
+    }
+
+    // ── Mark milestone paid ───────────────────────────────────────────────────
+
+    public async Task<IncomeMilestoneDto> MarkMilestonePaidAsync(
+        Guid milestoneId, MarkMilestonePaidRequest request, Guid userId)
+    {
+        await using var conn = _db.CreateConnection();
+        await conn.OpenAsync();
+
+        var milestone = await conn.QuerySingleOrDefaultAsync<DbMilestoneRow>(
+            "SELECT * FROM income_milestones WHERE id = @Id", new { Id = milestoneId });
+
+        if (milestone == null)
+            throw new AppException("Milestone not found", 404, "NOT_FOUND");
+
+        if (milestone.status == "paid")
+            throw new AppException("Milestone is already marked as paid", 400, "BAD_REQUEST");
+
+        var contract = await conn.QuerySingleOrDefaultAsync<DbContractRow>(
+            """
+            SELECT *, 0::decimal as total_paid, 0::decimal as total_outstanding,
+                0 as overdue_count, 0 as upcoming_count, 0 as milestone_count, 0 as paid_count
+            FROM income_contracts WHERE id = @Id
+            """,
+            new { Id = milestone.contract_id });
+
+        if (contract == null)
+            throw new AppException("Contract not found", 404, "NOT_FOUND");
+
+        var actualAmount = request.ActualAmountPaid ?? milestone.amount_due;
+
+        // Create the income record
+        var incomeRequest = new CreateIncomeRequest
+        {
+            Description = $"{contract.title} – {milestone.description}",
+            Amount = actualAmount,
+            Currency = milestone.currency,
+            CategoryId = contract.category_id,
+            ClientId = contract.client_id,
+            ClientName = contract.client_name,
+            IncomeDate = request.PaymentReceivedDate,
+            InvoiceNumber = milestone.tax_invoice_number ?? milestone.proforma_invoice_number,
+            InvoiceType = milestone.tax_invoice_number != null ? "tax" : "standard",
+            InvoiceStatus = "paid",
+            PaymentReceivedDate = request.PaymentReceivedDate,
+            PaymentMethod = request.PaymentMethod,
+            ProformaInvoiceDate = milestone.proforma_invoice_date?.ToString("yyyy-MM-dd"),
+            TaxInvoiceDate = milestone.tax_invoice_date?.ToString("yyyy-MM-dd"),
+            VatApplicable = contract.vat_applicable,
+            VatPercentage = contract.vat_percentage,
+            Allocations = request.Allocations,
+        };
+
+        var incomeDto = await _incomeService.CreateAsync(incomeRequest, userId);
+
+        // Update the milestone
+        var updated = await conn.QuerySingleAsync<DbMilestoneRow>(
+            """
+            UPDATE income_milestones SET
+                status = 'paid',
+                income_id = @IncomeId,
+                payment_received_date = @PaymentReceivedDate::date,
+                payment_method = @PaymentMethod,
+                actual_amount_paid = @ActualAmountPaid
+            WHERE id = @Id
+            RETURNING *, null::text as contract_title, null::text as client_name
+            """,
+            new
+            {
+                IncomeId = incomeDto.Id,
+                PaymentReceivedDate = request.PaymentReceivedDate,
+                PaymentMethod = request.PaymentMethod,
+                ActualAmountPaid = actualAmount,
+                Id = milestoneId,
+            });
+
+        _logger.LogInformation(
+            "Milestone {MilestoneId} marked paid, income record {IncomeId} created",
+            milestoneId, incomeDto.Id);
+
+        return MapMilestone(updated, contract.title, contract.client_name);
+    }
+
+    // ── Proposal → Contract conversion ────────────────────────────────────────
+
+    public async Task<IncomeContractDto> ConvertProposalAsync(
+        ConvertProposalToContractRequest request, Guid userId)
+    {
+        await using var conn = _db.CreateConnection();
+        await conn.OpenAsync();
+
+        var proposal = await conn.QuerySingleOrDefaultAsync<DbProposalMinRow>(
+            "SELECT id, title, client_id, client_name, total, currency, status, converted_to_contract_id FROM proposals WHERE id = @Id",
+            new { Id = request.ProposalId });
+
+        if (proposal == null)
+            throw new AppException("Proposal not found", 404, "NOT_FOUND");
+
+        if (proposal.status != "accepted")
+            throw new AppException("Only accepted proposals can be converted to contracts", 400, "VALIDATION_ERROR");
+
+        if (proposal.converted_to_contract_id != null)
+            throw new AppException("Proposal is already linked to a contract", 409, "CONFLICT");
+
+        // Get client payment terms if available
+        var paymentTerms = request.PaymentTermsDays ?? 30;
+        if (proposal.client_id.HasValue)
+        {
+            var clientTerms = await conn.ExecuteScalarAsync<int?>(
+                "SELECT payment_terms FROM clients WHERE id = @Id",
+                new { Id = proposal.client_id.Value });
+            if (clientTerms.HasValue)
+                paymentTerms = clientTerms.Value;
+        }
+
+        await using var tx = await conn.BeginTransactionAsync();
+        try
+        {
+            var row = await conn.QuerySingleAsync<DbContractRow>(
+                """
+                INSERT INTO income_contracts (
+                    title, contract_type, status, client_id, client_name,
+                    proposal_id, currency, total_value, payment_terms_days,
+                    start_date, end_date, retainer_monthly_amount, retainer_billing_day,
+                    created_by
+                ) VALUES (
+                    @Title, @ContractType, 'active', @ClientId, @ClientName,
+                    @ProposalId, @Currency, @TotalValue, @PaymentTermsDays,
+                    @StartDate::date, @EndDate::date, @RetainerMonthlyAmount, @RetainerBillingDay,
+                    @CreatedBy
+                )
+                RETURNING *,
+                    0::decimal as total_paid, 0::decimal as total_outstanding,
+                    0 as overdue_count, 0 as upcoming_count,
+                    0 as milestone_count, 0 as paid_count
+                """,
+                new
+                {
+                    Title = request.Title ?? proposal.title ?? "Contract",
+                    ContractType = request.ContractType,
+                    ClientId = proposal.client_id,
+                    ClientName = proposal.client_name,
+                    ProposalId = proposal.id,
+                    Currency = proposal.currency,
+                    TotalValue = proposal.total,
+                    PaymentTermsDays = paymentTerms,
+                    StartDate = request.StartDate,
+                    EndDate = request.EndDate,
+                    RetainerMonthlyAmount = request.RetainerMonthlyAmount,
+                    RetainerBillingDay = request.RetainerBillingDay,
+                    CreatedBy = userId,
+                }, tx);
+
+            // Mark proposal as converted
+            await conn.ExecuteAsync(
+                "UPDATE proposals SET status = 'converted', converted_to_contract_id = @ContractId, status_changed_at = NOW() WHERE id = @ProposalId",
+                new { ContractId = row.id, ProposalId = proposal.id }, tx);
+
+            var milestones = new List<IncomeMilestoneDto>();
+
+            if (request.Milestones.Count > 0)
+                milestones = await InsertMilestonesAsync(conn, tx, row.id, request.Milestones, row.currency);
+
+            await tx.CommitAsync();
+
+            // Generate retainer milestones after commit if needed
+            if (request.ContractType == "retainer"
+                && request.RetainerMonthCount.HasValue
+                && request.RetainerMonthCount > 0
+                && !string.IsNullOrEmpty(request.StartDate))
+            {
+                milestones = await GenerateRetainerMilestonesAsync(row.id,
+                    new GenerateRetainerMilestonesRequest
+                    {
+                        StartDate = request.StartDate,
+                        MonthCount = request.RetainerMonthCount.Value,
+                    }, userId);
+            }
+
+            var dto = MapContractDetail(row);
+            dto.Milestones = milestones;
+            return dto;
+        }
+        catch
+        {
+            await tx.RollbackAsync();
+            throw;
+        }
+    }
+
+    // ── Alerts ────────────────────────────────────────────────────────────────
+
+    public async Task<List<IncomeMilestoneDto>> GetUpcomingMilestonesAsync(int days = 7)
+    {
+        await using var conn = _db.CreateConnection();
+        await conn.OpenAsync();
+
+        var rows = await conn.QueryAsync<DbMilestoneRow>(
+            """
+            SELECT m.*, ic.title as contract_title, ic.client_name
+            FROM income_milestones m
+            JOIN income_contracts ic ON ic.id = m.contract_id
+            WHERE m.status != 'paid'
+              AND m.due_date >= CURRENT_DATE
+              AND m.due_date <= CURRENT_DATE + @Days
+            ORDER BY m.due_date ASC
+            """,
+            new { Days = days });
+
+        return rows.Select(r => MapMilestone(r, r.contract_title, r.client_name)).ToList();
+    }
+
+    public async Task<List<IncomeMilestoneDto>> GetOverdueMilestonesAsync()
+    {
+        await using var conn = _db.CreateConnection();
+        await conn.OpenAsync();
+
+        var rows = await conn.QueryAsync<DbMilestoneRow>(
+            """
+            SELECT m.*, ic.title as contract_title, ic.client_name
+            FROM income_milestones m
+            JOIN income_contracts ic ON ic.id = m.contract_id
+            WHERE m.status != 'paid'
+              AND m.due_date < CURRENT_DATE
+            ORDER BY m.due_date ASC
+            """);
+
+        return rows.Select(r => MapMilestone(r, r.contract_title, r.client_name, forceOverdue: true)).ToList();
+    }
+
+    // ── Projections ───────────────────────────────────────────────────────────
+
+    public async Task<List<MilestoneProjectionDto>> GetProjectionsAsync(int months = 12)
+    {
+        await using var conn = _db.CreateConnection();
+        await conn.OpenAsync();
+
+        var rows = await conn.QueryAsync<dynamic>(
+            """
+            SELECT
+                to_char(m.due_date, 'YYYY-MM') as month,
+                SUM(m.amount_due) as projected_amount,
+                COUNT(*) as milestone_count,
+                SUM(CASE WHEN m.due_date < CURRENT_DATE THEN m.amount_due ELSE 0 END) as overdue_amount
+            FROM income_milestones m
+            JOIN income_contracts ic ON ic.id = m.contract_id
+            WHERE m.status != 'paid'
+              AND ic.status = 'active'
+              AND m.due_date <= CURRENT_DATE + (@Months * INTERVAL '1 month')
+            GROUP BY to_char(m.due_date, 'YYYY-MM')
+            ORDER BY month ASC
+            """,
+            new { Months = months });
+
+        return rows.Select(r => new MilestoneProjectionDto
+        {
+            Month = (string)r.month,
+            ProjectedAmount = (decimal)r.projected_amount,
+            MilestoneCount = (int)r.milestone_count,
+            OverdueAmount = (decimal)r.overdue_amount,
+        }).ToList();
+    }
+
+    // =============================================
+    // Private helpers
+    // =============================================
+
+    private async Task<List<IncomeMilestoneDto>> GetMilestonesInternalAsync(
+        Npgsql.NpgsqlConnection conn, Guid contractId)
+    {
+        var contract = await conn.QuerySingleOrDefaultAsync<DbContractRow>(
+            """
+            SELECT *, 0::decimal as total_paid, 0::decimal as total_outstanding,
+                0 as overdue_count, 0 as upcoming_count, 0 as milestone_count, 0 as paid_count
+            FROM income_contracts WHERE id = @Id
+            """,
+            new { Id = contractId });
+
+        var rows = await conn.QueryAsync<DbMilestoneRow>(
+            "SELECT m.*, null::text as contract_title, null::text as client_name FROM income_milestones m WHERE m.contract_id = @ContractId ORDER BY m.sort_order, m.due_date",
+            new { ContractId = contractId });
+
+        return rows.Select(r => MapMilestone(r, contract?.title, contract?.client_name)).ToList();
+    }
+
+    private static async Task<List<IncomeMilestoneDto>> InsertMilestonesAsync(
+        Npgsql.NpgsqlConnection conn,
+        Npgsql.NpgsqlTransaction tx,
+        Guid contractId,
+        List<CreateMilestoneRequest> milestones,
+        string currency)
+    {
+        var result = new List<IncomeMilestoneDto>();
+        foreach (var m in milestones)
+        {
+            var row = await conn.QuerySingleAsync<DbMilestoneRow>(
+                """
+                INSERT INTO income_milestones (contract_id, description, amount_due, currency, due_date, sort_order, notes)
+                VALUES (@ContractId, @Description, @AmountDue, @Currency, @DueDate::date, @SortOrder, @Notes)
+                RETURNING *, null::text as contract_title, null::text as client_name
+                """,
+                new
+                {
+                    ContractId = contractId,
+                    m.Description,
+                    m.AmountDue,
+                    Currency = currency,
+                    DueDate = m.DueDate,
+                    SortOrder = m.SortOrder,
+                    m.Notes,
+                }, tx);
+            result.Add(MapMilestone(row));
+        }
+        return result;
+    }
+
+    private static string ComputeMilestoneStatus(string stored, DateTime dueDate, bool forceOverdue = false)
+    {
+        if (stored == "paid") return "paid";
+        if (forceOverdue || dueDate.Date < DateTime.UtcNow.Date) return "overdue";
+        return stored;
+    }
+
+    private static IncomeMilestoneDto MapMilestone(
+        DbMilestoneRow r,
+        string? contractTitle = null,
+        string? clientName = null,
+        bool forceOverdue = false) => new()
+    {
+        Id = r.id,
+        ContractId = r.contract_id,
+        ContractTitle = contractTitle ?? r.contract_title,
+        ClientName = clientName ?? r.client_name,
+        SortOrder = r.sort_order,
+        Description = r.description,
+        AmountDue = r.amount_due,
+        Currency = r.currency,
+        DueDate = r.due_date.ToString("yyyy-MM-dd"),
+        Status = ComputeMilestoneStatus(r.status, r.due_date, forceOverdue),
+        ProformaInvoiceNumber = r.proforma_invoice_number,
+        ProformaInvoiceDate = r.proforma_invoice_date?.ToString("yyyy-MM-dd"),
+        ProformaAmount = r.proforma_amount,
+        TaxInvoiceNumber = r.tax_invoice_number,
+        TaxInvoiceDate = r.tax_invoice_date?.ToString("yyyy-MM-dd"),
+        PaymentReceivedDate = r.payment_received_date?.ToString("yyyy-MM-dd"),
+        PaymentMethod = r.payment_method,
+        ActualAmountPaid = r.actual_amount_paid,
+        IncomeId = r.income_id,
+        Notes = r.notes,
+        CreatedAt = r.created_at,
+        UpdatedAt = r.updated_at,
+    };
+
+    private static IncomeContractSummaryDto MapContractSummary(DbContractRow r) => new()
+    {
+        Id = r.id,
+        Title = r.title,
+        ContractNumber = r.contract_number,
+        ContractType = r.contract_type,
+        Status = r.status,
+        ClientId = r.client_id,
+        ClientName = r.client_name,
+        Currency = r.currency,
+        TotalValue = r.total_value,
+        TotalPaid = r.total_paid,
+        TotalOutstanding = r.total_outstanding,
+        OverdueCount = r.overdue_count,
+        UpcomingCount = r.upcoming_count,
+        MilestoneCount = r.milestone_count,
+        PaidCount = r.paid_count,
+        StartDate = r.start_date?.ToString("yyyy-MM-dd"),
+        EndDate = r.end_date?.ToString("yyyy-MM-dd"),
+        CreatedAt = r.created_at,
+        UpdatedAt = r.updated_at,
+    };
+
+    private static IncomeContractDto MapContractDetail(DbContractRow r)
+    {
+        var s = MapContractSummary(r);
+        return new IncomeContractDto
+        {
+            Id = s.Id,
+            Title = s.Title,
+            ContractNumber = s.ContractNumber,
+            ContractType = s.ContractType,
+            Status = s.Status,
+            ClientId = s.ClientId,
+            ClientName = s.ClientName,
+            Currency = s.Currency,
+            TotalValue = s.TotalValue,
+            TotalPaid = s.TotalPaid,
+            TotalOutstanding = s.TotalOutstanding,
+            OverdueCount = s.OverdueCount,
+            UpcomingCount = s.UpcomingCount,
+            MilestoneCount = s.MilestoneCount,
+            PaidCount = s.PaidCount,
+            StartDate = s.StartDate,
+            EndDate = s.EndDate,
+            CreatedAt = s.CreatedAt,
+            UpdatedAt = s.UpdatedAt,
+            ProposalId = r.proposal_id,
+            CategoryId = r.category_id,
+            PnlCenterId = r.pnl_center_id,
+            VatApplicable = r.vat_applicable,
+            VatPercentage = r.vat_percentage,
+            PaymentTermsDays = r.payment_terms_days,
+            RetainerMonthlyAmount = r.retainer_monthly_amount,
+            RetainerBillingDay = r.retainer_billing_day,
+            Notes = r.notes,
+            Tags = r.tags ?? [],
+            CreatedBy = r.created_by,
+            Milestones = [],
+        };
+    }
+}

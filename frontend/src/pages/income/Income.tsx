@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Wallet, Plus, Filter, Search, X, Download, Upload, FileSpreadsheet, ChevronDown } from 'lucide-react';
+import { Wallet, Plus, Filter, Search, X, Download, Upload, FileSpreadsheet, ChevronDown, FileText } from 'lucide-react';
 import { api, getErrorMessage } from '../../services/api';
 import type { Income as IncomeType, IncomeCategory, PnlCenterWithStats } from '@finance/shared';
 import { IncomeModal } from './components/IncomeModal';
 import { IncomeTable } from './components/IncomeTable';
 import { PeriodSelector, getPeriodLabel } from '../../components/PeriodSelector';
+import ContractsList from './components/ContractsList';
 
 function formatCurrency(amount: number): string {
   return new Intl.NumberFormat('en-US', {
@@ -15,7 +16,10 @@ function formatCurrency(amount: number): string {
   }).format(amount);
 }
 
+type IncomeTab = 'contracts' | 'transactions';
+
 export default function Income() {
+  const [activeTab, setActiveTab] = useState<IncomeTab>('contracts');
   const [incomeList, setIncomeList] = useState<IncomeType[]>([]);
   const [categories, setCategories] = useState<IncomeCategory[]>([]);
   const [pnlCenters, setPnlCenters] = useState<PnlCenterWithStats[]>([]);
@@ -190,13 +194,17 @@ export default function Income() {
             <Wallet className="w-6 h-6 text-primary-600" />
             Income
           </h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-1">{getPeriodLabel(startDate, endDate)}</p>
-          <PeriodSelector
-            startDate={startDate}
-            endDate={endDate}
-            onChange={(s, e) => { setStartDate(s); setEndDate(e); setPage(1); }}
-            className="mt-2"
-          />
+          {activeTab === 'transactions' && (
+            <>
+              <p className="text-gray-600 dark:text-gray-400 mt-1">{getPeriodLabel(startDate, endDate)}</p>
+              <PeriodSelector
+                startDate={startDate}
+                endDate={endDate}
+                onChange={(s, e) => { setStartDate(s); setEndDate(e); setPage(1); }}
+                className="mt-2"
+              />
+            </>
+          )}
         </div>
         <div className="flex items-center gap-2">
           {/* CSV dropdown */}
@@ -234,15 +242,49 @@ export default function Income() {
               </>
             )}
           </div>
-          <button
-            onClick={() => setShowModal(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
-          >
-            <Plus className="w-4 h-4" />
-            Add Income
-          </button>
+          {activeTab === 'transactions' && (
+            <button
+              onClick={() => setShowModal(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+              Add Income
+            </button>
+          )}
         </div>
       </div>
+
+      {/* Tab Switcher */}
+      <div className="flex border-b border-gray-200 dark:border-gray-700">
+        <button
+          onClick={() => setActiveTab('contracts')}
+          className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+            activeTab === 'contracts'
+              ? 'border-primary-600 text-primary-600 dark:text-primary-400 dark:border-primary-400'
+              : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+          }`}
+        >
+          <FileText className="w-4 h-4" />
+          Contracts
+        </button>
+        <button
+          onClick={() => setActiveTab('transactions')}
+          className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+            activeTab === 'transactions'
+              ? 'border-primary-600 text-primary-600 dark:text-primary-400 dark:border-primary-400'
+              : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+          }`}
+        >
+          <Wallet className="w-4 h-4" />
+          Transactions
+        </button>
+      </div>
+
+      {/* Contracts tab */}
+      {activeTab === 'contracts' && <ContractsList />}
+
+      {/* Transactions tab — existing content */}
+      {activeTab === 'transactions' && <>
 
       {/* Error Message */}
       {error && (
@@ -470,6 +512,7 @@ export default function Income() {
           onSaved={handleSaved}
         />
       )}
+      </> /* end transactions tab */}
     </div>
   );
 }

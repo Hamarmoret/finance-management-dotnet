@@ -836,6 +836,7 @@ export interface Proposal {
   statusChangedAt: Date | null;
   rejectionReason: string | null;
   convertedToIncomeId: string | null;
+  convertedToContractId: string | null;
   convertedAt: Date | null;
   terms: string | null;
   notes: string | null;
@@ -846,4 +847,81 @@ export interface Proposal {
   createdBy: string | null;
   createdAt: Date;
   updatedAt: Date;
+}
+
+// =============================================
+// Income Contracts & Milestones
+// =============================================
+
+export type ContractType = 'project' | 'retainer';
+export type ContractStatus = 'active' | 'completed' | 'cancelled' | 'on_hold';
+export type MilestoneStatus = 'pending' | 'proforma_issued' | 'invoice_sent' | 'paid' | 'overdue';
+
+export interface IncomeMilestone {
+  id: string;
+  contractId: string;
+  contractTitle: string | null;
+  clientName: string | null;
+  sortOrder: number;
+  description: string;
+  amountDue: number;
+  currency: string;
+  dueDate: string;
+  status: MilestoneStatus;
+  proformaInvoiceNumber: string | null;
+  proformaInvoiceDate: string | null;
+  proformaAmount: number | null;
+  taxInvoiceNumber: string | null;
+  taxInvoiceDate: string | null;
+  paymentReceivedDate: string | null;
+  paymentMethod: string | null;
+  actualAmountPaid: number | null;
+  incomeId: string | null;
+  notes: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface IncomeContractSummary {
+  id: string;
+  title: string;
+  contractNumber: string | null;
+  contractType: ContractType;
+  status: ContractStatus;
+  clientId: string | null;
+  clientName: string | null;
+  currency: string;
+  totalValue: number;
+  totalPaid: number;
+  totalOutstanding: number;
+  overdueCount: number;
+  upcomingCount: number;
+  milestoneCount: number;
+  paidCount: number;
+  startDate: string | null;
+  endDate: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface IncomeContract extends IncomeContractSummary {
+  proposalId: string | null;
+  categoryId: string | null;
+  pnlCenterId: string | null;
+  vatApplicable: boolean;
+  vatPercentage: number | null;
+  paymentTermsDays: number;
+  retainerMonthlyAmount: number | null;
+  retainerBillingDay: number | null;
+  notes: string | null;
+  tags: string[];
+  createdBy: string | null;
+  milestones: IncomeMilestone[];
+}
+
+export interface MilestoneProjection {
+  month: string; // 'YYYY-MM'
+  projectedAmount: number;
+  milestoneCount: number;
+  overdueAmount: number;
 }
