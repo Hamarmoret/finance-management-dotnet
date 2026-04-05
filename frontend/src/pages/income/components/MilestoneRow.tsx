@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { CheckCircle, Trash2, Loader2, ExternalLink } from 'lucide-react';
-import type { IncomeMilestone, MilestoneStatus } from '@finance/shared';
+import { CheckCircle, Trash2, Loader2, ExternalLink, Paperclip } from 'lucide-react';
+import type { IncomeMilestone, MilestoneStatus, ContractAttachment } from '@finance/shared';
+import DocumentsPanel from './DocumentsPanel';
 import { api, getErrorMessage } from '../../../services/api';
 import { formatCurrency } from '../../../utils/formatters';
 import { MilestoneStatusBadge } from './MilestoneStatusBadge';
@@ -30,6 +31,8 @@ export default function MilestoneRow({
   const [showMarkPaid, setShowMarkPaid] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showDocs, setShowDocs] = useState(false);
+  const [attachments, setAttachments] = useState<ContractAttachment[]>(milestone.attachments ?? []);
 
   // Inline field save on blur
   const saveField = async (field: string, value: string | number | null) => {
@@ -151,6 +154,18 @@ export default function MilestoneRow({
             </div>
 
             <div className="flex gap-1">
+              <button
+                onClick={() => setShowDocs(v => !v)}
+                className={`btn btn-ghost btn-sm relative ${showDocs ? 'text-primary-600 dark:text-primary-400' : 'text-gray-400 hover:text-gray-600'}`}
+                title="Documents"
+              >
+                <Paperclip className="w-4 h-4" />
+                {attachments.length > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 bg-primary-500 text-white text-[9px] rounded-full flex items-center justify-center leading-none">
+                    {attachments.length}
+                  </span>
+                )}
+              </button>
               {milestone.status !== 'paid' && (
                 <button
                   onClick={() => setShowMarkPaid(true)}
@@ -173,6 +188,19 @@ export default function MilestoneRow({
             </div>
           </div>
         </div>
+
+        {/* Documents panel */}
+        {showDocs && (
+          <div className="mt-3 pt-3 border-t border-gray-100 dark:border-gray-700">
+            <DocumentsPanel
+              attachments={attachments}
+              entityType="milestone"
+              entityId={milestone.id}
+              onAttachmentsChanged={setAttachments}
+              allowedTypes={['proforma_invoice', 'tax_invoice', 'payment_receipt', 'other']}
+            />
+          </div>
+        )}
       </div>
 
       {showMarkPaid && (

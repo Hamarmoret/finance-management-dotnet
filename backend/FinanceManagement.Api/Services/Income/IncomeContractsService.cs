@@ -106,6 +106,9 @@ public class IncomeContractDto : IncomeContractSummaryDto
 
     [JsonPropertyName("milestones")]
     public List<IncomeMilestoneDto> Milestones { get; set; } = [];
+
+    [JsonPropertyName("attachments")]
+    public List<ContractAttachmentDto> Attachments { get; set; } = [];
 }
 
 public class IncomeMilestoneDto
@@ -170,6 +173,9 @@ public class IncomeMilestoneDto
     [JsonPropertyName("notes")]
     public string? Notes { get; set; }
 
+    [JsonPropertyName("attachments")]
+    public List<ContractAttachmentDto> Attachments { get; set; } = [];
+
     [JsonPropertyName("createdAt")]
     public DateTime CreatedAt { get; set; }
 
@@ -191,6 +197,90 @@ public class MilestoneProjectionDto
 
     [JsonPropertyName("overdueAmount")]
     public decimal OverdueAmount { get; set; }
+}
+
+public class ContractStatsDto
+{
+    [JsonPropertyName("totalContracts")]
+    public int TotalContracts { get; set; }
+
+    [JsonPropertyName("activeContracts")]
+    public int ActiveContracts { get; set; }
+
+    [JsonPropertyName("completedContracts")]
+    public int CompletedContracts { get; set; }
+
+    [JsonPropertyName("totalValue")]
+    public decimal TotalValue { get; set; }
+
+    [JsonPropertyName("totalCollected")]
+    public decimal TotalCollected { get; set; }
+
+    [JsonPropertyName("totalOutstanding")]
+    public decimal TotalOutstanding { get; set; }
+
+    [JsonPropertyName("overduePayments")]
+    public int OverduePayments { get; set; }
+
+    [JsonPropertyName("overdueAmount")]
+    public decimal OverdueAmount { get; set; }
+}
+
+public class ClientContractStatsDto
+{
+    [JsonPropertyName("clientId")]
+    public Guid? ClientId { get; set; }
+
+    [JsonPropertyName("clientName")]
+    public string ClientName { get; set; } = string.Empty;
+
+    [JsonPropertyName("contractCount")]
+    public int ContractCount { get; set; }
+
+    [JsonPropertyName("totalValue")]
+    public decimal TotalValue { get; set; }
+
+    [JsonPropertyName("totalCollected")]
+    public decimal TotalCollected { get; set; }
+
+    [JsonPropertyName("totalOutstanding")]
+    public decimal TotalOutstanding { get; set; }
+
+    [JsonPropertyName("overdueCount")]
+    public int OverdueCount { get; set; }
+
+    [JsonPropertyName("overdueAmount")]
+    public decimal OverdueAmount { get; set; }
+
+    [JsonPropertyName("latestContractDate")]
+    public string? LatestContractDate { get; set; }
+}
+
+public class ContractAttachmentDto
+{
+    [JsonPropertyName("url")]
+    public string Url { get; set; } = string.Empty;
+
+    [JsonPropertyName("name")]
+    public string Name { get; set; } = string.Empty;
+
+    [JsonPropertyName("size")]
+    public long Size { get; set; }
+
+    [JsonPropertyName("mimeType")]
+    public string MimeType { get; set; } = string.Empty;
+
+    [JsonPropertyName("documentType")]
+    public string DocumentType { get; set; } = "other";
+
+    [JsonPropertyName("uploadedAt")]
+    public string UploadedAt { get; set; } = string.Empty;
+}
+
+public class PatchAttachmentsRequest
+{
+    [JsonPropertyName("attachments")]
+    public List<ContractAttachmentDto> Attachments { get; set; } = [];
 }
 
 // =============================================
@@ -460,6 +550,7 @@ public class DbContractRow
     public int? retainer_billing_day { get; set; }
     public string? notes { get; set; }
     public string[]? tags { get; set; }
+    public string? attachments { get; set; }
     public Guid? created_by { get; set; }
     public DateTime created_at { get; set; }
     public DateTime updated_at { get; set; }
@@ -494,6 +585,7 @@ public class DbMilestoneRow
     public decimal? actual_amount_paid { get; set; }
     public Guid? income_id { get; set; }
     public string? notes { get; set; }
+    public string? attachments { get; set; }
     public DateTime created_at { get; set; }
     public DateTime updated_at { get; set; }
 }
@@ -1281,6 +1373,7 @@ public class IncomeContractsService
         ActualAmountPaid = r.actual_amount_paid,
         IncomeId = r.income_id,
         Notes = r.notes,
+        Attachments = DeserializeAttachments(r.attachments),
         CreatedAt = r.created_at,
         UpdatedAt = r.updated_at,
     };
@@ -1343,7 +1436,152 @@ public class IncomeContractsService
             Notes = r.notes,
             Tags = r.tags ?? [],
             CreatedBy = r.created_by,
+            Attachments = DeserializeAttachments(r.attachments),
             Milestones = [],
         };
+    }
+
+    private static List<ContractAttachmentDto> DeserializeAttachments(string? json)
+    {
+        if (string.IsNullOrEmpty(json)) return [];
+        try { return System.Text.Json.JsonSerializer.Deserialize<List<ContractAttachmentDto>>(json) ?? []; }
+        catch { return []; }
+    }
+
+    // ── Stats ─────────────────────────────────────────────────────────────────
+
+    public async Task<ContractStatsDto> GetStatsAsync()
+    {
+        await using var conn = _db.CreateConnection();
+        await conn.OpenAsync();
+
+        var row = await conn.QuerySingleAsync<dynamic>("""
+            SELECT
+                COUNT(DISTINCT ic.id) as total_contracts,
+                COUNT(DISTINCT ic.id) FILTER (WHERE ic.status = 'active') as active_contracts,
+                COUNT(DISTINCT ic.id) FILTER (WHERE ic.status = 'completed') as completed_contracts,
+                COALESCE(SUM(ic.total_value), 0) as total_value,
+                COALESCE(SUM(CASE WHEN m.status = 'paid' THEN COALESCE(m.actual_amount_paid, m.amount_due) ELSE 0 END), 0) as total_collected,
+                COALESCE(SUM(CASE WHEN m.status != 'paid' THEN m.amount_due ELSE 0 END), 0) as total_outstanding,
+                COUNT(m.id) FILTER (WHERE m.status != 'paid' AND m.due_date < CURRENT_DATE) as overdue_payments,
+                COALESCE(SUM(m.amount_due) FILTER (WHERE m.status != 'paid' AND m.due_date < CURRENT_DATE), 0) as overdue_amount
+            FROM income_contracts ic
+            LEFT JOIN income_milestones m ON m.contract_id = ic.id
+            WHERE ic.status IN ('active', 'on_hold')
+            """);
+
+        return new ContractStatsDto
+        {
+            TotalContracts = (int)row.total_contracts,
+            ActiveContracts = (int)row.active_contracts,
+            CompletedContracts = (int)row.completed_contracts,
+            TotalValue = (decimal)row.total_value,
+            TotalCollected = (decimal)row.total_collected,
+            TotalOutstanding = (decimal)row.total_outstanding,
+            OverduePayments = (int)row.overdue_payments,
+            OverdueAmount = (decimal)row.overdue_amount,
+        };
+    }
+
+    // ── By Client ─────────────────────────────────────────────────────────────
+
+    public async Task<List<ClientContractStatsDto>> GetByClientAsync(string? search, string? status)
+    {
+        await using var conn = _db.CreateConnection();
+        await conn.OpenAsync();
+
+        var where = new List<string>();
+        var p = new DynamicParameters();
+
+        if (!string.IsNullOrWhiteSpace(status))
+        {
+            where.Add("ic.status = @Status");
+            p.Add("Status", status);
+        }
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            where.Add("LOWER(COALESCE(ic.client_name, '')) LIKE @Search");
+            p.Add("Search", $"%{search.ToLower()}%");
+        }
+
+        var whereClause = where.Count > 0 ? "WHERE " + string.Join(" AND ", where) : "";
+
+        var sql = $"""
+            SELECT
+                ic.client_id,
+                COALESCE(ic.client_name, 'Unknown Client') as client_name,
+                COUNT(DISTINCT ic.id) as contract_count,
+                COALESCE(SUM(ic.total_value), 0) as total_value,
+                COALESCE(SUM(CASE WHEN m.status = 'paid' THEN COALESCE(m.actual_amount_paid, m.amount_due) ELSE 0 END), 0) as total_collected,
+                COALESCE(SUM(CASE WHEN m.status != 'paid' THEN m.amount_due ELSE 0 END), 0) as total_outstanding,
+                COUNT(m.id) FILTER (WHERE m.status != 'paid' AND m.due_date < CURRENT_DATE) as overdue_count,
+                COALESCE(SUM(m.amount_due) FILTER (WHERE m.status != 'paid' AND m.due_date < CURRENT_DATE), 0) as overdue_amount,
+                MAX(ic.created_at)::date as latest_contract_date
+            FROM income_contracts ic
+            LEFT JOIN income_milestones m ON m.contract_id = ic.id
+            {whereClause}
+            GROUP BY ic.client_id, ic.client_name
+            ORDER BY total_value DESC
+            """;
+
+        var rows = await conn.QueryAsync<dynamic>(sql, p);
+        return rows.Select(r => new ClientContractStatsDto
+        {
+            ClientId = r.client_id,
+            ClientName = (string)r.client_name,
+            ContractCount = (int)r.contract_count,
+            TotalValue = (decimal)r.total_value,
+            TotalCollected = (decimal)r.total_collected,
+            TotalOutstanding = (decimal)r.total_outstanding,
+            OverdueCount = (int)r.overdue_count,
+            OverdueAmount = (decimal)r.overdue_amount,
+            LatestContractDate = r.latest_contract_date != null ? ((DateTime)r.latest_contract_date).ToString("yyyy-MM-dd") : null,
+        }).ToList();
+    }
+
+    // ── Attachments ───────────────────────────────────────────────────────────
+
+    public async Task<IncomeContractDto> PatchContractAttachmentsAsync(Guid contractId, List<ContractAttachmentDto> attachments)
+    {
+        await using var conn = _db.CreateConnection();
+        await conn.OpenAsync();
+
+        var json = System.Text.Json.JsonSerializer.Serialize(attachments);
+        var affected = await conn.ExecuteAsync(
+            "UPDATE income_contracts SET attachments = @Json::jsonb, updated_at = NOW() WHERE id = @Id",
+            new { Json = json, Id = contractId });
+
+        if (affected == 0)
+            throw new AppException("Contract not found", 404, "NOT_FOUND");
+
+        return (await GetByIdAsync(contractId))!;
+    }
+
+    public async Task<IncomeMilestoneDto> PatchMilestoneAttachmentsAsync(Guid milestoneId, List<ContractAttachmentDto> attachments)
+    {
+        await using var conn = _db.CreateConnection();
+        await conn.OpenAsync();
+
+        var json = System.Text.Json.JsonSerializer.Serialize(attachments);
+        var row = await conn.QuerySingleOrDefaultAsync<DbMilestoneRow>(
+            """
+            UPDATE income_milestones SET attachments = @Json::jsonb, updated_at = NOW()
+            WHERE id = @Id
+            RETURNING *
+            """,
+            new { Json = json, Id = milestoneId });
+
+        if (row == null)
+            throw new AppException("Milestone not found", 404, "NOT_FOUND");
+
+        var contract = await conn.QuerySingleOrDefaultAsync<DbContractRow>(
+            """
+            SELECT *, 0::decimal as total_paid, 0::decimal as total_outstanding,
+                0 as overdue_count, 0 as upcoming_count, 0 as milestone_count, 0 as paid_count
+            FROM income_contracts WHERE id = @Id
+            """,
+            new { Id = row.contract_id });
+
+        return MapMilestone(row, contract?.title, contract?.client_name);
     }
 }

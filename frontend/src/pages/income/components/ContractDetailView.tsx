@@ -8,12 +8,14 @@ import {
   Clock,
   DollarSign,
   Loader2,
+  Paperclip,
 } from 'lucide-react';
-import type { IncomeContract, IncomeMilestone } from '@finance/shared';
+import type { IncomeContract, IncomeMilestone, ContractAttachment } from '@finance/shared';
 import { api, getErrorMessage } from '../../../services/api';
 import { formatCurrency } from '../../../utils/formatters';
 import MilestoneRow from './MilestoneRow';
 import GenerateRetainerModal from './GenerateRetainerModal';
+import DocumentsPanel from './DocumentsPanel';
 
 interface ContractDetailViewProps {
   contract: IncomeContract;
@@ -23,9 +25,17 @@ interface ContractDetailViewProps {
 
 export default function ContractDetailView({ contract, onBack, onContractUpdated: _onContractUpdated }: ContractDetailViewProps) {
   const [milestones, setMilestones] = useState<IncomeMilestone[]>(contract.milestones);
+  const [attachments, setAttachments] = useState<ContractAttachment[]>(contract.attachments ?? []);
+  const [showDocuments, setShowDocuments] = useState(false);
   const [showGenerateModal, setShowGenerateModal] = useState(false);
-  const [addingMilestone, setAddingMilestone] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Inline new-milestone form
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [newDesc, setNewDesc] = useState('');
+  const [newAmount, setNewAmount] = useState('');
+  const [newDueDate, setNewDueDate] = useState(new Date().toISOString().split('T')[0]);
+  const [savingNew, setSavingNew] = useState(false);
 
   const handleMilestoneUpdated = (updated: IncomeMilestone) => {
     setMilestones(prev => prev.map(m => m.id === updated.id ? updated : m));
@@ -35,21 +45,28 @@ export default function ContractDetailView({ contract, onBack, onContractUpdated
     setMilestones(prev => prev.filter(m => m.id !== id));
   };
 
-  const handleAddMilestone = async () => {
-    setAddingMilestone(true);
+  const handleSaveNewMilestone = async () => {
+    if (!newDesc.trim() || !newAmount || !newDueDate) return;
+    const amount = parseFloat(newAmount);
+    if (isNaN(amount) || amount <= 0) { setError('Amount must be greater than 0'); return; }
+    setSavingNew(true);
     setError(null);
     try {
       const res = await api.post(`/income-contracts/${contract.id}/milestones`, {
-        description: 'New Milestone',
-        amountDue: 0,
-        dueDate: new Date().toISOString().split('T')[0],
+        description: newDesc.trim(),
+        amountDue: amount,
+        dueDate: newDueDate,
         sortOrder: milestones.length,
       });
       setMilestones(prev => [...prev, res.data.data]);
+      setNewDesc('');
+      setNewAmount('');
+      setNewDueDate(new Date().toISOString().split('T')[0]);
+      setShowAddForm(false);
     } catch (err) {
       setError(getErrorMessage(err));
     } finally {
-      setAddingMilestone(false);
+      setSavingNew(false);
     }
   };
 
@@ -174,13 +191,10 @@ export default function ContractDetailView({ contract, onBack, onContractUpdated
               </button>
             )}
             <button
-              onClick={handleAddMilestone}
-              disabled={addingMilestone}
+              onClick={() => setShowAddForm(v => !v)}
               className="btn btn-primary btn-sm"
             >
-              {addingMilestone
-                ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" />
-                : <Plus className="w-3.5 h-3.5 mr-1" />}
+              <Plus className="w-3.5 h-3.5 mr-1" />
               Add Milestone
             </button>
           </div>
@@ -189,6 +203,57 @@ export default function ContractDetailView({ contract, onBack, onContractUpdated
         {error && (
           <div className="mb-3 p-3 bg-danger-50 dark:bg-danger-900/20 border border-danger-200 dark:border-danger-800 rounded-lg text-sm text-danger-700 dark:text-danger-400">
             {error}
+          </div>
+        )}
+
+        {/* Inline add form */}
+        {showAddForm && (
+          <div className="mb-3 p-3 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-lg">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
+              <div className="sm:col-span-1">
+                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Description *</label>
+                <input
+                  type="text"
+                  value={newDesc}
+                  onChange={e => setNewDesc(e.target.value)}
+                  placeholder="e.g. 50% deposit"
+                  className="input w-full text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                  autoFocus
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Amount ({contract.currency}) *</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0.01"
+                  value={newAmount}
+                  onChange={e => setNewAmount(e.target.value)}
+                  placeholder="0.00"
+                  className="input w-full text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Due Date *</label>
+                <input
+                  type="date"
+                  value={newDueDate}
+                  onChange={e => setNewDueDate(e.target.value)}
+                  className="input w-full text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                />
+              </div>
+            </div>
+            <div className="flex justify-end gap-2">
+              <button onClick={() => setShowAddForm(false)} className="btn btn-ghost btn-sm">Cancel</button>
+              <button
+                onClick={handleSaveNewMilestone}
+                disabled={savingNew || !newDesc.trim() || !newAmount || !newDueDate}
+                className="btn btn-primary btn-sm"
+              >
+                {savingNew ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" /> : null}
+                Save Milestone
+              </button>
+            </div>
           </div>
         )}
 
@@ -211,6 +276,29 @@ export default function ContractDetailView({ contract, onBack, onContractUpdated
                 />
               ))
             }
+          </div>
+        )}
+      </div>
+
+      {/* Contract Documents */}
+      <div>
+        <button
+          onClick={() => setShowDocuments(v => !v)}
+          className="flex items-center gap-2 text-sm font-semibold text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white"
+        >
+          <Paperclip className="w-4 h-4" />
+          Documents ({attachments.length})
+          <span className="text-xs font-normal text-gray-400 ml-1">{showDocuments ? '▲' : '▼'}</span>
+        </button>
+        {showDocuments && (
+          <div className="mt-3 p-4 card">
+            <DocumentsPanel
+              attachments={attachments}
+              entityType="contract"
+              entityId={contract.id}
+              onAttachmentsChanged={setAttachments}
+              allowedTypes={['contract', 'proposal', 'other']}
+            />
           </div>
         )}
       </div>

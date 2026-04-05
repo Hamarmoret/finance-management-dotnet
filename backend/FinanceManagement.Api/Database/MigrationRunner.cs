@@ -62,6 +62,8 @@ public class MigrationRunner
         ("014b_income_milestones", Sql014bIncomeMilestones),
         ("014c_income_contracts_triggers", Sql014cIncomeContractsTriggers),
         ("014d_proposals_contract_column", Sql014dProposalsContractColumn),
+        ("015a_contract_attachments", Sql015aContractAttachments),
+        ("015b_milestone_attachments", Sql015bMilestoneAttachments),
     ];
 
     #region SQL Migrations
@@ -706,6 +708,12 @@ public class MigrationRunner
 
     private const string Sql014dProposalsContractColumn =
         "ALTER TABLE proposals ADD COLUMN IF NOT EXISTS converted_to_contract_id UUID REFERENCES income_contracts(id) ON DELETE SET NULL";
+
+    private const string Sql015aContractAttachments =
+        "ALTER TABLE income_contracts ADD COLUMN IF NOT EXISTS attachments JSONB DEFAULT '[]'::jsonb";
+
+    private const string Sql015bMilestoneAttachments =
+        "ALTER TABLE income_milestones ADD COLUMN IF NOT EXISTS attachments JSONB DEFAULT '[]'::jsonb";
 
     #endregion
 }

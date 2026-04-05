@@ -856,6 +856,39 @@ export interface Proposal {
 export type ContractType = 'project' | 'retainer';
 export type ContractStatus = 'active' | 'completed' | 'cancelled' | 'on_hold';
 export type MilestoneStatus = 'pending' | 'proforma_issued' | 'invoice_sent' | 'paid' | 'overdue';
+export type DocumentType = 'contract' | 'proposal' | 'proforma_invoice' | 'tax_invoice' | 'payment_receipt' | 'other';
+
+export interface ContractAttachment {
+  url: string;
+  name: string;
+  size: number;
+  mimeType: string;
+  documentType: DocumentType;
+  uploadedAt: string;
+}
+
+export interface ClientContractStats {
+  clientId: string | null;
+  clientName: string;
+  contractCount: number;
+  totalValue: number;
+  totalCollected: number;
+  totalOutstanding: number;
+  overdueCount: number;
+  overdueAmount: number;
+  latestContractDate: string | null;
+}
+
+export interface ContractStats {
+  totalContracts: number;
+  activeContracts: number;
+  completedContracts: number;
+  totalValue: number;
+  totalCollected: number;
+  totalOutstanding: number;
+  overduePayments: number;
+  overdueAmount: number;
+}
 
 export interface IncomeMilestone {
   id: string;
@@ -878,6 +911,7 @@ export interface IncomeMilestone {
   actualAmountPaid: number | null;
   incomeId: string | null;
   notes: string | null;
+  attachments: ContractAttachment[];
   createdAt: string;
   updatedAt: string;
 }
@@ -916,6 +950,7 @@ export interface IncomeContract extends IncomeContractSummary {
   notes: string | null;
   tags: string[];
   createdBy: string | null;
+  attachments: ContractAttachment[];
   milestones: IncomeMilestone[];
 }
 

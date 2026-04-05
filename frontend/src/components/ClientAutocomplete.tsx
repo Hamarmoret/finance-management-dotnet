@@ -41,21 +41,19 @@ export function ClientAutocomplete({
 
   const fetchSuggestions = (value: string) => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
-    if (!value.trim()) {
-      setSuggestions([]);
-      setOpen(false);
-      return;
-    }
     debounceRef.current = setTimeout(async () => {
       try {
-        const res = await api.get(`/clients?search=${encodeURIComponent(value)}&limit=10&status=active`);
+        const params = value.trim()
+          ? `/clients?search=${encodeURIComponent(value)}&limit=20&status=active`
+          : `/clients?limit=20&status=active`;
+        const res = await api.get(params);
         const clients: Client[] = res.data.data ?? [];
         setSuggestions(clients);
         setOpen(clients.length > 0);
       } catch {
         setSuggestions([]);
       }
-    }, 300);
+    }, value.trim() ? 300 : 0);
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -82,7 +80,7 @@ export function ClientAutocomplete({
         onChange={handleChange}
         onFocus={() => {
           if (suggestions.length > 0) setOpen(true);
-          else if (inputValue.trim()) fetchSuggestions(inputValue);
+          else fetchSuggestions(inputValue);
         }}
         placeholder={placeholder}
         autoComplete="off"

@@ -18,6 +18,24 @@ public class IncomeContractsController : ControllerBase
         _service = service;
     }
 
+    // ── Stats & Grouping (must appear before {id:guid} route) ─────────────────
+
+    [HttpGet("stats")]
+    public async Task<IActionResult> GetStats()
+    {
+        var stats = await _service.GetStatsAsync();
+        return Ok(ApiResponse<ContractStatsDto>.Ok(stats));
+    }
+
+    [HttpGet("by-client")]
+    public async Task<IActionResult> GetByClient(
+        [FromQuery] string? search = null,
+        [FromQuery] string? status = null)
+    {
+        var items = await _service.GetByClientAsync(search, status);
+        return Ok(ApiResponse<List<ClientContractStatsDto>>.Ok(items));
+    }
+
     // ── Contracts ─────────────────────────────────────────────────────────────
 
     [HttpGet]
@@ -165,5 +183,21 @@ public class IncomeContractsController : ControllerBase
     {
         var projections = await _service.GetProjectionsAsync(months);
         return Ok(ApiResponse<List<MilestoneProjectionDto>>.Ok(projections));
+    }
+
+    // ── Attachments ───────────────────────────────────────────────────────────
+
+    [HttpPatch("{id:guid}/attachments")]
+    public async Task<IActionResult> PatchContractAttachments(Guid id, [FromBody] PatchAttachmentsRequest request)
+    {
+        var contract = await _service.PatchContractAttachmentsAsync(id, request.Attachments);
+        return Ok(ApiResponse<IncomeContractDto>.Ok(contract));
+    }
+
+    [HttpPatch("milestones/{milestoneId:guid}/attachments")]
+    public async Task<IActionResult> PatchMilestoneAttachments(Guid milestoneId, [FromBody] PatchAttachmentsRequest request)
+    {
+        var milestone = await _service.PatchMilestoneAttachmentsAsync(milestoneId, request.Attachments);
+        return Ok(ApiResponse<IncomeMilestoneDto>.Ok(milestone));
     }
 }

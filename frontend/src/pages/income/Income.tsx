@@ -1,11 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Wallet, Plus, Filter, Search, X, Download, Upload, FileSpreadsheet, ChevronDown, FileText } from 'lucide-react';
+import { Wallet, Plus, Filter, Search, X, Download, Upload, FileSpreadsheet, ChevronDown, FileText, Users } from 'lucide-react';
 import { api, getErrorMessage } from '../../services/api';
 import type { Income as IncomeType, IncomeCategory, PnlCenterWithStats } from '@finance/shared';
 import { IncomeModal } from './components/IncomeModal';
 import { IncomeTable } from './components/IncomeTable';
 import { PeriodSelector, getPeriodLabel } from '../../components/PeriodSelector';
 import ContractsList from './components/ContractsList';
+import ClientsIncomeView from './components/ClientsIncomeView';
 
 function formatCurrency(amount: number): string {
   return new Intl.NumberFormat('en-US', {
@@ -16,7 +17,7 @@ function formatCurrency(amount: number): string {
   }).format(amount);
 }
 
-type IncomeTab = 'contracts' | 'transactions';
+type IncomeTab = 'contracts' | 'by-client' | 'transactions';
 
 export default function Income() {
   const [activeTab, setActiveTab] = useState<IncomeTab>('contracts');
@@ -268,6 +269,17 @@ export default function Income() {
           Contracts
         </button>
         <button
+          onClick={() => setActiveTab('by-client')}
+          className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+            activeTab === 'by-client'
+              ? 'border-primary-600 text-primary-600 dark:text-primary-400 dark:border-primary-400'
+              : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+          }`}
+        >
+          <Users className="w-4 h-4" />
+          By Client
+        </button>
+        <button
           onClick={() => setActiveTab('transactions')}
           className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
             activeTab === 'transactions'
@@ -282,6 +294,9 @@ export default function Income() {
 
       {/* Contracts tab */}
       {activeTab === 'contracts' && <ContractsList />}
+
+      {/* By Client tab */}
+      {activeTab === 'by-client' && <ClientsIncomeView />}
 
       {/* Transactions tab — existing content */}
       {activeTab === 'transactions' && <>
