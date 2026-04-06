@@ -67,6 +67,7 @@ public class MigrationRunner
         ("016_contract_service_type", Sql016ContractServiceType),
         ("017_dropdown_options", Sql017DropdownOptions),
         ("018_backfill_client_ids", Sql018BackfillClientIds),
+        ("019_create_clients_from_income", Sql019CreateClientsFromIncome),
     ];
 
     #region SQL Migrations
@@ -764,6 +765,29 @@ public class MigrationRunner
         """;
 
     private const string Sql018BackfillClientIds = """
+        UPDATE income i
+        SET client_id = c.id
+        FROM clients c
+        WHERE i.client_id IS NULL
+          AND i.client_name IS NOT NULL
+          AND (LOWER(TRIM(i.client_name)) = LOWER(TRIM(c.name))
+               OR LOWER(TRIM(i.client_name)) = LOWER(TRIM(COALESCE(c.company_name, ''))));
+        """;
+
+    private const string Sql019CreateClientsFromIncome = """
+        -- Insert a client record for every distinct income client_name that has no matching client yet
+        INSERT INTO clients (name, status)
+        SELECT DISTINCT TRIM(i.client_name), 'active'
+        FROM income i
+        WHERE i.client_name IS NOT NULL
+          AND TRIM(i.client_name) <> ''
+          AND NOT EXISTS (
+              SELECT 1 FROM clients c
+              WHERE LOWER(TRIM(c.name)) = LOWER(TRIM(i.client_name))
+                 OR LOWER(TRIM(COALESCE(c.company_name, ''))) = LOWER(TRIM(i.client_name))
+          );
+
+        -- Now link those newly created clients back to the income rows
         UPDATE income i
         SET client_id = c.id
         FROM clients c
