@@ -112,6 +112,11 @@ export default function ContractsList({ presetClientId }: ContractsListProps) {
         contract={detailContract}
         onBack={() => { setSelectedContractId(null); setDetailContract(null); fetchContracts(); }}
         onContractUpdated={handleContractUpdated}
+        onDuplicated={(duplicated) => {
+          setDetailContract(duplicated);
+          setSelectedContractId(duplicated.id);
+          fetchContracts();
+        }}
       />
     );
   }

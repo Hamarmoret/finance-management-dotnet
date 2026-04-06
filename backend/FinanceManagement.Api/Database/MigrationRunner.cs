@@ -65,6 +65,7 @@ public class MigrationRunner
         ("015a_contract_attachments", Sql015aContractAttachments),
         ("015b_milestone_attachments", Sql015bMilestoneAttachments),
         ("016_contract_service_type", Sql016ContractServiceType),
+        ("017_dropdown_options", Sql017DropdownOptions),
     ];
 
     #region SQL Migrations
@@ -718,6 +719,48 @@ public class MigrationRunner
 
     private const string Sql016ContractServiceType =
         "ALTER TABLE income_contracts ADD COLUMN IF NOT EXISTS service_type VARCHAR(100)";
+
+    private const string Sql017DropdownOptions = """
+        CREATE TABLE IF NOT EXISTS dropdown_options (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            category VARCHAR(100) NOT NULL,
+            value VARCHAR(200) NOT NULL,
+            label VARCHAR(200) NOT NULL,
+            sort_order INT NOT NULL DEFAULT 0,
+            is_active BOOLEAN NOT NULL DEFAULT TRUE,
+            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            UNIQUE(category, value)
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_dropdown_options_category ON dropdown_options(category);
+
+        INSERT INTO dropdown_options (category, value, label, sort_order) VALUES
+            ('service_type', 'penetration_test', 'Penetration Test', 1),
+            ('service_type', 'risk_assessment', 'Risk Assessment', 2),
+            ('service_type', 'incident_response', 'Incident Response', 3),
+            ('service_type', 'soc', 'SOC', 4),
+            ('service_type', 'compliance', 'Compliance', 5),
+            ('service_type', 'vulnerability_assessment', 'Vulnerability Assessment', 6),
+            ('service_type', 'training', 'Training', 7),
+            ('service_type', 'other', 'Other', 8),
+            ('payment_method', 'bank_transfer', 'Bank Transfer', 1),
+            ('payment_method', 'credit_card', 'Credit Card', 2),
+            ('payment_method', 'check', 'Check', 3),
+            ('payment_method', 'cash', 'Cash', 4),
+            ('payment_method', 'paypal', 'PayPal', 5),
+            ('payment_method', 'other', 'Other', 6),
+            ('contract_type', 'project', 'Project', 1),
+            ('contract_type', 'retainer', 'Retainer', 2),
+            ('lead_status', 'new', 'New', 1),
+            ('lead_status', 'contacted', 'Contacted', 2),
+            ('lead_status', 'qualified', 'Qualified', 3),
+            ('lead_status', 'proposal_sent', 'Proposal Sent', 4),
+            ('lead_status', 'negotiation', 'Negotiation', 5),
+            ('lead_status', 'won', 'Won', 6),
+            ('lead_status', 'lost', 'Lost', 7)
+        ON CONFLICT (category, value) DO NOTHING;
+        """;
 
     #endregion
 }

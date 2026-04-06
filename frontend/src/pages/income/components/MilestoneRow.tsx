@@ -11,6 +11,7 @@ interface MilestoneRowProps {
   milestone: IncomeMilestone;
   contractId: string;
   contractCurrency: string;
+  contractTotalValue: number;
   onUpdated: (m: IncomeMilestone) => void;
   onDeleted: (id: string) => void;
 }
@@ -24,6 +25,7 @@ export default function MilestoneRow({
   milestone,
   contractId,
   contractCurrency,
+  contractTotalValue,
   onUpdated,
   onDeleted,
 }: MilestoneRowProps) {
@@ -132,16 +134,23 @@ export default function MilestoneRow({
             )}
           </div>
 
-          {/* Amount + due date + actions */}
+          {/* Amount + percentage + due date + actions */}
           <div className="flex items-center gap-3 shrink-0">
             <div className="text-right">
-              <InlineAmount
-                value={milestone.amountDue}
-                disabled={milestone.status === 'paid'}
-                saving={saving === 'amountDue'}
-                onSave={v => saveField('amountDue', v)}
-                currency={contractCurrency}
-              />
+              <div className="flex items-center gap-1.5 justify-end">
+                <InlineAmount
+                  value={milestone.amountDue}
+                  disabled={milestone.status === 'paid'}
+                  saving={saving === 'amountDue'}
+                  onSave={v => saveField('amountDue', v)}
+                  currency={contractCurrency}
+                />
+                {contractTotalValue > 0 && (
+                  <span className="text-xs text-gray-400 dark:text-gray-500 font-normal">
+                    ({((milestone.amountDue / contractTotalValue) * 100).toFixed(1)}%)
+                  </span>
+                )}
+              </div>
               <InlineField
                 label="Due"
                 type="date"

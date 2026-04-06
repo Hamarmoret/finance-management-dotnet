@@ -102,6 +102,14 @@ public class IncomeContractsController : ControllerBase
         return Ok(ApiResponse<object>.Ok(new { message = "Contract deleted" }));
     }
 
+    [HttpPost("{id:guid}/duplicate")]
+    public async Task<IActionResult> Duplicate(Guid id)
+    {
+        var userId = Guid.Parse(HttpContext.GetUserId()!);
+        var contract = await _service.DuplicateAsync(id, userId);
+        return StatusCode(201, ApiResponse<IncomeContractDto>.Ok(contract));
+    }
+
     // ── Milestones ────────────────────────────────────────────────────────────
 
     [HttpGet("{id:guid}/milestones")]

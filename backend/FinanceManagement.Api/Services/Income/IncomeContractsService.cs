@@ -866,6 +866,112 @@ public class IncomeContractsService
             throw new AppException("Contract not found", 404, "NOT_FOUND");
     }
 
+    // ── Duplicate ─────────────────────────────────────────────────────────────
+
+    public async Task<IncomeContractDto> DuplicateAsync(Guid sourceId, Guid userId)
+    {
+        await using var conn = _db.CreateConnection();
+        await conn.OpenAsync();
+        await using var tx = await conn.BeginTransactionAsync();
+
+        try
+        {
+            // Fetch the source contract
+            var source = await conn.QuerySingleOrDefaultAsync<DbContractRow>(
+                "SELECT * FROM income_contracts WHERE id = @Id",
+                new { Id = sourceId }, tx);
+
+            if (source == null)
+                throw new AppException("Contract not found", 404, "NOT_FOUND");
+
+            // Insert duplicate with reset status
+            var row = await conn.QuerySingleAsync<DbContractRow>(
+                """
+                INSERT INTO income_contracts (
+                    title, contract_type, service_type, status, client_id, client_name,
+                    proposal_id, category_id, pnl_center_id, currency, total_value,
+                    vat_applicable, vat_percentage, payment_terms_days,
+                    start_date, end_date, retainer_monthly_amount, retainer_billing_day,
+                    notes, tags, created_by
+                ) VALUES (
+                    @Title, @ContractType, @ServiceType, 'active', @ClientId, @ClientName,
+                    NULL, @CategoryId, @PnlCenterId, @Currency, @TotalValue,
+                    @VatApplicable, @VatPercentage, @PaymentTermsDays,
+                    @StartDate, @EndDate, @RetainerMonthlyAmount, @RetainerBillingDay,
+                    @Notes, @Tags, @CreatedBy
+                )
+                RETURNING *,
+                    0::decimal as total_paid, 0::decimal as total_outstanding,
+                    0 as overdue_count, 0 as upcoming_count,
+                    0 as milestone_count, 0 as paid_count
+                """,
+                new
+                {
+                    Title = source.title + " (Copy)",
+                    source.contract_type,
+                    source.service_type,
+                    source.client_id,
+                    source.client_name,
+                    source.category_id,
+                    source.pnl_center_id,
+                    source.currency,
+                    source.total_value,
+                    source.vat_applicable,
+                    source.vat_percentage,
+                    source.payment_terms_days,
+                    source.start_date,
+                    source.end_date,
+                    source.retainer_monthly_amount,
+                    source.retainer_billing_day,
+                    source.notes,
+                    Tags = source.tags ?? [],
+                    CreatedBy = userId,
+                }, tx);
+
+            // Duplicate milestones (reset statuses)
+            var sourceMilestones = (await conn.QueryAsync<DbMilestoneRow>(
+                "SELECT * FROM income_milestones WHERE contract_id = @Id ORDER BY sort_order, due_date",
+                new { Id = sourceId }, tx)).ToList();
+
+            var newMilestones = new List<IncomeMilestoneDto>();
+            foreach (var sm in sourceMilestones)
+            {
+                var mRow = await conn.QuerySingleAsync<DbMilestoneRow>(
+                    """
+                    INSERT INTO income_milestones (
+                        contract_id, sort_order, description, amount_due, currency, due_date, notes
+                    ) VALUES (
+                        @ContractId, @SortOrder, @Description, @AmountDue, @Currency, @DueDate, @Notes
+                    )
+                    RETURNING *
+                    """,
+                    new
+                    {
+                        ContractId = row.id,
+                        sm.sort_order,
+                        sm.description,
+                        sm.amount_due,
+                        Currency = row.currency,
+                        sm.due_date,
+                        sm.notes,
+                    }, tx);
+
+                newMilestones.Add(MapMilestone(mRow));
+            }
+
+            await tx.CommitAsync();
+
+            var dto = MapContractDetail(row);
+            dto.Milestones = newMilestones;
+            return dto;
+        }
+        catch
+        {
+            await tx.RollbackAsync();
+            throw;
+        }
+    }
+
     // ── Milestones ────────────────────────────────────────────────────────────
 
     public async Task<List<IncomeMilestoneDto>> GetMilestonesAsync(Guid contractId)

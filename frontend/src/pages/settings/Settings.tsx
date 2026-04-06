@@ -1,14 +1,15 @@
 import { useState } from 'react';
-import { Settings as SettingsIcon, User, Users, Shield, Tag, PieChart, Activity } from 'lucide-react';
+import { Settings as SettingsIcon, User, Users, Shield, Tag, PieChart, Activity, List } from 'lucide-react';
 import { useAuthStore } from '../../stores/authStore';
 import ProfileSettings from './components/ProfileSettings';
 import UserManagement from './components/UserManagement';
 import PnlPermissionsMatrix from './components/PnlPermissionsMatrix';
 import CategoriesSettings from './components/CategoriesSettings';
+import DropdownSettings from './components/DropdownSettings';
 import PnlDefaultsSettings from './components/PnlDefaultsSettings';
 import ActivityLog from './components/ActivityLog';
 
-type TabType = 'profile' | 'categories' | 'pnl-defaults' | 'users' | 'permissions' | 'activity';
+type TabType = 'profile' | 'categories' | 'dropdowns' | 'pnl-defaults' | 'users' | 'permissions' | 'activity';
 
 export default function Settings() {
   const { user } = useAuthStore();
@@ -18,6 +19,7 @@ export default function Settings() {
   const tabs: { id: TabType; label: string; icon: typeof User; adminOnly?: boolean }[] = [
     { id: 'profile', label: 'Profile', icon: User },
     { id: 'categories', label: 'Categories', icon: Tag },
+    { id: 'dropdowns', label: 'Dropdowns', icon: List },
     { id: 'pnl-defaults', label: 'P&L Defaults', icon: PieChart },
     { id: 'users', label: 'Users', icon: Users, adminOnly: true },
     { id: 'permissions', label: 'Permissions', icon: Shield, adminOnly: true },
@@ -60,6 +62,7 @@ export default function Settings() {
       {/* Tab Content */}
       {activeTab === 'profile' && <ProfileSettings />}
       {activeTab === 'categories' && <CategoriesSettings />}
+      {activeTab === 'dropdowns' && <DropdownSettings />}
       {activeTab === 'pnl-defaults' && <PnlDefaultsSettings />}
       {activeTab === 'users' && isAdmin && <UserManagement />}
       {activeTab === 'permissions' && isAdmin && <PnlPermissionsMatrix />}

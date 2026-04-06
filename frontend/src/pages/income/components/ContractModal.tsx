@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { X, Loader2, FileText, Info } from 'lucide-react';
-import type { IncomeContract, ServiceType } from '@finance/shared';
+import type { IncomeContract, ServiceType, DropdownOption } from '@finance/shared';
 import { SERVICE_TYPE_LABELS } from '@finance/shared';
 import { api, getErrorMessage } from '../../../services/api';
 import { ClientAutocomplete } from '../../../components/ClientAutocomplete';
@@ -37,6 +37,21 @@ export default function ContractModal({ contract, onClose, onSaved }: ContractMo
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Load service types from API (with hardcoded fallback)
+  const [serviceTypes, setServiceTypes] = useState<{ value: string; label: string }[]>(
+    Object.entries(SERVICE_TYPE_LABELS).map(([val, label]) => ({ value: val, label }))
+  );
+  useEffect(() => {
+    api.get('/dropdown-options/service_type')
+      .then(res => {
+        const opts: DropdownOption[] = res.data.data ?? [];
+        if (opts.length > 0) {
+          setServiceTypes(opts.filter(o => o.isActive).map(o => ({ value: o.value, label: o.label })));
+        }
+      })
+      .catch(() => {}); // fallback to hardcoded
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -145,7 +160,7 @@ export default function ContractModal({ contract, onClose, onSaved }: ContractMo
                   className="input mt-1 w-full dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                 >
                   <option value="">— Select service type —</option>
-                  {Object.entries(SERVICE_TYPE_LABELS).map(([val, label]) => (
+                  {serviceTypes.map(({ value: val, label }) => (
                     <option key={val} value={val}>{label}</option>
                   ))}
                 </select>

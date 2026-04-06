@@ -982,3 +982,21 @@ export interface MilestoneProjection {
   milestoneCount: number;
   overdueAmount: number;
 }
+
+// ── Dropdown Options ──────────────────────────────────────────────────────
+
+export interface DropdownOption {
+  id: string;
+  category: string;
+  value: string;
+  label: string;
+  sortOrder: number;
+  isActive: boolean;
+}
+
+export const DROPDOWN_CATEGORIES: Record<string, string> = {
+  service_type: 'Service Types',
+  payment_method: 'Payment Methods',
+  contract_type: 'Contract Types',
+  lead_status: 'Lead Statuses',
+};

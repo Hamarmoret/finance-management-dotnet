@@ -21,6 +21,7 @@ using FinanceManagement.Api.Services;
 using FinanceManagement.Api.Services.Uploads;
 using FinanceManagement.Api.Services.BusinessPlans;
 using FinanceManagement.Api.Services.CsvImport;
+using FinanceManagement.Api.Services.Settings;
 
 // Configure Serilog
 Log.Logger = new LoggerConfiguration()
@@ -109,6 +110,7 @@ builder.Services.AddScoped<AuditLogsService>();
 builder.Services.AddScoped<UploadsService>();
 builder.Services.AddScoped<BusinessPlansService>();
 builder.Services.AddScoped<CsvImportService>();
+builder.Services.AddScoped<DropdownOptionsService>();
 
 // Controllers with JSON options matching Node.js API
 builder.Services.AddControllers()

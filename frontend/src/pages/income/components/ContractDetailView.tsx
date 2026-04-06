@@ -9,6 +9,7 @@ import {
   DollarSign,
   Loader2,
   Paperclip,
+  Copy,
 } from 'lucide-react';
 import type { IncomeContract, IncomeMilestone, ContractAttachment } from '@finance/shared';
 import { api, getErrorMessage } from '../../../services/api';
@@ -21,10 +22,12 @@ interface ContractDetailViewProps {
   contract: IncomeContract;
   onBack: () => void;
   onContractUpdated: (c: IncomeContract) => void;
+  onDuplicated?: (c: IncomeContract) => void;
 }
 
-export default function ContractDetailView({ contract, onBack, onContractUpdated: _onContractUpdated }: ContractDetailViewProps) {
+export default function ContractDetailView({ contract, onBack, onContractUpdated: _onContractUpdated, onDuplicated }: ContractDetailViewProps) {
   const [milestones, setMilestones] = useState<IncomeMilestone[]>(contract.milestones);
+  const [duplicating, setDuplicating] = useState(false);
   const [attachments, setAttachments] = useState<ContractAttachment[]>(contract.attachments ?? []);
   const [showDocuments, setShowDocuments] = useState(false);
   const [showGenerateModal, setShowGenerateModal] = useState(false);
@@ -90,6 +93,20 @@ export default function ContractDetailView({ contract, onBack, onContractUpdated
     setShowGenerateModal(false);
   };
 
+  const handleDuplicate = async () => {
+    if (!confirm('Duplicate this contract with all milestones? A new contract will be created as a copy.')) return;
+    setDuplicating(true);
+    setError(null);
+    try {
+      const res = await api.post(`/income-contracts/${contract.id}/duplicate`);
+      onDuplicated?.(res.data.data);
+    } catch (err) {
+      setError(getErrorMessage(err));
+    } finally {
+      setDuplicating(false);
+    }
+  };
+
   // Derived stats from local milestone state
   const totalPaid = milestones
     .filter(m => m.status === 'paid')
@@ -138,6 +155,15 @@ export default function ContractDetailView({ contract, onBack, onContractUpdated
             <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">{contract.clientName}</p>
           )}
         </div>
+        <button
+          onClick={handleDuplicate}
+          disabled={duplicating}
+          className="btn btn-outline btn-sm shrink-0"
+          title="Duplicate contract"
+        >
+          {duplicating ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <Copy className="w-4 h-4 mr-1" />}
+          Duplicate
+        </button>
       </div>
 
       {/* Stats bar */}
@@ -340,6 +366,7 @@ export default function ContractDetailView({ contract, onBack, onContractUpdated
                   milestone={m}
                   contractId={contract.id}
                   contractCurrency={contract.currency}
+                  contractTotalValue={contract.totalValue}
                   onUpdated={handleMilestoneUpdated}
                   onDeleted={handleMilestoneDeleted}
                 />
