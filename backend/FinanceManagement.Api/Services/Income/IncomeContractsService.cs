@@ -495,6 +495,7 @@ public class DuplicateContractRequest
 }
 
 
+public class GenerateRetainerMilestonesRequest
 {
     [JsonPropertyName("startDate")]
     public string StartDate { get; set; } = string.Empty;
@@ -959,11 +960,11 @@ public class IncomeContractsService
                 }, tx);
 
             // Duplicate milestones (reset statuses)
-            var sourceMilestones = overrides.CopyMilestones
-                ? (await conn.QueryAsync<DbMilestoneRow>(
+            List<DbMilestoneRow> sourceMilestones = [];
+            if (overrides.CopyMilestones)
+                sourceMilestones = (await conn.QueryAsync<DbMilestoneRow>(
                     "SELECT * FROM income_milestones WHERE contract_id = @Id ORDER BY sort_order, due_date",
-                    new { Id = sourceId }, tx)).ToList()
-                : [];
+                    new { Id = sourceId }, tx)).ToList();
 
             var newMilestones = new List<IncomeMilestoneDto>();
             foreach (var sm in sourceMilestones)
