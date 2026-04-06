@@ -23,6 +23,9 @@ public class IncomeContractSummaryDto
     [JsonPropertyName("contractType")]
     public string ContractType { get; set; } = string.Empty;
 
+    [JsonPropertyName("serviceType")]
+    public string? ServiceType { get; set; }
+
     [JsonPropertyName("status")]
     public string Status { get; set; } = string.Empty;
 
@@ -295,6 +298,9 @@ public class CreateContractRequest
     [JsonPropertyName("contractType")]
     public string ContractType { get; set; } = string.Empty;
 
+    [JsonPropertyName("serviceType")]
+    public string? ServiceType { get; set; }
+
     [JsonPropertyName("clientId")]
     public Guid? ClientId { get; set; }
 
@@ -351,6 +357,9 @@ public class UpdateContractRequest
 {
     [JsonPropertyName("title")]
     public string? Title { get; set; }
+
+    [JsonPropertyName("serviceType")]
+    public string? ServiceType { get; set; }
 
     [JsonPropertyName("status")]
     public string? Status { get; set; }
@@ -533,6 +542,7 @@ public class DbContractRow
     public string title { get; set; } = string.Empty;
     public string? contract_number { get; set; }
     public string contract_type { get; set; } = string.Empty;
+    public string? service_type { get; set; }
     public string status { get; set; } = string.Empty;
     public Guid? client_id { get; set; }
     public string? client_name { get; set; }
@@ -741,13 +751,13 @@ public class IncomeContractsService
             var row = await conn.QuerySingleAsync<DbContractRow>(
                 """
                 INSERT INTO income_contracts (
-                    title, contract_type, status, client_id, client_name,
+                    title, contract_type, service_type, status, client_id, client_name,
                     proposal_id, category_id, pnl_center_id, currency, total_value,
                     vat_applicable, vat_percentage, payment_terms_days,
                     start_date, end_date, retainer_monthly_amount, retainer_billing_day,
                     notes, tags, created_by
                 ) VALUES (
-                    @Title, @ContractType, 'active', @ClientId, @ClientName,
+                    @Title, @ContractType, @ServiceType, 'active', @ClientId, @ClientName,
                     @ProposalId, @CategoryId, @PnlCenterId, @Currency, @TotalValue,
                     @VatApplicable, @VatPercentage, @PaymentTermsDays,
                     @StartDate::date, @EndDate::date, @RetainerMonthlyAmount, @RetainerBillingDay,
@@ -762,6 +772,7 @@ public class IncomeContractsService
                 {
                     request.Title,
                     ContractType = request.ContractType,
+                    ServiceType = request.ServiceType,
                     ClientId = request.ClientId,
                     ClientName = request.ClientName,
                     ProposalId = request.ProposalId,
@@ -808,6 +819,7 @@ public class IncomeContractsService
         p.Add("Id", id);
 
         if (request.Title != null) { sets.Add("title = @Title"); p.Add("Title", request.Title); }
+        if (request.ServiceType != null) { sets.Add("service_type = @ServiceType"); p.Add("ServiceType", request.ServiceType == "" ? null : request.ServiceType); }
         if (request.Status != null) { sets.Add("status = @Status"); p.Add("Status", request.Status); }
         if (request.ClientId != null) { sets.Add("client_id = @ClientId"); p.Add("ClientId", request.ClientId); }
         if (request.ClientName != null) { sets.Add("client_name = @ClientName"); p.Add("ClientName", request.ClientName); }
@@ -1384,6 +1396,7 @@ public class IncomeContractsService
         Title = r.title,
         ContractNumber = r.contract_number,
         ContractType = r.contract_type,
+        ServiceType = r.service_type,
         Status = r.status,
         ClientId = r.client_id,
         ClientName = r.client_name,
@@ -1410,6 +1423,7 @@ public class IncomeContractsService
             Title = s.Title,
             ContractNumber = s.ContractNumber,
             ContractType = s.ContractType,
+            ServiceType = s.ServiceType,
             Status = s.Status,
             ClientId = s.ClientId,
             ClientName = s.ClientName,

@@ -34,8 +34,15 @@ export default function ContractDetailView({ contract, onBack, onContractUpdated
   const [showAddForm, setShowAddForm] = useState(false);
   const [newDesc, setNewDesc] = useState('');
   const [newAmount, setNewAmount] = useState('');
+  const [newPct, setNewPct] = useState('');
+  const [amountMode, setAmountMode] = useState<'amount' | 'percent'>('amount');
   const [newDueDate, setNewDueDate] = useState(new Date().toISOString().split('T')[0]);
   const [savingNew, setSavingNew] = useState(false);
+
+  // Computed amount when in percent mode
+  const computedAmount = amountMode === 'percent' && newPct
+    ? (parseFloat(newPct) / 100) * contract.totalValue
+    : null;
 
   const handleMilestoneUpdated = (updated: IncomeMilestone) => {
     setMilestones(prev => prev.map(m => m.id === updated.id ? updated : m));
@@ -46,8 +53,15 @@ export default function ContractDetailView({ contract, onBack, onContractUpdated
   };
 
   const handleSaveNewMilestone = async () => {
-    if (!newDesc.trim() || !newAmount || !newDueDate) return;
-    const amount = parseFloat(newAmount);
+    if (!newDesc.trim() || !newDueDate) return;
+    let amount: number;
+    if (amountMode === 'percent') {
+      const pct = parseFloat(newPct);
+      if (isNaN(pct) || pct <= 0) { setError('Percentage must be greater than 0'); return; }
+      amount = (pct / 100) * contract.totalValue;
+    } else {
+      amount = parseFloat(newAmount);
+    }
     if (isNaN(amount) || amount <= 0) { setError('Amount must be greater than 0'); return; }
     setSavingNew(true);
     setError(null);
@@ -61,6 +75,7 @@ export default function ContractDetailView({ contract, onBack, onContractUpdated
       setMilestones(prev => [...prev, res.data.data]);
       setNewDesc('');
       setNewAmount('');
+      setNewPct('');
       setNewDueDate(new Date().toISOString().split('T')[0]);
       setShowAddForm(false);
     } catch (err) {
@@ -222,16 +237,67 @@ export default function ContractDetailView({ contract, onBack, onContractUpdated
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Amount ({contract.currency}) *</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  min="0.01"
-                  value={newAmount}
-                  onChange={e => setNewAmount(e.target.value)}
-                  placeholder="0.00"
-                  className="input w-full text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                />
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs font-medium text-gray-500 dark:text-gray-400">
+                    {amountMode === 'amount' ? `Amount (${contract.currency})` : 'Percentage'} *
+                  </label>
+                  <div className="flex rounded overflow-hidden border border-gray-300 dark:border-gray-600 text-xs">
+                    <button
+                      type="button"
+                      onClick={() => setAmountMode('amount')}
+                      className={`px-2 py-0.5 transition-colors ${
+                        amountMode === 'amount'
+                          ? 'bg-primary-600 text-white'
+                          : 'bg-white dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600'
+                      }`}
+                    >
+                      {contract.currency}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setAmountMode('percent')}
+                      className={`px-2 py-0.5 transition-colors ${
+                        amountMode === 'percent'
+                          ? 'bg-primary-600 text-white'
+                          : 'bg-white dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600'
+                      }`}
+                    >
+                      %
+                    </button>
+                  </div>
+                </div>
+                {amountMode === 'amount' ? (
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0.01"
+                    value={newAmount}
+                    onChange={e => setNewAmount(e.target.value)}
+                    placeholder="0.00"
+                    className="input w-full text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                  />
+                ) : (
+                  <div>
+                    <div className="relative">
+                      <input
+                        type="number"
+                        step="0.1"
+                        min="0.1"
+                        max="100"
+                        value={newPct}
+                        onChange={e => setNewPct(e.target.value)}
+                        placeholder="e.g. 50"
+                        className="input w-full text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white pr-6"
+                      />
+                      <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs">%</span>
+                    </div>
+                    {computedAmount !== null && !isNaN(computedAmount) && computedAmount > 0 && (
+                      <p className="text-xs text-primary-600 dark:text-primary-400 mt-1">
+                        = {new Intl.NumberFormat('en-US', { style: 'currency', currency: contract.currency, minimumFractionDigits: 0 }).format(computedAmount)}
+                      </p>
+                    )}
+                  </div>
+                )}
               </div>
               <div>
                 <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Due Date *</label>
@@ -244,10 +310,13 @@ export default function ContractDetailView({ contract, onBack, onContractUpdated
               </div>
             </div>
             <div className="flex justify-end gap-2">
-              <button onClick={() => setShowAddForm(false)} className="btn btn-ghost btn-sm">Cancel</button>
+              <button onClick={() => { setShowAddForm(false); setNewAmount(''); setNewPct(''); }} className="btn btn-ghost btn-sm">Cancel</button>
               <button
                 onClick={handleSaveNewMilestone}
-                disabled={savingNew || !newDesc.trim() || !newAmount || !newDueDate}
+                disabled={
+                  savingNew || !newDesc.trim() || !newDueDate ||
+                  (amountMode === 'amount' ? !newAmount : !newPct)
+                }
                 className="btn btn-primary btn-sm"
               >
                 {savingNew ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" /> : null}

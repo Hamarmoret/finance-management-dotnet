@@ -64,6 +64,7 @@ public class MigrationRunner
         ("014d_proposals_contract_column", Sql014dProposalsContractColumn),
         ("015a_contract_attachments", Sql015aContractAttachments),
         ("015b_milestone_attachments", Sql015bMilestoneAttachments),
+        ("016_contract_service_type", Sql016ContractServiceType),
     ];
 
     #region SQL Migrations
@@ -714,6 +715,9 @@ public class MigrationRunner
 
     private const string Sql015bMilestoneAttachments =
         "ALTER TABLE income_milestones ADD COLUMN IF NOT EXISTS attachments JSONB DEFAULT '[]'::jsonb";
+
+    private const string Sql016ContractServiceType =
+        "ALTER TABLE income_contracts ADD COLUMN IF NOT EXISTS service_type VARCHAR(100)";
 
     #endregion
 }

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { X, Loader2, FileText, Info } from 'lucide-react';
-import type { IncomeContract } from '@finance/shared';
+import type { IncomeContract, ServiceType } from '@finance/shared';
+import { SERVICE_TYPE_LABELS } from '@finance/shared';
 import { api, getErrorMessage } from '../../../services/api';
 import { ClientAutocomplete } from '../../../components/ClientAutocomplete';
 
@@ -15,6 +16,7 @@ export default function ContractModal({ contract, onClose, onSaved }: ContractMo
 
   const [title, setTitle] = useState(contract?.title ?? '');
   const [contractType, setContractType] = useState<'project' | 'retainer'>(contract?.contractType ?? 'project');
+  const [serviceType, setServiceType] = useState<ServiceType | ''>(contract?.serviceType ?? '');
   const [status, setStatus] = useState<'active' | 'completed' | 'on_hold' | 'cancelled'>(contract?.status ?? 'active');
   const [clientId, setClientId] = useState(contract?.clientId ?? '');
   const [clientName, setClientName] = useState(contract?.clientName ?? '');
@@ -44,6 +46,7 @@ export default function ContractModal({ contract, onClose, onSaved }: ContractMo
     const payload = {
       title,
       contractType,
+      serviceType: serviceType || null,
       status,
       clientId: clientId || null,
       clientName: clientName || null,
@@ -132,6 +135,20 @@ export default function ContractModal({ contract, onClose, onSaved }: ContractMo
                     </select>
                   </div>
                 )}
+              </div>
+
+              <div>
+                <label className="label dark:text-gray-300">Service Type</label>
+                <select
+                  value={serviceType}
+                  onChange={e => setServiceType(e.target.value as ServiceType | '')}
+                  className="input mt-1 w-full dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                >
+                  <option value="">— Select service type —</option>
+                  {Object.entries(SERVICE_TYPE_LABELS).map(([val, label]) => (
+                    <option key={val} value={val}>{label}</option>
+                  ))}
+                </select>
               </div>
 
               <div>

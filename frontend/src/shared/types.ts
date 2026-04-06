@@ -916,11 +916,33 @@ export interface IncomeMilestone {
   updatedAt: string;
 }
 
+export type ServiceType =
+  | 'penetration_test'
+  | 'risk_assessment'
+  | 'incident_response'
+  | 'soc'
+  | 'compliance'
+  | 'vulnerability_assessment'
+  | 'training'
+  | 'other';
+
+export const SERVICE_TYPE_LABELS: Record<string, string> = {
+  penetration_test: 'Penetration Test',
+  risk_assessment: 'Risk Assessment',
+  incident_response: 'Incident Response',
+  soc: 'SOC',
+  compliance: 'Compliance',
+  vulnerability_assessment: 'Vulnerability Assessment',
+  training: 'Training',
+  other: 'Other',
+};
+
 export interface IncomeContractSummary {
   id: string;
   title: string;
   contractNumber: string | null;
   contractType: ContractType;
+  serviceType: ServiceType | null;
   status: ContractStatus;
   clientId: string | null;
   clientName: string | null;

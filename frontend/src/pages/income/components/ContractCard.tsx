@@ -1,5 +1,6 @@
 import { AlertTriangle, Clock, CheckCircle } from 'lucide-react';
 import type { IncomeContractSummary } from '@finance/shared';
+import { SERVICE_TYPE_LABELS } from '@finance/shared';
 import { formatCurrency } from '../../../utils/formatters';
 
 interface ContractCardProps {
@@ -35,6 +36,11 @@ export default function ContractCard({ contract, onClick }: ContractCardProps) {
           <h3 className="font-semibold text-gray-900 dark:text-white text-sm truncate">{contract.title}</h3>
           {contract.clientName && (
             <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{contract.clientName}</p>
+          )}
+          {contract.serviceType && (
+            <p className="text-xs text-primary-600 dark:text-primary-400 truncate mt-0.5">
+              {SERVICE_TYPE_LABELS[contract.serviceType] ?? contract.serviceType}
+            </p>
           )}
         </div>
         <div className="flex gap-1 shrink-0">
