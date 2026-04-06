@@ -240,6 +240,10 @@ public class PnlCentersService
             """,
             new { Name = name, Description = description, CreatedBy = userId });
 
+        await conn.ExecuteAsync(
+            "INSERT INTO audit_logs (user_id, action, entity_type, entity_id) VALUES (@UserId, @Action, @EntityType, @EntityId)",
+            new { UserId = userId, Action = "create", EntityType = "pnl_center", EntityId = row.Id });
+
         return MapToDto(row);
     }
 
@@ -288,6 +292,10 @@ public class PnlCentersService
         if (row == null)
             throw new AppException("P&L Center not found", 404, "NOT_FOUND");
 
+        await conn.ExecuteAsync(
+            "INSERT INTO audit_logs (user_id, action, entity_type, entity_id) VALUES (@UserId, @Action, @EntityType, @EntityId)",
+            new { UserId = userId, Action = "update", EntityType = "pnl_center", EntityId = id });
+
         return MapToDto(row);
     }
 
@@ -306,6 +314,10 @@ public class PnlCentersService
 
         if (affected == 0)
             throw new AppException("P&L Center not found", 404, "NOT_FOUND");
+
+        await conn.ExecuteAsync(
+            "INSERT INTO audit_logs (user_id, action, entity_type, entity_id) VALUES (@UserId, @Action, @EntityType, @EntityId)",
+            new { UserId = userId, Action = "delete", EntityType = "pnl_center", EntityId = id });
     }
 
     // =============================================

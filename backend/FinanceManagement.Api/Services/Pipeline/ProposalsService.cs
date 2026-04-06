@@ -303,6 +303,10 @@ public class ProposalsService
                     }, transaction: tx);
             }
 
+            await conn.ExecuteAsync(
+                "INSERT INTO audit_logs (user_id, action, entity_type, entity_id) VALUES (@UserId, @Action, @EntityType, @EntityId)",
+                new { UserId = userId, Action = "create", EntityType = "proposal", EntityId = row.Id }, transaction: tx);
+
             await tx.CommitAsync();
 
             return (await GetByIdAsync(row.Id))!;
@@ -314,7 +318,7 @@ public class ProposalsService
         }
     }
 
-    public async Task<ProposalDto?> UpdateAsync(Guid id, UpdateProposalRequest request)
+    public async Task<ProposalDto?> UpdateAsync(Guid id, UpdateProposalRequest request, Guid userId)
     {
         await using var conn = _db.CreateConnection();
         await conn.OpenAsync();
@@ -432,6 +436,10 @@ public class ProposalsService
                 if (affected == 0) { await tx.RollbackAsync(); return null; }
             }
 
+            await conn.ExecuteAsync(
+                "INSERT INTO audit_logs (user_id, action, entity_type, entity_id) VALUES (@UserId, @Action, @EntityType, @EntityId)",
+                new { UserId = userId, Action = "update", EntityType = "proposal", EntityId = id }, transaction: tx);
+
             await tx.CommitAsync();
             return await GetByIdAsync(id);
         }
@@ -442,12 +450,16 @@ public class ProposalsService
         }
     }
 
-    public async Task<bool> DeleteAsync(Guid id)
+    public async Task<bool> DeleteAsync(Guid id, Guid userId)
     {
         await using var conn = _db.CreateConnection();
         await conn.OpenAsync();
 
         var affected = await conn.ExecuteAsync("DELETE FROM proposals WHERE id = @Id", new { Id = id });
+        if (affected > 0)
+            await conn.ExecuteAsync(
+                "INSERT INTO audit_logs (user_id, action, entity_type, entity_id) VALUES (@UserId, @Action, @EntityType, @EntityId)",
+                new { UserId = userId, Action = "delete", EntityType = "proposal", EntityId = id });
         return affected > 0;
     }
 

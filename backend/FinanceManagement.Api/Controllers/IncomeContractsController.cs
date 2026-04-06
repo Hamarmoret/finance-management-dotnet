@@ -104,7 +104,8 @@ public class IncomeContractsController : ControllerBase
     [HttpDelete("{id:guid}")]
     public async Task<IActionResult> Delete(Guid id)
     {
-        await _service.DeleteAsync(id);
+        var userId = Guid.Parse(HttpContext.GetUserId()!);
+        await _service.DeleteAsync(id, userId);
         return Ok(ApiResponse<object>.Ok(new { message = "Contract deleted" }));
     }
 

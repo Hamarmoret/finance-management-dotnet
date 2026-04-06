@@ -191,10 +191,11 @@ public class ClientsService
                 CreatedBy = userId,
             });
 
+        await LogAuditAsync(conn, userId, "create", "client", row.Id);
         return MapToDto(row);
     }
 
-    public async Task<ClientDto?> UpdateAsync(Guid id, UpdateClientRequest request)
+    public async Task<ClientDto?> UpdateAsync(Guid id, UpdateClientRequest request, Guid userId)
     {
         await using var conn = _db.CreateConnection();
         await conn.OpenAsync();
@@ -231,16 +232,28 @@ public class ClientsService
         var row = await conn.QuerySingleOrDefaultAsync<ClientEntity>(
             $"UPDATE clients SET {string.Join(", ", fields)} WHERE id = @Id RETURNING *", parameters);
 
+        if (row != null)
+            await LogAuditAsync(conn, userId, "update", "client", id);
+
         return row == null ? null : MapToDto(row);
     }
 
-    public async Task<bool> DeleteAsync(Guid id)
+    public async Task<bool> DeleteAsync(Guid id, Guid userId)
     {
         await using var conn = _db.CreateConnection();
         await conn.OpenAsync();
 
         var affected = await conn.ExecuteAsync("DELETE FROM clients WHERE id = @Id", new { Id = id });
+        if (affected > 0)
+            await LogAuditAsync(conn, userId, "delete", "client", id);
         return affected > 0;
+    }
+
+    private static async Task LogAuditAsync(Npgsql.NpgsqlConnection conn, Guid userId, string action, string entityType, Guid entityId)
+    {
+        await conn.ExecuteAsync(
+            "INSERT INTO audit_logs (user_id, action, entity_type, entity_id) VALUES (@UserId, @Action, @EntityType, @EntityId)",
+            new { UserId = userId, Action = action, EntityType = entityType, EntityId = entityId });
     }
 
     private static ClientDto MapToDto(ClientEntity e) => new()

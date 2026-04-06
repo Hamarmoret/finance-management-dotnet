@@ -67,7 +67,8 @@ public class ClientsController : ControllerBase
         if (!Guid.TryParse(id, out var guid))
             throw new AppException("Invalid client ID", 400, "VALIDATION_ERROR");
 
-        var client = await _clientsService.UpdateAsync(guid, request);
+        var userId = Guid.Parse(HttpContext.GetUserId()!);
+        var client = await _clientsService.UpdateAsync(guid, request, userId);
         if (client == null)
             throw new AppException("Client not found", 404, "NOT_FOUND");
 
@@ -80,7 +81,8 @@ public class ClientsController : ControllerBase
         if (!Guid.TryParse(id, out var guid))
             throw new AppException("Invalid client ID", 400, "VALIDATION_ERROR");
 
-        var deleted = await _clientsService.DeleteAsync(guid);
+        var userId = Guid.Parse(HttpContext.GetUserId()!);
+        var deleted = await _clientsService.DeleteAsync(guid, userId);
         if (!deleted)
             throw new AppException("Client not found", 404, "NOT_FOUND");
 

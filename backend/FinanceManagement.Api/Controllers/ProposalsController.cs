@@ -70,7 +70,8 @@ public class ProposalsController : ControllerBase
         if (!Guid.TryParse(id, out var guid))
             throw new AppException("Invalid proposal ID", 400, "VALIDATION_ERROR");
 
-        var proposal = await _proposalsService.UpdateAsync(guid, request);
+        var userId = Guid.Parse(HttpContext.GetUserId()!);
+        var proposal = await _proposalsService.UpdateAsync(guid, request, userId);
         if (proposal == null)
             throw new AppException("Proposal not found", 404, "NOT_FOUND");
 
@@ -83,7 +84,8 @@ public class ProposalsController : ControllerBase
         if (!Guid.TryParse(id, out var guid))
             throw new AppException("Invalid proposal ID", 400, "VALIDATION_ERROR");
 
-        var deleted = await _proposalsService.DeleteAsync(guid);
+        var userId = Guid.Parse(HttpContext.GetUserId()!);
+        var deleted = await _proposalsService.DeleteAsync(guid, userId);
         if (!deleted)
             throw new AppException("Proposal not found", 404, "NOT_FOUND");
 

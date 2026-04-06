@@ -71,7 +71,8 @@ public class LeadsController : ControllerBase
         if (!Guid.TryParse(id, out var guid))
             throw new AppException("Invalid lead ID", 400, "VALIDATION_ERROR");
 
-        var lead = await _leadsService.UpdateAsync(guid, request);
+        var userId = Guid.Parse(HttpContext.GetUserId()!);
+        var lead = await _leadsService.UpdateAsync(guid, request, userId);
         if (lead == null)
             throw new AppException("Lead not found", 404, "NOT_FOUND");
 
@@ -84,7 +85,8 @@ public class LeadsController : ControllerBase
         if (!Guid.TryParse(id, out var guid))
             throw new AppException("Invalid lead ID", 400, "VALIDATION_ERROR");
 
-        var deleted = await _leadsService.DeleteAsync(guid);
+        var userId = Guid.Parse(HttpContext.GetUserId()!);
+        var deleted = await _leadsService.DeleteAsync(guid, userId);
         if (!deleted)
             throw new AppException("Lead not found", 404, "NOT_FOUND");
 

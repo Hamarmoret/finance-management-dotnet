@@ -791,6 +791,8 @@ public class IncomeContractsService
 
         try
         {
+            var resolvedClientId = await GetOrCreateClientIdAsync(conn, tx, request.ClientId, request.ClientName, userId);
+
             var row = await conn.QuerySingleAsync<DbContractRow>(
                 """
                 INSERT INTO income_contracts (
@@ -816,7 +818,7 @@ public class IncomeContractsService
                     request.Title,
                     ContractType = request.ContractType,
                     ServiceType = request.ServiceType,
-                    ClientId = request.ClientId,
+                    ClientId = resolvedClientId,
                     ClientName = request.ClientName,
                     ProposalId = request.ProposalId,
                     CategoryId = request.CategoryId,
@@ -838,6 +840,10 @@ public class IncomeContractsService
             var milestones = new List<IncomeMilestoneDto>();
             if (request.Milestones.Count > 0)
                 milestones = await InsertMilestonesAsync(conn, tx, row.id, request.Milestones, row.currency);
+
+            await conn.ExecuteAsync(
+                "INSERT INTO audit_logs (user_id, action, entity_type, entity_id) VALUES (@UserId, @Action, @EntityType, @EntityId)",
+                new { UserId = userId, Action = "create", EntityType = "contract", EntityId = row.id }, tx);
 
             await tx.CommitAsync();
 
@@ -894,10 +900,14 @@ public class IncomeContractsService
             """, p) == null)
             throw new AppException("Contract not found", 404, "NOT_FOUND");
 
+        await conn.ExecuteAsync(
+            "INSERT INTO audit_logs (user_id, action, entity_type, entity_id) VALUES (@UserId, @Action, @EntityType, @EntityId)",
+            new { UserId = userId, Action = "update", EntityType = "contract", EntityId = id });
+
         return (await GetByIdAsync(id))!;
     }
 
-    public async Task DeleteAsync(Guid id)
+    public async Task DeleteAsync(Guid id, Guid userId)
     {
         await using var conn = _db.CreateConnection();
         await conn.OpenAsync();
@@ -907,6 +917,10 @@ public class IncomeContractsService
 
         if (affected == 0)
             throw new AppException("Contract not found", 404, "NOT_FOUND");
+
+        await conn.ExecuteAsync(
+            "INSERT INTO audit_logs (user_id, action, entity_type, entity_id) VALUES (@UserId, @Action, @EntityType, @EntityId)",
+            new { UserId = userId, Action = "delete", EntityType = "contract", EntityId = id });
     }
 
     // ── Duplicate ─────────────────────────────────────────────────────────────
@@ -926,6 +940,11 @@ public class IncomeContractsService
 
             if (source == null)
                 throw new AppException("Contract not found", 404, "NOT_FOUND");
+
+            // Resolve overrides client (or inherit source client), ensuring a clients record exists
+            var dupClientId = overrides.ClientId ?? source.client_id;
+            var dupClientName = overrides.ClientName ?? source.client_name;
+            var resolvedDupClientId = await GetOrCreateClientIdAsync(conn, tx, dupClientId, dupClientName, userId);
 
             // Insert duplicate with reset status
             var row = await conn.QuerySingleAsync<DbContractRow>(
@@ -953,8 +972,8 @@ public class IncomeContractsService
                     Title = overrides.Title ?? source.title + " (Copy)",
                     ContractType = source.contract_type,
                     ServiceType = source.service_type,
-                    ClientId = overrides.ClientId ?? source.client_id,
-                    ClientName = overrides.ClientName ?? source.client_name,
+                    ClientId = resolvedDupClientId,
+                    ClientName = dupClientName,
                     CategoryId = source.category_id,
                     PnlCenterId = source.pnl_center_id,
                     Currency = overrides.Currency ?? source.currency,
@@ -1758,5 +1777,51 @@ public class IncomeContractsService
             new { Id = row.contract_id });
 
         return MapMilestone(row, contract?.title, contract?.client_name);
+    }
+
+    // ── Client auto-link ──────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Given a free-text client name (and optional clientId), ensures a record
+    /// exists in the clients table and returns its ID. If clientId is already
+    /// provided and valid, returns it unchanged. Otherwise finds by name (exact,
+    /// case-insensitive) or creates a minimal client record.
+    /// </summary>
+    private static async Task<Guid?> GetOrCreateClientIdAsync(
+        Npgsql.NpgsqlConnection conn,
+        Npgsql.NpgsqlTransaction tx,
+        Guid? clientId,
+        string? clientName,
+        Guid userId)
+    {
+        if (string.IsNullOrWhiteSpace(clientName))
+            return clientId;
+
+        // If caller already provided a valid clientId, trust it
+        if (clientId.HasValue)
+        {
+            var exists = await conn.ExecuteScalarAsync<int>(
+                "SELECT COUNT(1) FROM clients WHERE id = @Id",
+                new { Id = clientId.Value }, tx);
+            if (exists > 0) return clientId;
+        }
+
+        // Look for an existing client with this name
+        var existingId = await conn.ExecuteScalarAsync<Guid?>(
+            "SELECT id FROM clients WHERE LOWER(TRIM(name)) = LOWER(TRIM(@Name)) OR LOWER(TRIM(company_name)) = LOWER(TRIM(@Name)) LIMIT 1",
+            new { Name = clientName }, tx);
+
+        if (existingId.HasValue) return existingId;
+
+        // Create a minimal client record
+        var newId = await conn.ExecuteScalarAsync<Guid>(
+            """
+            INSERT INTO clients (name, status, created_by)
+            VALUES (@Name, 'active', @CreatedBy)
+            RETURNING id
+            """,
+            new { Name = clientName.Trim(), CreatedBy = userId }, tx);
+
+        return newId;
     }
 }

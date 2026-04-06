@@ -281,10 +281,11 @@ public class LeadsService
                 CreatedBy = userId,
             });
 
+        await LogAuditAsync(conn, userId, "create", "lead", row.Id);
         return (await GetByIdAsync(row.Id))!;
     }
 
-    public async Task<LeadDto?> UpdateAsync(Guid id, UpdateLeadRequest request)
+    public async Task<LeadDto?> UpdateAsync(Guid id, UpdateLeadRequest request, Guid userId)
     {
         await using var conn = _db.CreateConnection();
         await conn.OpenAsync();
@@ -329,15 +330,18 @@ public class LeadsService
 
         if (affected == 0) return null;
 
+        await LogAuditAsync(conn, userId, "update", "lead", id);
         return await GetByIdAsync(id);
     }
 
-    public async Task<bool> DeleteAsync(Guid id)
+    public async Task<bool> DeleteAsync(Guid id, Guid userId)
     {
         await using var conn = _db.CreateConnection();
         await conn.OpenAsync();
 
         var affected = await conn.ExecuteAsync("DELETE FROM leads WHERE id = @Id", new { Id = id });
+        if (affected > 0)
+            await LogAuditAsync(conn, userId, "delete", "lead", id);
         return affected > 0;
     }
 
@@ -399,10 +403,18 @@ public class LeadsService
             WHERE la.id = @Id
             """, new { row.Id });
 
+        await LogAuditAsync(conn, userId, "create", "lead_activity", row.Id);
         return MapActivityToDto(result);
     }
 
     #endregion
+
+    private static async Task LogAuditAsync(Npgsql.NpgsqlConnection conn, Guid userId, string action, string entityType, Guid entityId)
+    {
+        await conn.ExecuteAsync(
+            "INSERT INTO audit_logs (user_id, action, entity_type, entity_id) VALUES (@UserId, @Action, @EntityType, @EntityId)",
+            new { UserId = userId, Action = action, EntityType = entityType, EntityId = entityId });
+    }
 
     #region Mappers
 
