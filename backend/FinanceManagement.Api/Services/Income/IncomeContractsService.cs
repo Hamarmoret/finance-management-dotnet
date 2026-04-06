@@ -897,7 +897,7 @@ public class IncomeContractsService
                     @Title, @ContractType, @ServiceType, 'active', @ClientId, @ClientName,
                     NULL, @CategoryId, @PnlCenterId, @Currency, @TotalValue,
                     @VatApplicable, @VatPercentage, @PaymentTermsDays,
-                    @StartDate, @EndDate, @RetainerMonthlyAmount, @RetainerBillingDay,
+                    @StartDate::date, @EndDate::date, @RetainerMonthlyAmount, @RetainerBillingDay,
                     @Notes, @Tags, @CreatedBy
                 )
                 RETURNING *,
@@ -908,22 +908,22 @@ public class IncomeContractsService
                 new
                 {
                     Title = source.title + " (Copy)",
-                    source.contract_type,
-                    source.service_type,
-                    source.client_id,
-                    source.client_name,
-                    source.category_id,
-                    source.pnl_center_id,
-                    source.currency,
-                    source.total_value,
-                    source.vat_applicable,
-                    source.vat_percentage,
-                    source.payment_terms_days,
-                    source.start_date,
-                    source.end_date,
-                    source.retainer_monthly_amount,
-                    source.retainer_billing_day,
-                    source.notes,
+                    ContractType = source.contract_type,
+                    ServiceType = source.service_type,
+                    ClientId = source.client_id,
+                    ClientName = source.client_name,
+                    CategoryId = source.category_id,
+                    PnlCenterId = source.pnl_center_id,
+                    Currency = source.currency,
+                    TotalValue = source.total_value,
+                    VatApplicable = source.vat_applicable,
+                    VatPercentage = source.vat_percentage,
+                    PaymentTermsDays = source.payment_terms_days,
+                    StartDate = source.start_date?.ToString("yyyy-MM-dd"),
+                    EndDate = source.end_date?.ToString("yyyy-MM-dd"),
+                    RetainerMonthlyAmount = source.retainer_monthly_amount,
+                    RetainerBillingDay = source.retainer_billing_day,
+                    Notes = source.notes,
                     Tags = source.tags ?? [],
                     CreatedBy = userId,
                 }, tx);
@@ -941,19 +941,19 @@ public class IncomeContractsService
                     INSERT INTO income_milestones (
                         contract_id, sort_order, description, amount_due, currency, due_date, notes
                     ) VALUES (
-                        @ContractId, @SortOrder, @Description, @AmountDue, @Currency, @DueDate, @Notes
+                        @ContractId, @SortOrder, @Description, @AmountDue, @Currency, @DueDate::date, @Notes
                     )
                     RETURNING *
                     """,
                     new
                     {
                         ContractId = row.id,
-                        sm.sort_order,
-                        sm.description,
-                        sm.amount_due,
+                        SortOrder = sm.sort_order,
+                        Description = sm.description,
+                        AmountDue = sm.amount_due,
                         Currency = row.currency,
-                        sm.due_date,
-                        sm.notes,
+                        DueDate = sm.due_date.ToString("yyyy-MM-dd"),
+                        Notes = sm.notes,
                     }, tx);
 
                 newMilestones.Add(MapMilestone(mRow));
