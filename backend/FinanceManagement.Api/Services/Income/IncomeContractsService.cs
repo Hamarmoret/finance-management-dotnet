@@ -464,7 +464,37 @@ public class UpdateMilestoneRequest
     public int? SortOrder { get; set; }
 }
 
-public class GenerateRetainerMilestonesRequest
+public class DuplicateContractRequest
+{
+    [JsonPropertyName("title")]
+    public string? Title { get; set; }
+
+    [JsonPropertyName("clientId")]
+    public Guid? ClientId { get; set; }
+
+    [JsonPropertyName("clientName")]
+    public string? ClientName { get; set; }
+
+    [JsonPropertyName("totalValue")]
+    public decimal? TotalValue { get; set; }
+
+    [JsonPropertyName("currency")]
+    public string? Currency { get; set; }
+
+    [JsonPropertyName("startDate")]
+    public string? StartDate { get; set; }
+
+    [JsonPropertyName("endDate")]
+    public string? EndDate { get; set; }
+
+    [JsonPropertyName("notes")]
+    public string? Notes { get; set; }
+
+    [JsonPropertyName("copyMilestones")]
+    public bool CopyMilestones { get; set; } = true;
+}
+
+
 {
     [JsonPropertyName("startDate")]
     public string StartDate { get; set; } = string.Empty;
@@ -868,7 +898,7 @@ public class IncomeContractsService
 
     // ── Duplicate ─────────────────────────────────────────────────────────────
 
-    public async Task<IncomeContractDto> DuplicateAsync(Guid sourceId, Guid userId)
+    public async Task<IncomeContractDto> DuplicateAsync(Guid sourceId, DuplicateContractRequest overrides, Guid userId)
     {
         await using var conn = _db.CreateConnection();
         await conn.OpenAsync();
@@ -907,31 +937,33 @@ public class IncomeContractsService
                 """,
                 new
                 {
-                    Title = source.title + " (Copy)",
+                    Title = overrides.Title ?? source.title + " (Copy)",
                     ContractType = source.contract_type,
                     ServiceType = source.service_type,
-                    ClientId = source.client_id,
-                    ClientName = source.client_name,
+                    ClientId = overrides.ClientId ?? source.client_id,
+                    ClientName = overrides.ClientName ?? source.client_name,
                     CategoryId = source.category_id,
                     PnlCenterId = source.pnl_center_id,
-                    Currency = source.currency,
-                    TotalValue = source.total_value,
+                    Currency = overrides.Currency ?? source.currency,
+                    TotalValue = overrides.TotalValue ?? source.total_value,
                     VatApplicable = source.vat_applicable,
                     VatPercentage = source.vat_percentage,
                     PaymentTermsDays = source.payment_terms_days,
-                    StartDate = source.start_date?.ToString("yyyy-MM-dd"),
-                    EndDate = source.end_date?.ToString("yyyy-MM-dd"),
+                    StartDate = overrides.StartDate ?? source.start_date?.ToString("yyyy-MM-dd"),
+                    EndDate = overrides.EndDate ?? source.end_date?.ToString("yyyy-MM-dd"),
                     RetainerMonthlyAmount = source.retainer_monthly_amount,
                     RetainerBillingDay = source.retainer_billing_day,
-                    Notes = source.notes,
+                    Notes = overrides.Notes ?? source.notes,
                     Tags = source.tags ?? [],
                     CreatedBy = userId,
                 }, tx);
 
             // Duplicate milestones (reset statuses)
-            var sourceMilestones = (await conn.QueryAsync<DbMilestoneRow>(
-                "SELECT * FROM income_milestones WHERE contract_id = @Id ORDER BY sort_order, due_date",
-                new { Id = sourceId }, tx)).ToList();
+            var sourceMilestones = overrides.CopyMilestones
+                ? (await conn.QueryAsync<DbMilestoneRow>(
+                    "SELECT * FROM income_milestones WHERE contract_id = @Id ORDER BY sort_order, due_date",
+                    new { Id = sourceId }, tx)).ToList()
+                : [];
 
             var newMilestones = new List<IncomeMilestoneDto>();
             foreach (var sm in sourceMilestones)

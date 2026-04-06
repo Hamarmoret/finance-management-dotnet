@@ -103,10 +103,10 @@ public class IncomeContractsController : ControllerBase
     }
 
     [HttpPost("{id:guid}/duplicate")]
-    public async Task<IActionResult> Duplicate(Guid id)
+    public async Task<IActionResult> Duplicate(Guid id, [FromBody] DuplicateContractRequest request)
     {
         var userId = Guid.Parse(HttpContext.GetUserId()!);
-        var contract = await _service.DuplicateAsync(id, userId);
+        var contract = await _service.DuplicateAsync(id, request, userId);
         return StatusCode(201, ApiResponse<IncomeContractDto>.Ok(contract));
     }
 
