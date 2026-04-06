@@ -30,9 +30,11 @@ public class IncomeContractsController : ControllerBase
     [HttpGet("by-client")]
     public async Task<IActionResult> GetByClient(
         [FromQuery] string? search = null,
-        [FromQuery] string? status = null)
+        [FromQuery] string? status = null,
+        [FromQuery] string? startDate = null,
+        [FromQuery] string? endDate = null)
     {
-        var items = await _service.GetByClientAsync(search, status);
+        var items = await _service.GetByClientAsync(search, status, startDate, endDate);
         return Ok(ApiResponse<List<ClientContractStatsDto>>.Ok(items));
     }
 
@@ -45,7 +47,9 @@ public class IncomeContractsController : ControllerBase
         [FromQuery] string? clientId = null,
         [FromQuery] string? contractType = null,
         [FromQuery] string? status = null,
-        [FromQuery] string? search = null)
+        [FromQuery] string? search = null,
+        [FromQuery] string? startDate = null,
+        [FromQuery] string? endDate = null)
     {
         var (items, total) = await _service.GetAllAsync(new ContractFilters
         {
@@ -55,6 +59,8 @@ public class IncomeContractsController : ControllerBase
             ContractType = contractType,
             Status = status,
             Search = search,
+            StartDate = startDate,
+            EndDate = endDate,
         });
 
         return Ok(new PaginatedResponse<IncomeContractSummaryDto>

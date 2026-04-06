@@ -10,6 +10,7 @@ import {
   Loader2,
   Paperclip,
   Copy,
+  Trash2,
 } from 'lucide-react';
 import type { IncomeContract, IncomeMilestone, ContractAttachment } from '@finance/shared';
 import { api, getErrorMessage } from '../../../services/api';
@@ -29,6 +30,7 @@ interface ContractDetailViewProps {
 export default function ContractDetailView({ contract, onBack, onContractUpdated: _onContractUpdated, onDuplicated }: ContractDetailViewProps) {
   const [milestones, setMilestones] = useState<IncomeMilestone[]>(contract.milestones);
   const [showDuplicateModal, setShowDuplicateModal] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [attachments, setAttachments] = useState<ContractAttachment[]>(contract.attachments ?? []);
   const [showDocuments, setShowDocuments] = useState(false);
   const [showGenerateModal, setShowGenerateModal] = useState(false);
@@ -86,6 +88,19 @@ export default function ContractDetailView({ contract, onBack, onContractUpdated
       setError(getErrorMessage(err));
     } finally {
       setSavingNew(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!confirm(`Delete "${contract.title}"? This will also delete all milestones and cannot be undone.`)) return;
+    setDeleting(true);
+    setError(null);
+    try {
+      await api.delete(`/income-contracts/${contract.id}`);
+      onBack();
+    } catch (err) {
+      setError(getErrorMessage(err));
+      setDeleting(false);
     }
   };
 
@@ -150,6 +165,15 @@ export default function ContractDetailView({ contract, onBack, onContractUpdated
         >
           <Copy className="w-4 h-4 mr-1" />
           Duplicate
+        </button>
+        <button
+          onClick={handleDelete}
+          disabled={deleting}
+          className="btn btn-sm shrink-0 border border-danger-300 dark:border-danger-700 text-danger-600 dark:text-danger-400 hover:bg-danger-50 dark:hover:bg-danger-900/20"
+          title="Delete contract"
+        >
+          {deleting ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <Trash2 className="w-4 h-4 mr-1" />}
+          Delete
         </button>
       </div>
 

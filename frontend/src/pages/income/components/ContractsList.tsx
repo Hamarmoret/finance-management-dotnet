@@ -3,6 +3,7 @@ import { Plus, Search, Filter, X, FileText, Loader2, TrendingUp, AlertTriangle, 
 import type { IncomeContractSummary, IncomeContract, ContractStats } from '@finance/shared';
 import { api, getErrorMessage } from '../../../services/api';
 import { formatCurrency } from '../../../utils/formatters';
+import { PeriodSelector, getPeriodLabel } from '../../../components/PeriodSelector';
 import ContractCard from './ContractCard';
 import ContractModal from './ContractModal';
 import ContractDetailView from './ContractDetailView';
@@ -27,6 +28,8 @@ export default function ContractsList({ presetClientId }: ContractsListProps) {
   const [typeFilter, setTypeFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('active');
   const [showFilters, setShowFilters] = useState(false);
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
 
   const [showModal, setShowModal] = useState(false);
   const [editingContract, setEditingContract] = useState<IncomeContract | null>(null);
@@ -45,6 +48,8 @@ export default function ContractsList({ presetClientId }: ContractsListProps) {
       }
       if (typeFilter) params.append('contractType', typeFilter);
       if (statusFilter) params.append('status', statusFilter);
+      if (startDate) params.append('startDate', startDate);
+      if (endDate) params.append('endDate', endDate);
       const res = await api.get(`/income-contracts?${params}`);
       setContracts(res.data.data ?? []);
       setTotal(res.data.pagination?.total ?? 0);
@@ -54,10 +59,10 @@ export default function ContractsList({ presetClientId }: ContractsListProps) {
     } finally {
       setLoading(false);
     }
-  }, [page, search, typeFilter, statusFilter, presetClientId]);
+  }, [page, search, typeFilter, statusFilter, startDate, endDate, presetClientId]);
 
   useEffect(() => { fetchContracts(); }, [fetchContracts]);
-  useEffect(() => { setPage(1); }, [search, typeFilter, statusFilter]);
+  useEffect(() => { setPage(1); }, [search, typeFilter, statusFilter, startDate, endDate]);
 
   // Fetch global stats (only when not in preset client mode)
   useEffect(() => {
@@ -138,15 +143,26 @@ export default function ContractsList({ presetClientId }: ContractsListProps) {
             <FileText className="w-5 h-5 text-primary-600" />
             Contracts
           </h2>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">{total} contract{total !== 1 ? 's' : ''}</p>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
+            {total} contract{total !== 1 ? 's' : ''}{(startDate || endDate) ? ` · ${getPeriodLabel(startDate, endDate)}` : ''}
+          </p>
         </div>
-        <button
-          onClick={() => { setEditingContract(null); setShowModal(true); }}
-          className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
-        >
-          <Plus className="w-4 h-4" />
-          New Contract
-        </button>
+        <div className="flex items-center gap-3 flex-wrap">
+          {!presetClientId && (
+            <PeriodSelector
+              startDate={startDate}
+              endDate={endDate}
+              onChange={(s, e) => { setStartDate(s); setEndDate(e); setPage(1); }}
+            />
+          )}
+          <button
+            onClick={() => { setEditingContract(null); setShowModal(true); }}
+            className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            New Contract
+          </button>
+        </div>
       </div>
 
       {/* Stats bar — only when not in preset client mode */}

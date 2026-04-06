@@ -3,6 +3,7 @@ import { X, Building2, Mail, Phone, Globe, MapPin, Tag, DollarSign, FileText, Tr
 import { api, getErrorMessage } from '../../../services/api';
 import type { Client, Income, Proposal, Lead } from '@finance/shared';
 import { formatCurrency } from '../../../utils/formatters';
+import ContractsList from '../../income/components/ContractsList';
 
 interface ClientDetailDrawerProps {
   client: Client;
@@ -10,7 +11,7 @@ interface ClientDetailDrawerProps {
   onEdit: () => void;
 }
 
-type DrawerTab = 'overview' | 'income' | 'proposals' | 'leads';
+type DrawerTab = 'overview' | 'contracts' | 'income' | 'proposals' | 'leads';
 
 const STATUS_COLORS: Record<string, string> = {
   // invoice statuses
@@ -50,6 +51,7 @@ export function ClientDetailDrawer({ client, onClose, onEdit }: ClientDetailDraw
   const [income, setIncome] = useState<Income[]>([]);
   const [proposals, setProposals] = useState<Proposal[]>([]);
   const [leads, setLeads] = useState<Lead[]>([]);
+  const [contractCount, setContractCount] = useState(0);
   const [loadingData, setLoadingData] = useState(false);
   const [dataError, setDataError] = useState<string | null>(null);
 
@@ -60,14 +62,16 @@ export function ClientDetailDrawer({ client, onClose, onEdit }: ClientDetailDraw
       setLoadingData(true);
       setDataError(null);
       try {
-        const [incomeRes, proposalsRes, leadsRes] = await Promise.all([
+        const [incomeRes, proposalsRes, leadsRes, contractsRes] = await Promise.all([
           api.get(`/income?clientName=${encodeURIComponent(displayName)}&limit=100`),
           api.get(`/proposals?clientId=${client.id}&limit=100`),
           api.get(`/leads?clientId=${client.id}&limit=100`),
+          api.get(`/income-contracts?clientId=${client.id}&limit=1`),
         ]);
         setIncome(incomeRes.data.data ?? []);
         setProposals(proposalsRes.data.data ?? []);
         setLeads(leadsRes.data.data ?? []);
+        setContractCount(contractsRes.data.pagination?.total ?? 0);
       } catch (err) {
         setDataError(getErrorMessage(err));
       } finally {
@@ -83,6 +87,7 @@ export function ClientDetailDrawer({ client, onClose, onEdit }: ClientDetailDraw
 
   const tabs: { id: DrawerTab; label: string }[] = [
     { id: 'overview', label: 'Overview' },
+    { id: 'contracts', label: `Contracts (${contractCount})` },
     { id: 'income', label: `Income (${income.length})` },
     { id: 'proposals', label: `Proposals (${proposals.length})` },
     { id: 'leads', label: `Leads (${leads.length})` },
@@ -118,8 +123,9 @@ export function ClientDetailDrawer({ client, onClose, onEdit }: ClientDetailDraw
 
         {/* Summary stats */}
         {!loadingData && (
-          <div className="grid grid-cols-3 gap-0 border-b border-gray-200 dark:border-gray-700 shrink-0">
+          <div className="grid grid-cols-4 gap-0 border-b border-gray-200 dark:border-gray-700 shrink-0">
             {[
+              { label: 'Contracts', value: contractCount.toString(), icon: FileText },
               { label: 'Total Income', value: formatCurrency(totalIncome), icon: DollarSign },
               { label: 'Open Proposals', value: openProposals.toString(), icon: FileText },
               { label: 'Active Leads', value: activeLeads.toString(), icon: TrendingUp },
@@ -230,6 +236,11 @@ export function ClientDetailDrawer({ client, onClose, onEdit }: ClientDetailDraw
                 </div>
               )}
             </div>
+          )}
+
+          {/* Contracts */}
+          {activeTab === 'contracts' && (
+            <ContractsList presetClientId={client.id} />
           )}
 
           {/* Income */}

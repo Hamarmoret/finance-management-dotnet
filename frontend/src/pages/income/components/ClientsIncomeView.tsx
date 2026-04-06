@@ -3,6 +3,7 @@ import { Search, Users, Loader2, AlertTriangle, TrendingUp, ArrowRight } from 'l
 import type { ClientContractStats } from '@finance/shared';
 import { api, getErrorMessage } from '../../../services/api';
 import { formatCurrency } from '../../../utils/formatters';
+import { PeriodSelector, getPeriodLabel } from '../../../components/PeriodSelector';
 import ContractsList from './ContractsList';
 
 export default function ClientsIncomeView() {
@@ -10,6 +11,8 @@ export default function ClientsIncomeView() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
   const [selectedClient, setSelectedClient] = useState<ClientContractStats | null>(null);
 
   const fetchClients = useCallback(async () => {
@@ -18,6 +21,8 @@ export default function ClientsIncomeView() {
     try {
       const params = new URLSearchParams();
       if (search) params.append('search', search);
+      if (startDate) params.append('startDate', startDate);
+      if (endDate) params.append('endDate', endDate);
       const res = await api.get(`/income-contracts/by-client?${params}`);
       setClients(res.data.data ?? []);
     } catch (err) {
@@ -25,7 +30,7 @@ export default function ClientsIncomeView() {
     } finally {
       setLoading(false);
     }
-  }, [search]);
+  }, [search, startDate, endDate]);
 
   useEffect(() => { fetchClients(); }, [fetchClients]);
 
@@ -49,17 +54,27 @@ export default function ClientsIncomeView() {
 
   return (
     <div className="space-y-4">
-      {/* Search */}
-      <div className="relative max-w-sm">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-        <input
-          type="text"
-          placeholder="Search clients..."
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          className="input w-full pl-10 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+      {/* Search + Period */}
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+        <div className="relative max-w-sm flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <input
+            type="text"
+            placeholder="Search clients..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            className="input w-full pl-10 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+          />
+        </div>
+        <PeriodSelector
+          startDate={startDate}
+          endDate={endDate}
+          onChange={(s, e) => { setStartDate(s); setEndDate(e); }}
         />
       </div>
+      {(startDate || endDate) && (
+        <p className="text-sm text-gray-500 dark:text-gray-400">{getPeriodLabel(startDate, endDate)}</p>
+      )}
 
       {error && (
         <div className="p-3 bg-danger-50 dark:bg-danger-900/20 border border-danger-200 dark:border-danger-800 rounded-lg text-sm text-danger-700 dark:text-danger-400">

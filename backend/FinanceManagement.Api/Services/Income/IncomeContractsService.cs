@@ -561,6 +561,8 @@ public class ContractFilters
     public string? ContractType { get; set; }
     public string? Status { get; set; }
     public string? Search { get; set; }
+    public string? StartDate { get; set; }
+    public string? EndDate { get; set; }
 }
 
 // =============================================
@@ -692,6 +694,16 @@ public class IncomeContractsService
         {
             where.Add("(ic.title ILIKE @Search OR ic.client_name ILIKE @Search OR ic.contract_number ILIKE @Search)");
             p.Add("Search", $"%{filters.Search}%");
+        }
+        if (!string.IsNullOrWhiteSpace(filters.StartDate))
+        {
+            where.Add("ic.created_at >= @StartDate::date");
+            p.Add("StartDate", filters.StartDate);
+        }
+        if (!string.IsNullOrWhiteSpace(filters.EndDate))
+        {
+            where.Add("ic.created_at < (@EndDate::date + INTERVAL '1 day')");
+            p.Add("EndDate", filters.EndDate);
         }
 
         var whereClause = where.Count > 0 ? "WHERE " + string.Join(" AND ", where) : "";
@@ -1638,7 +1650,7 @@ public class IncomeContractsService
 
     // ── By Client ─────────────────────────────────────────────────────────────
 
-    public async Task<List<ClientContractStatsDto>> GetByClientAsync(string? search, string? status)
+    public async Task<List<ClientContractStatsDto>> GetByClientAsync(string? search, string? status, string? startDate = null, string? endDate = null)
     {
         await using var conn = _db.CreateConnection();
         await conn.OpenAsync();
@@ -1655,6 +1667,16 @@ public class IncomeContractsService
         {
             where.Add("LOWER(COALESCE(ic.client_name, '')) LIKE @Search");
             p.Add("Search", $"%{search.ToLower()}%");
+        }
+        if (!string.IsNullOrWhiteSpace(startDate))
+        {
+            where.Add("ic.created_at >= @StartDate::date");
+            p.Add("StartDate", startDate);
+        }
+        if (!string.IsNullOrWhiteSpace(endDate))
+        {
+            where.Add("ic.created_at < (@EndDate::date + INTERVAL '1 day')");
+            p.Add("EndDate", endDate);
         }
 
         var whereClause = where.Count > 0 ? "WHERE " + string.Join(" AND ", where) : "";
