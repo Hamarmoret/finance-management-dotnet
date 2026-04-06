@@ -763,5 +763,15 @@ public class MigrationRunner
         ON CONFLICT (category, value) DO NOTHING;
         """;
 
+    private const string Sql018BackfillClientIds = """
+        UPDATE income i
+        SET client_id = c.id
+        FROM clients c
+        WHERE i.client_id IS NULL
+          AND i.client_name IS NOT NULL
+          AND (LOWER(TRIM(i.client_name)) = LOWER(TRIM(c.name))
+               OR LOWER(TRIM(i.client_name)) = LOWER(TRIM(COALESCE(c.company_name, ''))));
+        """;
+
     #endregion
 }
