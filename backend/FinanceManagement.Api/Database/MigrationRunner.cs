@@ -66,6 +66,7 @@ public class MigrationRunner
         ("015b_milestone_attachments", Sql015bMilestoneAttachments),
         ("016_contract_service_type", Sql016ContractServiceType),
         ("017_dropdown_options", Sql017DropdownOptions),
+        ("018_backfill_client_ids", Sql018BackfillClientIds),
     ];
 
     #region SQL Migrations

@@ -618,6 +618,8 @@ public class IncomeService
 
         try
         {
+            var resolvedClientId = await GetOrCreateClientIdAsync(conn, tx, request.ClientId, request.ClientName, userId);
+
             var recurringPatternJson = request.RecurringPattern != null
                 ? JsonSerializer.Serialize(request.RecurringPattern)
                 : null;
@@ -654,7 +656,7 @@ public class IncomeService
                 request.IsRecurring,
                 RecurringPattern = recurringPatternJson,
                 request.ClientName,
-                ClientId = request.ClientId,
+                ClientId = resolvedClientId,
                 request.InvoiceNumber,
                 request.InvoiceType,
                 request.InvoiceStatus,
@@ -1130,5 +1132,33 @@ public class IncomeService
             """,
             new { UserId = userId, Action = action, EntityType = entityType, EntityId = entityId },
             tx);
+    }
+
+    private static async Task<Guid?> GetOrCreateClientIdAsync(
+        Npgsql.NpgsqlConnection conn,
+        Npgsql.NpgsqlTransaction tx,
+        Guid? clientId,
+        string? clientName,
+        Guid userId)
+    {
+        if (string.IsNullOrWhiteSpace(clientName))
+            return clientId;
+
+        if (clientId.HasValue)
+        {
+            var exists = await conn.ExecuteScalarAsync<int>(
+                "SELECT COUNT(1) FROM clients WHERE id = @Id", new { Id = clientId.Value }, tx);
+            if (exists > 0) return clientId;
+        }
+
+        var existingId = await conn.ExecuteScalarAsync<Guid?>(
+            "SELECT id FROM clients WHERE LOWER(TRIM(name)) = LOWER(TRIM(@Name)) OR LOWER(TRIM(company_name)) = LOWER(TRIM(@Name)) LIMIT 1",
+            new { Name = clientName }, tx);
+
+        if (existingId.HasValue) return existingId;
+
+        return await conn.ExecuteScalarAsync<Guid>(
+            "INSERT INTO clients (name, status, created_by) VALUES (@Name, 'active', @CreatedBy) RETURNING id",
+            new { Name = clientName.Trim(), CreatedBy = userId }, tx);
     }
 }
