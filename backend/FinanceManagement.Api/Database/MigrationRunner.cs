@@ -68,7 +68,11 @@ public class MigrationRunner
         ("017_dropdown_options", Sql017DropdownOptions),
         ("018_backfill_client_ids", Sql018BackfillClientIds),
         ("019_create_clients_from_income", Sql019CreateClientsFromIncome),
-        ("020_vendors", Sql020Vendors),
+        ("020a_create_vendors_table", Sql020aCreateVendorsTable),
+        ("020b_vendors_trigger", Sql020bVendorsTrigger),
+        ("020c_expenses_vendor_id", Sql020cExpensesVendorId),
+        ("020d_backfill_vendors", Sql020dBackfillVendors),
+        ("020e_backfill_vendor_ids", Sql020eBackfillVendorIds),
     ];
 
     #region SQL Migrations
@@ -798,7 +802,8 @@ public class MigrationRunner
                OR LOWER(TRIM(i.client_name)) = LOWER(TRIM(COALESCE(c.company_name, ''))));
         """;
 
-    private const string Sql020Vendors = """
+    // Split into 5 single-statement migrations — matches established pattern (see 013a/b/c)
+    private const string Sql020aCreateVendorsTable = """
         CREATE TABLE IF NOT EXISTS vendors (
             id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
             name VARCHAR(255) NOT NULL,
@@ -816,27 +821,33 @@ public class MigrationRunner
             updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
         );
         CREATE INDEX IF NOT EXISTS idx_vendors_name ON vendors(name);
-        CREATE INDEX IF NOT EXISTS idx_vendors_status ON vendors(status);
-        CREATE OR REPLACE TRIGGER update_vendors_updated_at
-            BEFORE UPDATE ON vendors
-            FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+        CREATE INDEX IF NOT EXISTS idx_vendors_status ON vendors(status)
+        """;
 
-        ALTER TABLE expenses ADD COLUMN IF NOT EXISTS vendor_id UUID REFERENCES vendors(id) ON DELETE SET NULL;
+    private const string Sql020bVendorsTrigger =
+        "DROP TRIGGER IF EXISTS update_vendors_updated_at ON vendors; " +
+        "CREATE TRIGGER update_vendors_updated_at BEFORE UPDATE ON vendors FOR EACH ROW EXECUTE FUNCTION update_updated_at_column()";
 
+    private const string Sql020cExpensesVendorId =
+        "ALTER TABLE expenses ADD COLUMN IF NOT EXISTS vendor_id UUID REFERENCES vendors(id) ON DELETE SET NULL";
+
+    private const string Sql020dBackfillVendors = """
         INSERT INTO vendors (name, payee_type, status)
         SELECT DISTINCT TRIM(e.vendor), 'vendor', 'active'
         FROM expenses e
         WHERE e.vendor IS NOT NULL AND TRIM(e.vendor) <> ''
           AND NOT EXISTS (
               SELECT 1 FROM vendors v WHERE LOWER(TRIM(v.name)) = LOWER(TRIM(e.vendor))
-          );
+          )
+        """;
 
+    private const string Sql020eBackfillVendorIds = """
         UPDATE expenses e
         SET vendor_id = v.id
         FROM vendors v
         WHERE e.vendor_id IS NULL
           AND e.vendor IS NOT NULL
-          AND LOWER(TRIM(e.vendor)) = LOWER(TRIM(v.name));
+          AND LOWER(TRIM(e.vendor)) = LOWER(TRIM(v.name))
         """;
 
     #endregion
