@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { X, Loader2, CheckCircle } from 'lucide-react';
+import { X, Loader2, CheckCircle, ChevronDown, ChevronUp } from 'lucide-react';
 import type { IncomeMilestone } from '@finance/shared';
 import { api, getErrorMessage } from '../../../services/api';
 import { formatCurrency } from '../../../utils/formatters';
@@ -16,6 +16,16 @@ export default function MarkPaidModal({ milestone, onClose, onPaid }: MarkPaidMo
   const [paymentReceivedDate, setPaymentReceivedDate] = useState(today);
   const [paymentMethod, setPaymentMethod] = useState('');
   const [actualAmountPaid, setActualAmountPaid] = useState(milestone.amountDue.toString());
+
+  // Invoice fields — pre-fill from milestone if already set
+  const [proformaInvoiceNumber, setProformaInvoiceNumber] = useState(milestone.proformaInvoiceNumber ?? '');
+  const [proformaInvoiceDate, setProformaInvoiceDate] = useState(milestone.proformaInvoiceDate ?? '');
+  const [taxInvoiceNumber, setTaxInvoiceNumber] = useState(milestone.taxInvoiceNumber ?? '');
+  const [taxInvoiceDate, setTaxInvoiceDate] = useState(milestone.taxInvoiceDate ?? '');
+  const [showInvoice, setShowInvoice] = useState(
+    !!(milestone.proformaInvoiceNumber || milestone.taxInvoiceNumber)
+  );
+
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -30,6 +40,10 @@ export default function MarkPaidModal({ milestone, onClose, onPaid }: MarkPaidMo
         paymentMethod: paymentMethod || null,
         actualAmountPaid: parseFloat(actualAmountPaid),
         allocations: [],
+        proformaInvoiceNumber: proformaInvoiceNumber || null,
+        proformaInvoiceDate: proformaInvoiceDate || null,
+        taxInvoiceNumber: taxInvoiceNumber || null,
+        taxInvoiceDate: taxInvoiceDate || null,
       });
       onPaid(res.data.data);
     } catch (err) {
@@ -112,6 +126,65 @@ export default function MarkPaidModal({ milestone, onClose, onPaid }: MarkPaidMo
                   <option value="cash">Cash</option>
                   <option value="other">Other</option>
                 </select>
+              </div>
+
+              {/* Invoice details — collapsible */}
+              <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => setShowInvoice(v => !v)}
+                  className="w-full flex items-center justify-between px-4 py-3 bg-gray-50 dark:bg-gray-700/50 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                >
+                  <span>Invoice Details</span>
+                  {showInvoice ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                </button>
+
+                {showInvoice && (
+                  <div className="p-4 space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="label dark:text-gray-300">Proforma Invoice #</label>
+                        <input
+                          type="text"
+                          value={proformaInvoiceNumber}
+                          onChange={e => setProformaInvoiceNumber(e.target.value)}
+                          className="input mt-1 w-full dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                          placeholder="e.g. PRO-001"
+                        />
+                      </div>
+                      <div>
+                        <label className="label dark:text-gray-300">Proforma Date</label>
+                        <input
+                          type="date"
+                          value={proformaInvoiceDate}
+                          onChange={e => setProformaInvoiceDate(e.target.value)}
+                          className="input mt-1 w-full dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                        />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="label dark:text-gray-300">Tax Invoice #</label>
+                        <input
+                          type="text"
+                          value={taxInvoiceNumber}
+                          onChange={e => setTaxInvoiceNumber(e.target.value)}
+                          className="input mt-1 w-full dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                          placeholder="e.g. INV-001"
+                        />
+                      </div>
+                      <div>
+                        <label className="label dark:text-gray-300">Tax Invoice Date</label>
+                        <input
+                          type="date"
+                          value={taxInvoiceDate}
+                          onChange={e => setTaxInvoiceDate(e.target.value)}
+                          className="input mt-1 w-full dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <p className="text-xs text-gray-500 dark:text-gray-400">

@@ -517,6 +517,18 @@ public class MarkMilestonePaidRequest
 
     [JsonPropertyName("allocations")]
     public List<AllocationInput> Allocations { get; set; } = [];
+
+    [JsonPropertyName("proformaInvoiceNumber")]
+    public string? ProformaInvoiceNumber { get; set; }
+
+    [JsonPropertyName("proformaInvoiceDate")]
+    public string? ProformaInvoiceDate { get; set; }
+
+    [JsonPropertyName("taxInvoiceNumber")]
+    public string? TaxInvoiceNumber { get; set; }
+
+    [JsonPropertyName("taxInvoiceDate")]
+    public string? TaxInvoiceDate { get; set; }
 }
 
 public class ConvertProposalToContractRequest
@@ -1237,6 +1249,12 @@ public class IncomeContractsService
 
         var actualAmount = request.ActualAmountPaid ?? milestone.amount_due;
 
+        // Merge invoice data: request values take precedence over what was already on the milestone
+        var proformaInvoiceNumber = request.ProformaInvoiceNumber ?? milestone.proforma_invoice_number;
+        var proformaInvoiceDate   = request.ProformaInvoiceDate   ?? milestone.proforma_invoice_date?.ToString("yyyy-MM-dd");
+        var taxInvoiceNumber      = request.TaxInvoiceNumber      ?? milestone.tax_invoice_number;
+        var taxInvoiceDate        = request.TaxInvoiceDate        ?? milestone.tax_invoice_date?.ToString("yyyy-MM-dd");
+
         // Create the income record
         var incomeRequest = new CreateIncomeRequest
         {
@@ -1247,13 +1265,13 @@ public class IncomeContractsService
             ClientId = contract.client_id,
             ClientName = contract.client_name,
             IncomeDate = request.PaymentReceivedDate,
-            InvoiceNumber = milestone.tax_invoice_number ?? milestone.proforma_invoice_number,
-            InvoiceType = milestone.tax_invoice_number != null ? "tax" : "standard",
+            InvoiceNumber = taxInvoiceNumber ?? proformaInvoiceNumber,
+            InvoiceType = taxInvoiceNumber != null ? "tax" : (proformaInvoiceNumber != null ? "proforma" : "standard"),
             InvoiceStatus = "paid",
             PaymentReceivedDate = request.PaymentReceivedDate,
             PaymentMethod = request.PaymentMethod,
-            ProformaInvoiceDate = milestone.proforma_invoice_date?.ToString("yyyy-MM-dd"),
-            TaxInvoiceDate = milestone.tax_invoice_date?.ToString("yyyy-MM-dd"),
+            ProformaInvoiceDate = proformaInvoiceDate,
+            TaxInvoiceDate = taxInvoiceDate,
             VatApplicable = contract.vat_applicable,
             VatPercentage = contract.vat_percentage,
             Allocations = request.Allocations,
@@ -1261,7 +1279,7 @@ public class IncomeContractsService
 
         var incomeDto = await _incomeService.CreateAsync(incomeRequest, userId);
 
-        // Update the milestone
+        // Update the milestone — also write back invoice fields if supplied in the request
         var updated = await conn.QuerySingleAsync<DbMilestoneRow>(
             """
             UPDATE income_milestones SET
@@ -1269,7 +1287,11 @@ public class IncomeContractsService
                 income_id = @IncomeId,
                 payment_received_date = @PaymentReceivedDate::date,
                 payment_method = @PaymentMethod,
-                actual_amount_paid = @ActualAmountPaid
+                actual_amount_paid = @ActualAmountPaid,
+                proforma_invoice_number = COALESCE(@ProformaInvoiceNumber, proforma_invoice_number),
+                proforma_invoice_date   = COALESCE(@ProformaInvoiceDate::date, proforma_invoice_date),
+                tax_invoice_number      = COALESCE(@TaxInvoiceNumber, tax_invoice_number),
+                tax_invoice_date        = COALESCE(@TaxInvoiceDate::date, tax_invoice_date)
             WHERE id = @Id
             RETURNING *, null::text as contract_title, null::text as client_name
             """,
@@ -1279,6 +1301,10 @@ public class IncomeContractsService
                 PaymentReceivedDate = request.PaymentReceivedDate,
                 PaymentMethod = request.PaymentMethod,
                 ActualAmountPaid = actualAmount,
+                ProformaInvoiceNumber = proformaInvoiceNumber,
+                ProformaInvoiceDate = proformaInvoiceDate,
+                TaxInvoiceNumber = taxInvoiceNumber,
+                TaxInvoiceDate = taxInvoiceDate,
                 Id = milestoneId,
             });
 
