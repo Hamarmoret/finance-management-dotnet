@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
 import { X, Plus, Trash2, Sparkles } from 'lucide-react';
 import { api, getErrorMessage } from '../../../services/api';
-import type { Expense, ExpenseCategory, PnlCenterWithStats, RecurringPattern, Attachment, PnlDistributionDefault } from '@finance/shared';
+import type { Expense, ExpenseCategory, PnlCenterWithStats, RecurringPattern, Attachment, PnlDistributionDefault, Vendor } from '@finance/shared';
 import { RecurringToggle } from '../../../components/RecurringToggle';
 import { FileUpload } from '../../../components/FileUpload';
+import { VendorAutocomplete } from '../../../components/VendorAutocomplete';
+import { VendorModal } from '../../sales/components/VendorModal';
 
 interface ExpenseModalProps {
   expense: Expense | null;
@@ -32,7 +34,11 @@ export function ExpenseModal({
   );
   const [categoryId, setCategoryId] = useState(expense?.categoryId || '');
   const [currency, setCurrency] = useState(expense?.currency || 'ILS');
-  const [vendor, setVendor] = useState(expense?.vendor || '');
+  const [vendorId, setVendorId] = useState(expense?.vendorId || '');
+  const [vendorName, setVendorName] = useState(expense?.vendor || '');
+  const [showCreateVendor, setShowCreateVendor] = useState(false);
+  const [quickCreateVendorName, setQuickCreateVendorName] = useState('');
+  const [vendorError, setVendorError] = useState('');
   const [notes, setNotes] = useState(expense?.notes || '');
   const [isRecurring, setIsRecurring] = useState(expense?.isRecurring || false);
   const [recurringPattern, setRecurringPattern] = useState<RecurringPattern | null>(
@@ -111,6 +117,12 @@ export function ExpenseModal({
       return;
     }
 
+    if (!vendorId) {
+      setVendorError('Payee / Vendor is required');
+      return;
+    }
+    setVendorError('');
+
     const validAllocations = allocations.filter((a) => a.pnlCenterId && a.percentage > 0);
     if (validAllocations.length === 0) {
       setError('At least one P&L center allocation is required');
@@ -133,7 +145,8 @@ export function ExpenseModal({
         currency,
         expenseDate,
         categoryId: categoryId || null,
-        vendor: vendor.trim() || null,
+        vendorId: vendorId || null,
+        vendor: vendorName.trim() || null,
         notes: notes.trim() || null,
         isRecurring,
         recurringPattern: isRecurring ? recurringPattern : null,
@@ -156,6 +169,7 @@ export function ExpenseModal({
   }
 
   return (
+    <>
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="modal-box w-full max-w-2xl max-h-[90vh] overflow-y-auto">
         <div className="modal-header sticky top-0 z-10 bg-white dark:bg-gray-800">
@@ -249,16 +263,17 @@ export function ExpenseModal({
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Payee / Vendor</label>
-              <input
-                type="text"
-                value={vendor}
-                onChange={(e) => setVendor(e.target.value)}
-                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                placeholder="e.g., AWS, John Smith (Salary), Office Rent"
-                maxLength={255}
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Payee / Vendor <span className="text-red-500">*</span>
+              </label>
+              <VendorAutocomplete
+                vendorId={vendorId}
+                vendorName={vendorName}
+                onSelect={(id, name) => { setVendorId(id); setVendorName(name); setVendorError(''); }}
+                onCreateNew={(name) => { setQuickCreateVendorName(name); setShowCreateVendor(true); }}
+                placeholder="Search or type payee name"
+                error={vendorError}
               />
-              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Company, employee, landlord, etc.</p>
             </div>
           </div>
 
@@ -413,5 +428,20 @@ export function ExpenseModal({
         </form>
       </div>
     </div>
+
+    {showCreateVendor && (
+      <VendorModal
+        vendor={null}
+        initialName={quickCreateVendorName}
+        onClose={() => setShowCreateVendor(false)}
+        onSaved={(v: Vendor) => {
+          setVendorId(v.id);
+          setVendorName(v.name);
+          setVendorError('');
+          setShowCreateVendor(false);
+        }}
+      />
+    )}
+    </>
   );
 }

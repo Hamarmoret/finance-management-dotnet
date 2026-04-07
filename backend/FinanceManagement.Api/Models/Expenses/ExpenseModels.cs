@@ -38,6 +38,10 @@ public class ExpenseDto
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public object? RecurringPattern { get; set; }
 
+    [JsonPropertyName("vendorId")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? VendorId { get; set; }
+
     [JsonPropertyName("vendor")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? Vendor { get; set; }
@@ -130,6 +134,9 @@ public class CreateExpenseRequest
     [JsonPropertyName("recurringPattern")]
     public object? RecurringPattern { get; set; }
 
+    [JsonPropertyName("vendorId")]
+    public string? VendorId { get; set; }
+
     [JsonPropertyName("vendor")]
     public string? Vendor { get; set; }
 
@@ -168,6 +175,9 @@ public class UpdateExpenseRequest
 
     [JsonPropertyName("recurringPattern")]
     public object? RecurringPattern { get; set; }
+
+    [JsonPropertyName("vendorId")]
+    public string? VendorId { get; set; }
 
     [JsonPropertyName("vendor")]
     public string? Vendor { get; set; }
@@ -235,6 +245,7 @@ public class ExpenseRow
     public DateTime ExpenseDate { get; set; }
     public bool IsRecurring { get; set; }
     public string? RecurringPattern { get; set; }
+    public Guid? VendorId { get; set; }
     public string? Vendor { get; set; }
     public string? Notes { get; set; }
     public string? Attachments { get; set; }

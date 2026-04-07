@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { X, Loader2, FileText, Info } from 'lucide-react';
-import type { IncomeContract, ServiceType, DropdownOption } from '@finance/shared';
+import type { IncomeContract, ServiceType, DropdownOption, Client } from '@finance/shared';
 import { SERVICE_TYPE_LABELS } from '@finance/shared';
 import { api, getErrorMessage } from '../../../services/api';
 import { ClientAutocomplete } from '../../../components/ClientAutocomplete';
+import { ClientModal } from '../../sales/components/ClientModal';
 
 interface ContractModalProps {
   contract?: IncomeContract | null;
@@ -35,6 +36,9 @@ export default function ContractModal({ contract, onClose, onSaved }: ContractMo
   const [vatPercentage, setVatPercentage] = useState(contract?.vatPercentage?.toString() ?? '18');
   const [notes, setNotes] = useState(contract?.notes ?? '');
 
+  const [clientError, setClientError] = useState('');
+  const [showCreateClient, setShowCreateClient] = useState(false);
+  const [quickCreateClientName, setQuickCreateClientName] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -55,6 +59,10 @@ export default function ContractModal({ contract, onClose, onSaved }: ContractMo
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!clientId) {
+      setClientError('Client is required');
+      return;
+    }
     setIsSubmitting(true);
     setError(null);
 
@@ -90,6 +98,22 @@ export default function ContractModal({ contract, onClose, onSaved }: ContractMo
   };
 
   return (
+    <>
+    {showCreateClient && (
+      <ClientModal
+        client={null}
+        initialName={quickCreateClientName}
+        onClose={() => setShowCreateClient(false)}
+        onSaved={(c?: Client) => {
+          if (c) {
+            setClientId(c.id);
+            setClientName(c.companyName || c.name);
+            setClientError('');
+          }
+          setShowCreateClient(false);
+        }}
+      />
+    )}
     <div className="fixed inset-0 z-50 overflow-y-auto">
       <div className="flex min-h-full items-center justify-center p-4">
         <div className="fixed inset-0 bg-black/50" onClick={onClose} />
@@ -167,13 +191,16 @@ export default function ContractModal({ contract, onClose, onSaved }: ContractMo
               </div>
 
               <div>
-                <label className="label dark:text-gray-300">Client</label>
+                <label className="label dark:text-gray-300">Client <span className="text-red-500">*</span></label>
                 <ClientAutocomplete
                   clientId={clientId}
                   clientName={clientName}
-                  onSelect={(id, name) => { setClientId(id); setClientName(name); }}
+                  onSelect={(id, name) => { setClientId(id); setClientName(name); setClientError(''); }}
+                  onCreateNew={(name) => { setQuickCreateClientName(name); setShowCreateClient(true); }}
                   placeholder="Search or type client name"
                   className="mt-1"
+                  required
+                  error={clientError}
                 />
               </div>
 
@@ -328,5 +355,6 @@ export default function ContractModal({ contract, onClose, onSaved }: ContractMo
         </div>
       </div>
     </div>
+    </>
   );
 }

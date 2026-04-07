@@ -1,22 +1,28 @@
 import { useState } from 'react';
-import { Briefcase, Building2, TrendingUp, FileText } from 'lucide-react';
+import { Briefcase, Building2, TrendingUp, FileText, Wallet, BookUser } from 'lucide-react';
 import ClientsTab from './components/ClientsTab';
 import LeadsTab from './components/LeadsTab';
 import ProposalsTab from './components/ProposalsTab';
+import PayeesTab from './components/PayeesTab';
+import ContactsTab from './components/ContactsTab';
 import { PeriodSelector, getPeriodLabel } from '../../components/PeriodSelector';
 
-type SalesTab = 'clients' | 'leads' | 'proposals';
+type SalesTab = 'clients' | 'leads' | 'proposals' | 'payees' | 'contacts';
 
 const tabs: { id: SalesTab; label: string; icon: typeof Building2 }[] = [
   { id: 'clients', label: 'Clients', icon: Building2 },
   { id: 'leads', label: 'Leads', icon: TrendingUp },
   { id: 'proposals', label: 'Proposals', icon: FileText },
+  { id: 'payees', label: 'Payees', icon: Wallet },
+  { id: 'contacts', label: 'Contacts', icon: BookUser },
 ];
 
 export default function Sales() {
   const [activeTab, setActiveTab] = useState<SalesTab>('clients');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+
+  const showPeriodSelector = activeTab === 'leads' || activeTab === 'proposals';
 
   return (
     <div className="p-6 space-y-6">
@@ -28,7 +34,7 @@ export default function Sales() {
             Sales
           </h1>
           <p className="text-gray-600 dark:text-gray-400 mt-1">{getPeriodLabel(startDate, endDate)}</p>
-          {activeTab !== 'clients' && (
+          {showPeriodSelector && (
             <PeriodSelector
               startDate={startDate}
               endDate={endDate}
@@ -41,12 +47,12 @@ export default function Sales() {
 
       {/* Tabs */}
       <div className="border-b border-gray-200 dark:border-gray-700">
-        <nav className="-mb-px flex space-x-8">
+        <nav className="-mb-px flex space-x-6 overflow-x-auto">
           {tabs.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-2 py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+              className={`flex items-center gap-2 py-4 px-1 border-b-2 font-medium text-sm transition-colors whitespace-nowrap ${
                 activeTab === tab.id
                   ? 'border-primary-500 text-primary-600'
                   : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:border-gray-300 dark:hover:border-gray-500'
@@ -63,6 +69,8 @@ export default function Sales() {
       {activeTab === 'clients' && <ClientsTab />}
       {activeTab === 'leads' && <LeadsTab startDate={startDate} endDate={endDate} />}
       {activeTab === 'proposals' && <ProposalsTab startDate={startDate} endDate={endDate} />}
+      {activeTab === 'payees' && <PayeesTab />}
+      {activeTab === 'contacts' && <ContactsTab />}
     </div>
   );
 }

@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import { X, Plus, Trash2, Sparkles, ChevronDown, ChevronUp } from 'lucide-react';
 import { api, getErrorMessage } from '../../../services/api';
-import type { Income, IncomeCategory, PnlCenterWithStats, InvoiceStatus, InvoiceType, RecurringPattern, Attachment, PnlDistributionDefault } from '@finance/shared';
+import type { Income, IncomeCategory, PnlCenterWithStats, InvoiceStatus, InvoiceType, RecurringPattern, Attachment, PnlDistributionDefault, Client } from '@finance/shared';
 import { RecurringToggle } from '../../../components/RecurringToggle';
 import { FileUpload } from '../../../components/FileUpload';
 import { ClientAutocomplete } from '../../../components/ClientAutocomplete';
+import { ClientModal } from '../../sales/components/ClientModal';
 
 interface IncomeModalProps {
   income: Income | null;
@@ -35,6 +36,9 @@ export function IncomeModal({
   const [currency, setCurrency] = useState(income?.currency || 'ILS');
   const [clientName, setClientName] = useState(income?.clientName || '');
   const [clientId, setClientId] = useState(income?.clientId || '');
+  const [clientError, setClientError] = useState('');
+  const [showCreateClient, setShowCreateClient] = useState(false);
+  const [quickCreateClientName, setQuickCreateClientName] = useState('');
   const [paymentMethod, setPaymentMethod] = useState(income?.paymentMethod || '');
   const [vatApplicable, setVatApplicable] = useState(income?.vatApplicable ?? false);
   const [vatPercentage, setVatPercentage] = useState(income?.vatPercentage?.toString() || '');
@@ -129,6 +133,11 @@ export function IncomeModal({
       return;
     }
 
+    if (!clientId) {
+      setClientError('Client is required');
+      return;
+    }
+
     if (!amount || parseFloat(amount) <= 0) {
       setError('Amount must be greater than 0');
       return;
@@ -195,6 +204,22 @@ export function IncomeModal({
   }
 
   return (
+    <>
+    {showCreateClient && (
+      <ClientModal
+        client={null}
+        initialName={quickCreateClientName}
+        onClose={() => setShowCreateClient(false)}
+        onSaved={(c?: Client) => {
+          if (c) {
+            setClientId(c.id);
+            setClientName(c.companyName || c.name);
+            setClientError('');
+          }
+          setShowCreateClient(false);
+        }}
+      />
+    )}
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="modal-box w-full max-w-2xl max-h-[90vh] overflow-y-auto">
         <div className="modal-header sticky top-0 z-10 bg-white dark:bg-gray-800">
@@ -288,12 +313,17 @@ export function IncomeModal({
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Client</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Client <span className="text-red-500">*</span>
+              </label>
               <ClientAutocomplete
                 clientId={clientId}
                 clientName={clientName}
-                onSelect={(id, name) => { setClientId(id); setClientName(name); }}
+                onSelect={(id, name) => { setClientId(id); setClientName(name); setClientError(''); }}
+                onCreateNew={(name) => { setQuickCreateClientName(name); setShowCreateClient(true); }}
                 placeholder="Client name"
+                required
+                error={clientError}
               />
             </div>
 
@@ -624,5 +654,6 @@ export function IncomeModal({
         </form>
       </div>
     </div>
+    </>
   );
 }

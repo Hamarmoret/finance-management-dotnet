@@ -3,6 +3,7 @@ using Dapper;
 using FinanceManagement.Api.Database;
 using FinanceManagement.Api.Middleware;
 using FinanceManagement.Api.Models.Expenses;
+using FinanceManagement.Api.Services.Vendors;
 
 namespace FinanceManagement.Api.Services.Expenses;
 
@@ -61,6 +62,7 @@ public class ExpensesService
         RecurringPattern = row.RecurringPattern != null
             ? JsonSerializer.Deserialize<object>(row.RecurringPattern)
             : null,
+        VendorId = row.VendorId?.ToString(),
         Vendor = row.Vendor,
         Notes = row.Notes,
         Attachments = row.Attachments != null
@@ -165,7 +167,8 @@ public class ExpensesService
             SELECT
                 e.id, e.description, e.amount, e.currency, e.category_id,
                 e.expense_date, e.is_recurring, e.recurring_pattern,
-                e.vendor, e.notes, e.attachments::text, e.tags,
+                e.vendor_id, COALESCE(v.name, e.vendor) AS vendor,
+                e.notes, e.attachments::text, e.tags,
                 e.created_by, e.created_at, e.updated_at,
                 ec.name as category_name,
                 ec.type as category_type,
@@ -173,6 +176,7 @@ public class ExpensesService
                 ec.is_active as category_is_active
             FROM expenses e
             LEFT JOIN expense_categories ec ON ec.id = e.category_id
+            LEFT JOIN vendors v ON v.id = e.vendor_id
             {whereClause}
             {orderClause}
             LIMIT @Limit OFFSET @Offset
@@ -226,7 +230,8 @@ public class ExpensesService
             SELECT
                 e.id, e.description, e.amount, e.currency, e.category_id,
                 e.expense_date, e.is_recurring, e.recurring_pattern,
-                e.vendor, e.notes, e.attachments::text, e.tags,
+                e.vendor_id, COALESCE(v.name, e.vendor) AS vendor,
+                e.notes, e.attachments::text, e.tags,
                 e.created_by, e.created_at, e.updated_at,
                 ec.name as category_name,
                 ec.type as category_type,
@@ -234,6 +239,7 @@ public class ExpensesService
                 ec.is_active as category_is_active
             FROM expenses e
             LEFT JOIN expense_categories ec ON ec.id = e.category_id
+            LEFT JOIN vendors v ON v.id = e.vendor_id
             WHERE e.id = @Id
             """;
 
@@ -267,18 +273,25 @@ public class ExpensesService
 
         try
         {
+            var userGuid = Guid.Parse(userId);
+            var resolvedVendorId = await VendorsService.GetOrCreateVendorAsync(
+                conn, tx,
+                !string.IsNullOrEmpty(request.VendorId) ? Guid.Parse(request.VendorId) : null,
+                request.Vendor,
+                userGuid);
+
             // Create expense
             var expenseSql = """
                 INSERT INTO expenses (
                     description, amount, currency, category_id, expense_date,
-                    is_recurring, recurring_pattern, vendor, notes, attachments, tags, created_by
+                    is_recurring, recurring_pattern, vendor, vendor_id, notes, attachments, tags, created_by
                 )
                 VALUES (
                     @Description, @Amount, @Currency, @CategoryId, @ExpenseDate,
-                    @IsRecurring, @RecurringPattern::jsonb, @Vendor, @Notes, @Attachments::jsonb, @Tags, @CreatedBy
+                    @IsRecurring, @RecurringPattern::jsonb, @Vendor, @VendorId, @Notes, @Attachments::jsonb, @Tags, @CreatedBy
                 )
                 RETURNING id, description, amount, currency, category_id, expense_date,
-                          is_recurring, recurring_pattern, vendor, notes, attachments::text, tags,
+                          is_recurring, recurring_pattern, vendor_id, vendor, notes, attachments::text, tags,
                           created_by, created_at, updated_at
                 """;
 
@@ -294,10 +307,11 @@ public class ExpensesService
                     ? JsonSerializer.Serialize(request.RecurringPattern)
                     : null,
                 request.Vendor,
+                VendorId = resolvedVendorId,
                 request.Notes,
                 Attachments = JsonSerializer.Serialize(request.Attachments ?? []),
                 Tags = request.Tags?.ToArray() ?? Array.Empty<string>(),
-                CreatedBy = Guid.Parse(userId),
+                CreatedBy = userGuid,
             }, tx);
 
             // Create allocations
@@ -407,10 +421,17 @@ public class ExpensesService
                 fields.Add("recurring_pattern = @RecurringPattern::jsonb");
                 parameters.Add("RecurringPattern", JsonSerializer.Serialize(request.RecurringPattern));
             }
-            if (request.Vendor != null)
+            if (request.Vendor != null || request.VendorId != null)
             {
+                var resolvedVendorId = await VendorsService.GetOrCreateVendorAsync(
+                    conn, tx,
+                    !string.IsNullOrEmpty(request.VendorId) ? Guid.Parse(request.VendorId) : null,
+                    request.Vendor,
+                    Guid.Parse(userId));
                 fields.Add("vendor = @Vendor");
+                fields.Add("vendor_id = @VendorId");
                 parameters.Add("Vendor", request.Vendor);
+                parameters.Add("VendorId", resolvedVendorId);
             }
             if (request.Notes != null)
             {

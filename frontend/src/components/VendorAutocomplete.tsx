@@ -1,12 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
 import { PlusCircle } from 'lucide-react';
 import { api } from '../services/api';
-import type { Client } from '@finance/shared';
+import type { Vendor } from '@finance/shared';
 
-interface ClientAutocompleteProps {
-  clientId: string;
-  clientName: string;
-  onSelect: (clientId: string, clientName: string) => void;
+interface VendorAutocompleteProps {
+  vendorId: string;
+  vendorName: string;
+  onSelect: (vendorId: string, vendorName: string) => void;
   onCreateNew?: (name: string) => void;
   placeholder?: string;
   className?: string;
@@ -14,28 +14,26 @@ interface ClientAutocompleteProps {
   error?: string;
 }
 
-export function ClientAutocomplete({
-  clientId: _clientId,
-  clientName,
+export function VendorAutocomplete({
+  vendorId: _vendorId,
+  vendorName,
   onSelect,
   onCreateNew,
-  placeholder = 'Client name',
+  placeholder = 'Search payee / vendor name',
   className = '',
   required: _required,
   error,
-}: ClientAutocompleteProps) {
-  const [inputValue, setInputValue] = useState(clientName);
-  const [suggestions, setSuggestions] = useState<Client[]>([]);
+}: VendorAutocompleteProps) {
+  const [inputValue, setInputValue] = useState(vendorName);
+  const [suggestions, setSuggestions] = useState<Vendor[]>([]);
   const [open, setOpen] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Keep input in sync with external clientName prop (e.g. when modal resets)
   useEffect(() => {
-    setInputValue(clientName);
-  }, [clientName]);
+    setInputValue(vendorName);
+  }, [vendorName]);
 
-  // Close dropdown when clicking outside
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
@@ -51,15 +49,15 @@ export function ClientAutocomplete({
     debounceRef.current = setTimeout(async () => {
       try {
         const params = value.trim()
-          ? `/clients?search=${encodeURIComponent(value)}&limit=20&status=active`
-          : `/clients?limit=20&status=active`;
+          ? `/vendors?search=${encodeURIComponent(value)}&limit=20&status=active`
+          : `/vendors?limit=20&status=active`;
         const res = await api.get(params);
-        const clients: Client[] = res.data.data ?? [];
-        setSuggestions(clients);
-        // Open if there are results, or if we can show a "Create" option
-        setOpen(clients.length > 0 || (!!value.trim() && !!onCreateNew));
+        const vendors: Vendor[] = res.data.data ?? [];
+        setSuggestions(vendors);
+        setOpen(true);
       } catch {
         setSuggestions([]);
+        setOpen(false);
       }
     }, value.trim() ? 300 : 0);
   };
@@ -67,20 +65,24 @@ export function ClientAutocomplete({
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
     setInputValue(val);
-    // If user types freely (no client selected), clear clientId, pass raw text
     onSelect('', val);
     fetchSuggestions(val);
   };
 
-  const handleSelect = (client: Client) => {
-    const displayName = client.companyName || client.name;
-    setInputValue(displayName);
+  const handleSelect = (vendor: Vendor) => {
+    setInputValue(vendor.name);
     setSuggestions([]);
     setOpen(false);
-    onSelect(client.id, displayName);
+    onSelect(vendor.id, vendor.name);
   };
 
-  const showDropdown = open && (suggestions.length > 0 || (!!inputValue.trim() && !!onCreateNew));
+  const payeeTypeLabel = (type: string) => {
+    if (type === 'employee') return 'Employee';
+    if (type === 'other') return 'Other';
+    return 'Vendor';
+  };
+
+  const showDropdown = open && (suggestions.length > 0 || (inputValue.trim() && onCreateNew));
 
   return (
     <div ref={containerRef} className={`relative ${className}`}>
@@ -89,8 +91,9 @@ export function ClientAutocomplete({
         value={inputValue}
         onChange={handleChange}
         onFocus={() => {
-          if (suggestions.length > 0) setOpen(true);
-          else fetchSuggestions(inputValue);
+          if (inputValue.trim() || suggestions.length > 0) {
+            fetchSuggestions(inputValue);
+          }
         }}
         placeholder={placeholder}
         autoComplete="off"
@@ -98,21 +101,14 @@ export function ClientAutocomplete({
       {error && <p className="mt-1 text-xs text-red-500 dark:text-red-400">{error}</p>}
       {showDropdown && (
         <ul className="absolute z-50 left-0 right-0 mt-1 max-h-52 overflow-y-auto bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-lg">
-          {suggestions.map((c) => (
+          {suggestions.map((v) => (
             <li
-              key={c.id}
-              onMouseDown={() => handleSelect(c)}
+              key={v.id}
+              onMouseDown={() => handleSelect(v)}
               className="px-3 py-2 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700"
             >
-              <div className="text-sm font-medium text-gray-900 dark:text-white">
-                {c.companyName || c.name}
-              </div>
-              {c.companyName && (
-                <div className="text-xs text-gray-500 dark:text-gray-400">{c.name}</div>
-              )}
-              {c.email && (
-                <div className="text-xs text-gray-400 dark:text-gray-500">{c.email}</div>
-              )}
+              <div className="text-sm font-medium text-gray-900 dark:text-white">{v.name}</div>
+              <div className="text-xs text-gray-500 dark:text-gray-400">{payeeTypeLabel(v.payeeType)}</div>
             </li>
           ))}
           {onCreateNew && inputValue.trim() && (
@@ -121,7 +117,7 @@ export function ClientAutocomplete({
               className="px-3 py-2 cursor-pointer hover:bg-primary-50 dark:hover:bg-primary-900/20 border-t border-gray-100 dark:border-gray-700 flex items-center gap-2 text-primary-600 dark:text-primary-400"
             >
               <PlusCircle className="w-4 h-4 flex-shrink-0" />
-              <span className="text-sm">Create "{inputValue.trim()}" as new client</span>
+              <span className="text-sm">Create "{inputValue.trim()}" as new payee</span>
             </li>
           )}
         </ul>

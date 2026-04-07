@@ -68,6 +68,7 @@ public class MigrationRunner
         ("017_dropdown_options", Sql017DropdownOptions),
         ("018_backfill_client_ids", Sql018BackfillClientIds),
         ("019_create_clients_from_income", Sql019CreateClientsFromIncome),
+        ("020_vendors", Sql020Vendors),
     ];
 
     #region SQL Migrations
@@ -795,6 +796,47 @@ public class MigrationRunner
           AND i.client_name IS NOT NULL
           AND (LOWER(TRIM(i.client_name)) = LOWER(TRIM(c.name))
                OR LOWER(TRIM(i.client_name)) = LOWER(TRIM(COALESCE(c.company_name, ''))));
+        """;
+
+    private const string Sql020Vendors = """
+        CREATE TABLE IF NOT EXISTS vendors (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            name VARCHAR(255) NOT NULL,
+            payee_type VARCHAR(50) NOT NULL DEFAULT 'vendor',
+            email VARCHAR(255),
+            phone VARCHAR(50),
+            address TEXT,
+            city VARCHAR(100),
+            country VARCHAR(100),
+            tax_id VARCHAR(100),
+            notes TEXT,
+            status VARCHAR(50) NOT NULL DEFAULT 'active',
+            created_by UUID REFERENCES users(id) ON DELETE SET NULL,
+            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        );
+        CREATE INDEX IF NOT EXISTS idx_vendors_name ON vendors(name);
+        CREATE INDEX IF NOT EXISTS idx_vendors_status ON vendors(status);
+        CREATE OR REPLACE TRIGGER update_vendors_updated_at
+            BEFORE UPDATE ON vendors
+            FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+        ALTER TABLE expenses ADD COLUMN IF NOT EXISTS vendor_id UUID REFERENCES vendors(id) ON DELETE SET NULL;
+
+        INSERT INTO vendors (name, payee_type, status)
+        SELECT DISTINCT TRIM(e.vendor), 'vendor', 'active'
+        FROM expenses e
+        WHERE e.vendor IS NOT NULL AND TRIM(e.vendor) <> ''
+          AND NOT EXISTS (
+              SELECT 1 FROM vendors v WHERE LOWER(TRIM(v.name)) = LOWER(TRIM(e.vendor))
+          );
+
+        UPDATE expenses e
+        SET vendor_id = v.id
+        FROM vendors v
+        WHERE e.vendor_id IS NULL
+          AND e.vendor IS NOT NULL
+          AND LOWER(TRIM(e.vendor)) = LOWER(TRIM(v.name));
         """;
 
     #endregion

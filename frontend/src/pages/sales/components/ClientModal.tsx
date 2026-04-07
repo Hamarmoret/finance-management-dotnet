@@ -5,17 +5,18 @@ import type { Client, ContactPerson } from '@finance/shared';
 
 interface ClientModalProps {
   client: Client | null;
+  initialName?: string;
   onClose: () => void;
-  onSaved: () => void;
+  onSaved: (client?: Client) => void;
 }
 
 type ClientTab = 'details' | 'contacts' | 'attribution';
 
-export function ClientModal({ client, onClose, onSaved }: ClientModalProps) {
+export function ClientModal({ client, initialName, onClose, onSaved }: ClientModalProps) {
   const isEditing = client !== null;
 
   // Core fields
-  const [name, setName] = useState(client?.name ?? '');
+  const [name, setName] = useState(client?.name ?? initialName ?? '');
   const [companyName, setCompanyName] = useState(client?.companyName ?? '');
   const [email, setEmail] = useState(client?.email ?? '');
   const [phone, setPhone] = useState(client?.phone ?? '');
@@ -108,10 +109,11 @@ export function ClientModal({ client, onClose, onSaved }: ClientModalProps) {
 
       if (isEditing) {
         await api.put(`/clients/${client.id}`, body);
+        onSaved();
       } else {
-        await api.post('/clients', body);
+        const res = await api.post('/clients', body);
+        onSaved(res.data.data as Client);
       }
-      onSaved();
     } catch (err) {
       setError(getErrorMessage(err));
     } finally {

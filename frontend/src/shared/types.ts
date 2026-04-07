@@ -117,6 +117,7 @@ export interface Expense {
   expenseDate: string;
   isRecurring: boolean;
   recurringPattern: RecurringPattern | null;
+  vendorId: string | null;
   vendor: string | null;
   notes: string | null;
   attachments: Attachment[];
@@ -682,6 +683,43 @@ export interface ScenarioComparison {
       headcount: number[];
     };
   }[];
+}
+
+// =============================================
+// Vendor / Payee Types
+// =============================================
+
+export type PayeeType = 'vendor' | 'employee' | 'other';
+export type VendorStatus = 'active' | 'inactive';
+
+export interface Vendor {
+  id: string;
+  name: string;
+  payeeType: PayeeType;
+  email: string | null;
+  phone: string | null;
+  address: string | null;
+  city: string | null;
+  country: string | null;
+  taxId: string | null;
+  notes: string | null;
+  status: VendorStatus;
+  createdBy: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface UnifiedContact {
+  id: string;
+  source: 'client' | 'lead';
+  name: string;
+  email: string | null;
+  phone: string | null;
+  role: string | null;
+  companyName: string | null;
+  linkedEntityId: string | null;
+  linkedEntityName: string | null;
+  isPrimary: boolean;
 }
 
 // =============================================
