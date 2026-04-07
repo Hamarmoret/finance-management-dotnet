@@ -22,6 +22,11 @@ public class MigrationRunner
         await using var conn = _db.CreateConnection();
         await conn.OpenAsync();
 
+        // Prevent DDL migrations (ALTER TABLE etc.) from blocking startup indefinitely
+        // if the table is locked by concurrent connections. The exception is caught
+        // per-migration below, allowing the app to start; the migration retries on next deploy.
+        await conn.ExecuteAsync("SET lock_timeout = '10s'");
+
         foreach (var (name, sql) in migrations)
         {
             try

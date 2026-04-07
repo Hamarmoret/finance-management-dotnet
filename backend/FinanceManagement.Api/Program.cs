@@ -128,7 +128,14 @@ var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
     var migrationRunner = scope.ServiceProvider.GetRequiredService<MigrationRunner>();
-    await migrationRunner.RunAsync();
+    try
+    {
+        await migrationRunner.RunAsync();
+    }
+    catch (Exception ex)
+    {
+        Log.Error(ex, "Migration runner failed — app will start but may be in degraded state");
+    }
 }
 
 // Promote designated account owner (runs independently of migration runner)
