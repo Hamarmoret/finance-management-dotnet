@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { Pencil, Trash2, RefreshCw } from 'lucide-react';
+import { Pencil, Trash2, RefreshCw, Copy } from 'lucide-react';
 import type { Expense } from '@finance/shared';
 import { formatDate, formatCurrencyPrecise } from '../../../utils/formatters';
 import { DataTable, ColumnDef, VisibilityState } from '../../../components/DataTable';
@@ -8,6 +8,7 @@ interface ExpenseTableProps {
   expenses: Expense[];
   onEdit: (expense: Expense) => void;
   onDelete: (id: string) => void;
+  onDuplicate: (expense: Expense) => void;
   loading?: boolean;
 }
 
@@ -37,6 +38,7 @@ export function ExpenseTable({
   expenses,
   onEdit,
   onDelete,
+  onDuplicate,
   loading = false,
 }: ExpenseTableProps) {
   const columns = useMemo<ColumnDef<Expense, unknown>[]>(
@@ -204,13 +206,18 @@ export function ExpenseTable({
         cell: ({ row }) => (
           <div className="flex justify-end gap-1">
             <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onEdit(row.original);
-              }}
+              onClick={(e) => { e.stopPropagation(); onEdit(row.original); }}
               className="p-2 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
+              title="Edit"
             >
               <Pencil className="w-4 h-4" />
+            </button>
+            <button
+              onClick={(e) => { e.stopPropagation(); onDuplicate(row.original); }}
+              className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+              title="Duplicate"
+            >
+              <Copy className="w-4 h-4" />
             </button>
             <button
               onClick={(e) => {
@@ -220,6 +227,7 @@ export function ExpenseTable({
                 }
               }}
               className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+              title="Delete"
             >
               <Trash2 className="w-4 h-4" />
             </button>
@@ -229,7 +237,7 @@ export function ExpenseTable({
         meta: { align: 'right' },
       },
     ],
-    [onEdit, onDelete]
+    [onEdit, onDelete, onDuplicate]
   );
 
   return (

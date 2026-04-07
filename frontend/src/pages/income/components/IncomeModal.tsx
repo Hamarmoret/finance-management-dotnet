@@ -79,7 +79,7 @@ export function IncomeModal({
   const [error, setError] = useState<string | null>(null);
   const [distributionDefaults, setDistributionDefaults] = useState<PnlDistributionDefault[]>([]);
 
-  const isEditing = !!income;
+  const isEditing = !!income?.id;
 
   // Fetch distribution defaults on mount
   useEffect(() => {

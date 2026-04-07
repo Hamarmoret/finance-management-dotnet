@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Pencil, Trash2, ChevronDown, RefreshCw } from 'lucide-react';
+import { Pencil, Trash2, ChevronDown, RefreshCw, Copy } from 'lucide-react';
 import type { Income, InvoiceStatus } from '@finance/shared';
 import { formatDate, formatCurrencyPrecise } from '../../../utils/formatters';
 import { DataTable, ColumnDef, VisibilityState } from '../../../components/DataTable';
@@ -8,6 +8,7 @@ interface IncomeTableProps {
   income: Income[];
   onEdit: (income: Income) => void;
   onDelete: (id: string) => void;
+  onDuplicate: (income: Income) => void;
   onStatusChange: (id: string, status: string) => void;
   loading?: boolean;
 }
@@ -105,6 +106,7 @@ export function IncomeTable({
   income,
   onEdit,
   onDelete,
+  onDuplicate,
   onStatusChange,
   loading = false,
 }: IncomeTableProps) {
@@ -308,13 +310,18 @@ export function IncomeTable({
         cell: ({ row }) => (
           <div className="flex justify-end gap-1">
             <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onEdit(row.original);
-              }}
+              onClick={(e) => { e.stopPropagation(); onEdit(row.original); }}
               className="p-2 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
+              title="Edit"
             >
               <Pencil className="w-4 h-4" />
+            </button>
+            <button
+              onClick={(e) => { e.stopPropagation(); onDuplicate(row.original); }}
+              className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+              title="Duplicate"
+            >
+              <Copy className="w-4 h-4" />
             </button>
             <button
               onClick={(e) => {
@@ -324,6 +331,7 @@ export function IncomeTable({
                 }
               }}
               className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+              title="Delete"
             >
               <Trash2 className="w-4 h-4" />
             </button>
@@ -333,7 +341,7 @@ export function IncomeTable({
         meta: { align: 'right' },
       },
     ],
-    [onEdit, onDelete, onStatusChange]
+    [onEdit, onDelete, onDuplicate, onStatusChange]
   );
 
   return (

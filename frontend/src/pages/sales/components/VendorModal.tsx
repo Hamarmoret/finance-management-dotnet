@@ -31,6 +31,11 @@ export function VendorModal({ vendor, initialName, onClose, onSaved }: VendorMod
     e.preventDefault();
     setNameError('');
     if (!name.trim()) { setNameError('Name is required'); return; }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (email.trim() && !emailRegex.test(email.trim())) {
+      setError('Please enter a valid email address');
+      return;
+    }
 
     setLoading(true);
     setError(null);

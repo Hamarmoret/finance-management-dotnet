@@ -58,7 +58,7 @@ export function ExpenseModal({
   const [error, setError] = useState<string | null>(null);
   const [distributionDefaults, setDistributionDefaults] = useState<PnlDistributionDefault[]>([]);
 
-  const isEditing = !!expense;
+  const isEditing = !!expense?.id;
 
   // Fetch distribution defaults on mount
   useEffect(() => {

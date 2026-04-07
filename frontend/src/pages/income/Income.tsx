@@ -7,15 +7,7 @@ import { IncomeTable } from './components/IncomeTable';
 import { PeriodSelector, getPeriodLabel } from '../../components/PeriodSelector';
 import ContractsList from './components/ContractsList';
 import ClientsIncomeView from './components/ClientsIncomeView';
-
-function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(amount);
-}
+import { formatCurrency } from '../../utils/formatters';
 
 type IncomeTab = 'contracts' | 'by-client' | 'transactions';
 
@@ -125,6 +117,22 @@ export default function Income() {
     setShowModal(true);
   }
 
+  function handleDuplicate(income: IncomeType) {
+    setEditingIncome({
+      ...income,
+      id: '',
+      description: `Copy of ${income.description}`,
+      incomeDate: new Date().toISOString().split('T')[0],
+      invoiceNumber: '',
+      invoiceStatus: null,
+      paymentDueDate: null,
+      paymentReceivedDate: null,
+      proformaInvoiceDate: null,
+      taxInvoiceDate: null,
+    });
+    setShowModal(true);
+  }
+
   function handleModalClose() {
     setShowModal(false);
     setEditingIncome(null);
@@ -146,7 +154,10 @@ export default function Income() {
   }
 
   const hasFilters = search || categoryFilter || pnlCenterFilter || statusFilter || startDate || endDate;
-  const totalAmount = incomeList.reduce((sum, i) => sum + i.amount, 0);
+  const totalsByCurrency = incomeList.reduce((acc, i) => {
+    acc[i.currency] = (acc[i.currency] ?? 0) + i.amount;
+    return acc;
+  }, {} as Record<string, number>);
 
   async function downloadCsvTemplate() {
     try {
@@ -343,10 +354,12 @@ export default function Income() {
           <p className="text-sm text-gray-500 dark:text-gray-400">Total Records</p>
           <p className="text-xl font-bold text-gray-900 dark:text-white">{total}</p>
         </div>
-        <div>
-          <p className="text-sm text-gray-500">Page Total</p>
-          <p className="text-xl font-bold text-green-600">{formatCurrency(totalAmount)}</p>
-        </div>
+        {Object.entries(totalsByCurrency).map(([cur, amt]) => (
+          <div key={cur}>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Page Total ({cur})</p>
+            <p className="text-xl font-bold text-green-600">{formatCurrency(amt, cur)}</p>
+          </div>
+        ))}
       </div>
 
       {/* Search and Filters */}
@@ -487,6 +500,7 @@ export default function Income() {
             income={incomeList}
             onEdit={handleEdit}
             onDelete={handleDelete}
+            onDuplicate={handleDuplicate}
             onStatusChange={handleStatusChange}
           />
 

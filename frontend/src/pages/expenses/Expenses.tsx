@@ -107,6 +107,16 @@ export default function Expenses() {
     setShowModal(true);
   }
 
+  function handleDuplicate(expense: Expense) {
+    setEditingExpense({
+      ...expense,
+      id: '',
+      description: `Copy of ${expense.description}`,
+      expenseDate: new Date().toISOString().split('T')[0],
+    });
+    setShowModal(true);
+  }
+
   function handleModalClose() {
     setShowModal(false);
     setEditingExpense(null);
@@ -127,7 +137,10 @@ export default function Expenses() {
   }
 
   const hasFilters = search || categoryFilter || pnlCenterFilter || startDate || endDate;
-  const totalAmount = expenses.reduce((sum, e) => sum + e.amount, 0);
+  const totalsByCurrency = expenses.reduce((acc, e) => {
+    acc[e.currency] = (acc[e.currency] ?? 0) + e.amount;
+    return acc;
+  }, {} as Record<string, number>);
 
   async function downloadCsvTemplate() {
     try {
@@ -284,10 +297,12 @@ export default function Expenses() {
           <p className="text-sm text-gray-500 dark:text-gray-400">Total Expenses</p>
           <p className="text-xl font-bold text-gray-900 dark:text-white">{total}</p>
         </div>
-        <div>
-          <p className="text-sm text-gray-500 dark:text-gray-400">Page Total</p>
-          <p className="text-xl font-bold text-red-600">{formatCurrency(totalAmount)}</p>
-        </div>
+        {Object.entries(totalsByCurrency).map(([cur, amt]) => (
+          <div key={cur}>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Page Total ({cur})</p>
+            <p className="text-xl font-bold text-red-600">{formatCurrency(amt, cur)}</p>
+          </div>
+        ))}
       </div>
 
       {/* Search and Filters */}
@@ -410,6 +425,7 @@ export default function Expenses() {
             expenses={expenses}
             onEdit={handleEdit}
             onDelete={handleDelete}
+            onDuplicate={handleDuplicate}
           />
 
           {/* Pagination */}
