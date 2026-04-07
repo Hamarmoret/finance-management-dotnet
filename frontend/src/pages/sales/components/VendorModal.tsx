@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { X } from 'lucide-react';
 import { api, getErrorMessage } from '../../../services/api';
-import type { Vendor } from '@finance/shared';
+import type { Vendor, PayeeType, VendorStatus } from '@finance/shared';
 
 interface VendorModalProps {
   vendor: Vendor | null;
@@ -102,7 +102,7 @@ export function VendorModal({ vendor, initialName, onClose, onSaved }: VendorMod
               <select
                 className="input w-full"
                 value={payeeType}
-                onChange={e => setPayeeType(e.target.value)}
+                onChange={e => setPayeeType(e.target.value as PayeeType)}
               >
                 <option value="vendor">Vendor</option>
                 <option value="employee">Employee</option>
@@ -153,7 +153,7 @@ export function VendorModal({ vendor, initialName, onClose, onSaved }: VendorMod
           {isEditing && (
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Status</label>
-              <select className="input w-full" value={status} onChange={e => setStatus(e.target.value)}>
+              <select className="input w-full" value={status} onChange={e => setStatus(e.target.value as VendorStatus)}>
                 <option value="active">Active</option>
                 <option value="inactive">Inactive</option>
               </select>
