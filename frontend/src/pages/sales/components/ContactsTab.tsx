@@ -87,7 +87,7 @@ export default function ContactsTab() {
                 <tr key={`${c.source}-${c.id}`} className="hover:bg-gray-50 dark:hover:bg-gray-800/50">
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-1.5">
-                      {c.isPrimary && <Star className="w-3.5 h-3.5 text-amber-400 fill-amber-400 flex-shrink-0" title="Primary contact" />}
+                      {c.isPrimary && <Star className="w-3.5 h-3.5 text-amber-400 fill-amber-400 flex-shrink-0" aria-label="Primary contact" />}
                       <span className="font-medium text-gray-900 dark:text-white">{c.name}</span>
                     </div>
                   </td>
