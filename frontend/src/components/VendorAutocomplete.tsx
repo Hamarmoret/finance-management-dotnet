@@ -90,11 +90,7 @@ export function VendorAutocomplete({
         className={`input w-full ${error ? 'border-red-500 dark:border-red-400' : ''}`}
         value={inputValue}
         onChange={handleChange}
-        onFocus={() => {
-          if (inputValue.trim() || suggestions.length > 0) {
-            fetchSuggestions(inputValue);
-          }
-        }}
+        onFocus={() => fetchSuggestions(inputValue)}
         placeholder={placeholder}
         autoComplete="off"
       />

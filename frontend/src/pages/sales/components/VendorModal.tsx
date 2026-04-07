@@ -119,7 +119,13 @@ export function VendorModal({ vendor, initialName, onClose, onSaved }: VendorMod
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Phone</label>
-              <input className="input w-full" value={phone} onChange={e => setPhone(e.target.value)} placeholder="+1 555 000 0000" />
+              <input
+                className="input w-full"
+                type="tel"
+                value={phone}
+                onChange={e => setPhone(e.target.value.replace(/[^\d+\s\-().]/g, ''))}
+                placeholder="+1 555 000 0000"
+              />
             </div>
           </div>
 

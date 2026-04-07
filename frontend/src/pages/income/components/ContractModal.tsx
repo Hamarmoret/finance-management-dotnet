@@ -99,21 +99,6 @@ export default function ContractModal({ contract, onClose, onSaved }: ContractMo
 
   return (
     <>
-    {showCreateClient && (
-      <ClientModal
-        client={null}
-        initialName={quickCreateClientName}
-        onClose={() => setShowCreateClient(false)}
-        onSaved={(c?: Client) => {
-          if (c) {
-            setClientId(c.id);
-            setClientName(c.companyName || c.name);
-            setClientError('');
-          }
-          setShowCreateClient(false);
-        }}
-      />
-    )}
     <div className="fixed inset-0 z-50 overflow-y-auto">
       <div className="flex min-h-full items-center justify-center p-4">
         <div className="fixed inset-0 bg-black/50" onClick={onClose} />
@@ -355,6 +340,21 @@ export default function ContractModal({ contract, onClose, onSaved }: ContractMo
         </div>
       </div>
     </div>
+    {showCreateClient && (
+      <ClientModal
+        client={null}
+        initialName={quickCreateClientName}
+        onClose={() => setShowCreateClient(false)}
+        onSaved={(c?: Client) => {
+          if (c) {
+            setClientId(c.id);
+            setClientName(c.companyName || c.name);
+            setClientError('');
+          }
+          setShowCreateClient(false);
+        }}
+      />
+    )}
     </>
   );
 }
