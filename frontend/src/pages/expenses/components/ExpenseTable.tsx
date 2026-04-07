@@ -195,7 +195,7 @@ export function ExpenseTable({
         header: 'Amount',
         cell: ({ row }) => (
           <span className="whitespace-nowrap text-sm font-medium text-right text-red-600">
-            {formatCurrencyPrecise(row.original.amount)}
+            {formatCurrencyPrecise(row.original.amount, row.original.currency)}
           </span>
         ),
         meta: { align: 'right' },
