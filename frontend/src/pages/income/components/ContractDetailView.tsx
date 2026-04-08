@@ -11,6 +11,7 @@ import {
   Paperclip,
   Copy,
   Trash2,
+  Pencil,
 } from 'lucide-react';
 import type { IncomeContract, IncomeMilestone, ContractAttachment } from '@finance/shared';
 import { api, getErrorMessage } from '../../../services/api';
@@ -19,6 +20,7 @@ import MilestoneRow from './MilestoneRow';
 import GenerateRetainerModal from './GenerateRetainerModal';
 import DocumentsPanel from './DocumentsPanel';
 import DuplicateContractModal from './DuplicateContractModal';
+import ContractModal from './ContractModal';
 
 interface ContractDetailViewProps {
   contract: IncomeContract;
@@ -27,8 +29,10 @@ interface ContractDetailViewProps {
   onDuplicated?: (c: IncomeContract) => void;
 }
 
-export default function ContractDetailView({ contract, onBack, onContractUpdated: _onContractUpdated, onDuplicated }: ContractDetailViewProps) {
-  const [milestones, setMilestones] = useState<IncomeMilestone[]>(contract.milestones);
+export default function ContractDetailView({ contract: initialContract, onBack, onContractUpdated, onDuplicated }: ContractDetailViewProps) {
+  const [contract, setContract] = useState<IncomeContract>(initialContract);
+  const [milestones, setMilestones] = useState<IncomeMilestone[]>(initialContract.milestones);
+  const [showEditModal, setShowEditModal] = useState(false);
   const [showDuplicateModal, setShowDuplicateModal] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [attachments, setAttachments] = useState<ContractAttachment[]>(contract.attachments ?? []);
@@ -109,6 +113,12 @@ export default function ContractDetailView({ contract, onBack, onContractUpdated
     setShowGenerateModal(false);
   };
 
+  const handleEditSaved = (updated: IncomeContract) => {
+    setContract(updated);
+    setShowEditModal(false);
+    onContractUpdated(updated);
+  };
+
 
   // Derived stats from local milestone state
   const totalPaid = milestones
@@ -158,6 +168,14 @@ export default function ContractDetailView({ contract, onBack, onContractUpdated
             <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">{contract.clientName}</p>
           )}
         </div>
+        <button
+          onClick={() => setShowEditModal(true)}
+          className="btn btn-outline btn-sm shrink-0"
+          title="Edit contract"
+        >
+          <Pencil className="w-4 h-4 mr-1" />
+          Edit
+        </button>
         <button
           onClick={() => setShowDuplicateModal(true)}
           className="btn btn-outline btn-sm shrink-0"
@@ -409,6 +427,14 @@ export default function ContractDetailView({ contract, onBack, onContractUpdated
           </div>
         )}
       </div>
+
+      {showEditModal && (
+        <ContractModal
+          contract={contract}
+          onClose={() => setShowEditModal(false)}
+          onSaved={handleEditSaved}
+        />
+      )}
 
       {showGenerateModal && (
         <GenerateRetainerModal

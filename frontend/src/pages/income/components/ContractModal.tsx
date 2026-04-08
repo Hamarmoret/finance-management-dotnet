@@ -49,16 +49,17 @@ export default function ContractModal({ contract, onClose, onSaved }: ContractMo
     Object.entries(SERVICE_TYPE_LABELS).map(([val, label]) => ({ value: val, label }))
   );
   useEffect(() => {
-    Promise.all([
-      api.get('/dropdown-options/service_type'),
-      api.get('/pnl-centers'),
-    ]).then(([stRes, pnlRes]) => {
-      const opts: DropdownOption[] = stRes.data.data ?? [];
-      if (opts.length > 0) {
-        setServiceTypes(opts.filter(o => o.isActive).map(o => ({ value: o.value, label: o.label })));
-      }
-      setPnlCenters(pnlRes.data.data ?? []);
-    }).catch(() => {});
+    api.get('/dropdown-options/service_type')
+      .then(res => {
+        const opts: DropdownOption[] = res.data.data ?? [];
+        if (opts.length > 0) {
+          setServiceTypes(opts.filter(o => o.isActive).map(o => ({ value: o.value, label: o.label })));
+        }
+      })
+      .catch(() => {});
+    api.get('/pnl-centers')
+      .then(res => setPnlCenters(res.data.data ?? []))
+      .catch(() => {});
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
