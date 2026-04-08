@@ -2,10 +2,16 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { User, Mail, Loader2, Check, Key, Crown } from 'lucide-react';
+import { User, Mail, Loader2, Check, Key, Crown, Globe } from 'lucide-react';
 import { useAuthStore } from '../../../stores/authStore';
 import { api, getErrorMessage } from '../../../services/api';
 import { formatDate } from '../../../utils/formatters';
+import {
+  SUPPORTED_CURRENCIES,
+  SupportedCurrency,
+  getPreferredCurrency,
+  setPreferredCurrency,
+} from '../../../services/currencyService';
 
 const profileSchema = z.object({
   firstName: z.string().min(1, 'First name is required').max(100),
@@ -32,6 +38,13 @@ const passwordSchema = z
 type ProfileFormData = z.infer<typeof profileSchema>;
 type PasswordFormData = z.infer<typeof passwordSchema>;
 
+const CURRENCY_LABELS: Record<SupportedCurrency, string> = {
+  ILS: 'ILS — Israeli Shekel (₪)',
+  USD: 'USD — US Dollar ($)',
+  EUR: 'EUR — Euro (€)',
+  GBP: 'GBP — British Pound (£)',
+};
+
 export default function ProfileSettings() {
   const { user, fetchUser } = useAuthStore();
   const [isUpdating, setIsUpdating] = useState(false);
@@ -39,6 +52,15 @@ export default function ProfileSettings() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [showPasswordForm, setShowPasswordForm] = useState(false);
+  const [displayCurrency, setDisplayCurrency] = useState<SupportedCurrency>(getPreferredCurrency);
+  const [currencySaved, setCurrencySaved] = useState(false);
+
+  const handleCurrencyChange = (currency: SupportedCurrency) => {
+    setPreferredCurrency(currency);
+    setDisplayCurrency(currency);
+    setCurrencySaved(true);
+    setTimeout(() => setCurrencySaved(false), 2000);
+  };
 
   const profileForm = useForm<ProfileFormData>({
     resolver: zodResolver(profileSchema),
@@ -374,6 +396,44 @@ export default function ProfileSettings() {
               </dd>
             </div>
           </dl>
+        </div>
+      </div>
+
+      {/* Display Preferences */}
+      <div className="card">
+        <div className="card-header">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+            <Globe className="w-5 h-5" />
+            Display Preferences
+          </h2>
+        </div>
+        <div className="card-body">
+          <div className="flex items-center justify-between">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                Default Currency
+              </label>
+              <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                Used for combined totals on Dashboard, Expenses, and Income pages. Amounts in other currencies are converted at live rates.
+              </p>
+            </div>
+            <div className="flex items-center gap-3 ml-6 shrink-0">
+              <select
+                value={displayCurrency}
+                onChange={e => handleCurrencyChange(e.target.value as SupportedCurrency)}
+                className="input w-56"
+              >
+                {SUPPORTED_CURRENCIES.map(c => (
+                  <option key={c} value={c}>{CURRENCY_LABELS[c]}</option>
+                ))}
+              </select>
+              {currencySaved && (
+                <span className="flex items-center gap-1 text-sm text-success-600">
+                  <Check className="w-4 h-4" /> Saved
+                </span>
+              )}
+            </div>
+          </div>
         </div>
       </div>
     </div>

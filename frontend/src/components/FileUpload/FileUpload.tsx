@@ -13,22 +13,21 @@ const API_URL = import.meta.env.VITE_API_URL || '/api';
 export function resolveFileUrl(url: string): string {
   if (!url) return url;
 
-  // Old GCS direct URLs — convert to backend proxy
+  // GCS public URLs → backend proxy (avoids CORS + auth issues)
   if (url.startsWith('https://storage.googleapis.com/')) {
-    // Extract path after the bucket name: uploads/userId/fileId.ext
     const match = url.match(/storage\.googleapis\.com\/[^/]+\/(.+)$/);
     if (match) {
       const filePath = match[1];
-      // Get auth token for the request
       const baseUrl = API_URL.replace(/\/api\/?$/, '');
-      return `${baseUrl}/api/uploads/file/${filePath}`;
+      return `${baseUrl}/api/uploads/proxy?path=${encodeURIComponent(filePath)}`;
     }
   }
 
-  // New relative proxy URLs — prepend the API base
+  // Legacy /api/uploads/file/ URLs (old format) → proxy
   if (url.startsWith('/api/uploads/file/')) {
+    const filePath = url.replace('/api/uploads/file/', '');
     const baseUrl = API_URL.replace(/\/api\/?$/, '');
-    return `${baseUrl}${url}`;
+    return `${baseUrl}/api/uploads/proxy?path=${encodeURIComponent(filePath)}`;
   }
 
   return url;

@@ -135,6 +135,7 @@ export default function Dashboard() {
   const [error, setError] = useState<string | null>(null);
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
   const [displayCurrency, setDisplayCurrency] = useState<SupportedCurrency>(getPreferredCurrency);
+  const [txTypeFilter, setTxTypeFilter] = useState<'all' | 'income' | 'expense'>('all');
   const [convertedSummary, setConvertedSummary] = useState<{
     income: number; expenses: number; net: number; pending: number;
   } | null>(null);
@@ -300,13 +301,15 @@ export default function Dashboard() {
   }, [rawIncome, rawExpenses, startDate, endDate]);
 
   const filteredTransactions = useMemo(() => {
-    if (!search.trim()) return transactions;
+    let result = transactions;
+    if (txTypeFilter !== 'all') result = result.filter(t => t.type === txTypeFilter);
+    if (!search.trim()) return result;
     const q = search.toLowerCase();
-    return transactions.filter(t =>
+    return result.filter(t =>
       t.description.toLowerCase().includes(q) ||
       t.category.toLowerCase().includes(q)
     );
-  }, [transactions, search]);
+  }, [transactions, search, txTypeFilter]);
 
   if (loading) {
     return (
@@ -408,16 +411,39 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Recent Transactions */}
         <div className="lg:col-span-5 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
-          <div className="px-5 py-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between gap-3">
+          <div className="px-5 py-4 border-b border-gray-200 dark:border-gray-700 flex flex-wrap items-center justify-between gap-3">
             <h3 className="text-base font-semibold text-gray-800 dark:text-white shrink-0">Recent Transactions</h3>
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
-              <input
-                className="input pl-9 h-9 text-sm w-44"
-                placeholder="Search..."
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-              />
+            <div className="flex items-center gap-2">
+              {/* Type filter */}
+              <div className="flex rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700 text-xs font-medium">
+                {(['all', 'income', 'expense'] as const).map(type => (
+                  <button
+                    key={type}
+                    onClick={() => setTxTypeFilter(type)}
+                    className={`px-2.5 py-1.5 capitalize transition-colors ${
+                      txTypeFilter === type
+                        ? type === 'income'
+                          ? 'bg-success-600 text-white'
+                          : type === 'expense'
+                          ? 'bg-danger-600 text-white'
+                          : 'bg-primary-600 text-white'
+                        : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'
+                    }`}
+                  >
+                    {type}
+                  </button>
+                ))}
+              </div>
+              {/* Search */}
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                <input
+                  className="input pl-9 h-9 text-sm w-36"
+                  placeholder="Search..."
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                />
+              </div>
             </div>
           </div>
           <div className="overflow-x-auto">
