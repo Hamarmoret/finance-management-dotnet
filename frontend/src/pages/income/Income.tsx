@@ -7,7 +7,7 @@ import { IncomeTable } from './components/IncomeTable';
 import { PeriodSelector, getPeriodLabel } from '../../components/PeriodSelector';
 import ContractsList from './components/ContractsList';
 import ClientsIncomeView from './components/ClientsIncomeView';
-import { formatCurrency } from '../../utils/formatters';
+import { CurrencyTotals } from '../../components/CurrencyTotals';
 
 type IncomeTab = 'contracts' | 'by-client' | 'transactions';
 
@@ -349,17 +349,16 @@ export default function Income() {
       )}
 
       {/* Stats Bar */}
-      <div className="panel p-4 flex flex-wrap gap-6">
+      <div className="panel p-4 flex flex-wrap gap-6 items-start">
         <div>
           <p className="text-sm text-gray-500 dark:text-gray-400">Total Records</p>
           <p className="text-xl font-bold text-gray-900 dark:text-white">{total}</p>
         </div>
-        {Object.entries(totalsByCurrency).map(([cur, amt]) => (
-          <div key={cur}>
-            <p className="text-sm text-gray-500 dark:text-gray-400">Page Total ({cur})</p>
-            <p className="text-xl font-bold text-green-600">{formatCurrency(amt, cur)}</p>
-          </div>
-        ))}
+        <CurrencyTotals
+          totals={totalsByCurrency}
+          label="Page Total"
+          amountClassName="text-xl font-bold text-green-600"
+        />
       </div>
 
       {/* Search and Filters */}

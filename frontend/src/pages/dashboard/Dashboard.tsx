@@ -19,6 +19,13 @@ import { Link } from 'react-router-dom';
 import { formatCurrency, formatDate, formatDateShort } from '../../utils/formatters';
 import { PeriodSelector, getPeriodLabel } from '../../components/PeriodSelector';
 import {
+  SUPPORTED_CURRENCIES,
+  SupportedCurrency,
+  getPreferredCurrency,
+  setPreferredCurrency,
+  convertTotals,
+} from '../../services/currencyService';
+import {
   LineChart,
   Line,
   XAxis,
@@ -119,7 +126,6 @@ export default function Dashboard() {
   const [rawIncome, setRawIncome] = useState<RawIncome[]>([]);
   const [rawExpenses, setRawExpenses] = useState<RawExpense[]>([]);
   const [startDate, setStartDate] = useState(() => {
-    // Default to last 6 months
     const now = new Date();
     return new Date(now.getFullYear(), now.getMonth() - 5, 1).toISOString().split('T')[0];
   });
@@ -128,6 +134,10 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
+  const [displayCurrency, setDisplayCurrency] = useState<SupportedCurrency>(getPreferredCurrency);
+  const [convertedSummary, setConvertedSummary] = useState<{
+    income: number; expenses: number; net: number; pending: number;
+  } | null>(null);
 
   useEffect(() => {
     const fetchDashboardData = async () => {
@@ -183,6 +193,33 @@ export default function Dashboard() {
       profitChange: pctChange(curIncome - curExpenses, prevIncome - prevExpenses),
     };
   }, [rawIncome, rawExpenses, startDate, endDate]);
+
+  // Convert summary totals to the selected display currency using live exchange rates
+  useEffect(() => {
+    if (!summaryData) { setConvertedSummary(null); return; }
+    const cutoff = parseCutoff(startDate);
+    const cutoffEnd = parseCutoff(endDate);
+
+    const incomeByCurrency = rawIncome
+      .filter(i => { const d = new Date(i.incomeDate); return (!cutoff || d >= cutoff) && (!cutoffEnd || d <= cutoffEnd); })
+      .reduce((acc, i) => { acc[i.currency ?? 'ILS'] = (acc[i.currency ?? 'ILS'] ?? 0) + i.amount; return acc; }, {} as Record<string, number>);
+
+    const expensesByCurrency = rawExpenses
+      .filter(e => { const d = new Date(e.expenseDate); return (!cutoff || d >= cutoff) && (!cutoffEnd || d <= cutoffEnd); })
+      .reduce((acc, e) => { acc[e.currency ?? 'ILS'] = (acc[e.currency ?? 'ILS'] ?? 0) + e.amount; return acc; }, {} as Record<string, number>);
+
+    const pendingByCurrency = rawIncome
+      .filter(i => i.invoiceStatus === 'sent' || i.invoiceStatus === 'draft')
+      .reduce((acc, i) => { acc[i.currency ?? 'ILS'] = (acc[i.currency ?? 'ILS'] ?? 0) + i.amount; return acc; }, {} as Record<string, number>);
+
+    Promise.all([
+      convertTotals(incomeByCurrency, displayCurrency),
+      convertTotals(expensesByCurrency, displayCurrency),
+      convertTotals(pendingByCurrency, displayCurrency),
+    ]).then(([income, expenses, pending]) => {
+      setConvertedSummary({ income, expenses, net: income - expenses, pending });
+    });
+  }, [summaryData, displayCurrency, rawIncome, rawExpenses, startDate, endDate]);
 
   const chartData = useMemo(() => {
     const cutoff = parseCutoff(startDate);
@@ -288,39 +325,55 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* Header + Period Selector */}
+      {/* Header + Period Selector + Currency */}
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Dashboard</h1>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">{getPeriodLabel(startDate, endDate)}</p>
         </div>
-        <PeriodSelector
-          startDate={startDate}
-          endDate={endDate}
-          onChange={(s, e) => { setStartDate(s); setEndDate(e); }}
-        />
+        <div className="flex items-center gap-3 flex-wrap">
+          <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+            Display in
+            <select
+              value={displayCurrency}
+              onChange={e => {
+                const c = e.target.value as SupportedCurrency;
+                setPreferredCurrency(c);
+                setDisplayCurrency(c);
+              }}
+              className="border border-gray-300 dark:border-gray-600 rounded px-2 py-1 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 text-sm"
+            >
+              {SUPPORTED_CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+          </div>
+          <PeriodSelector
+            startDate={startDate}
+            endDate={endDate}
+            onChange={(s, e) => { setStartDate(s); setEndDate(e); }}
+          />
+        </div>
       </div>
 
       {/* Summary Cards */}
       {summaryData && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <SummaryCard
-            title="Total Income"
-            value={formatCurrency(summaryData.totalIncome)}
+            title={`Total Income (${displayCurrency})`}
+            value={convertedSummary ? formatCurrency(convertedSummary.income, displayCurrency) : '…'}
             change={summaryData.incomeChange}
             positiveIsGood
             icon={<TrendingUp className="w-5 h-5" />}
           />
           <SummaryCard
-            title="Total Expenses"
-            value={formatCurrency(summaryData.totalExpenses)}
+            title={`Total Expenses (${displayCurrency})`}
+            value={convertedSummary ? formatCurrency(convertedSummary.expenses, displayCurrency) : '…'}
             change={summaryData.expensesChange}
             positiveIsGood={false}
             icon={<TrendingDown className="w-5 h-5" />}
           />
           <SummaryCard
-            title="Net Profit"
-            value={formatCurrency(summaryData.netProfit)}
+            title={`Net Profit (${displayCurrency})`}
+            value={convertedSummary ? formatCurrency(convertedSummary.net, displayCurrency) : '…'}
             change={summaryData.profitChange}
             positiveIsGood
             icon={<DollarSign className="w-5 h-5" />}
@@ -331,7 +384,7 @@ export default function Dashboard() {
             </div>
             <div className="p-5">
               <p className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-                {formatCurrency(summaryData.pendingValue)}
+                {convertedSummary ? formatCurrency(convertedSummary.pending, displayCurrency) : '…'}
               </p>
               <p className="text-sm text-gray-500 dark:text-gray-400 flex items-center gap-1.5">
                 <span className="w-2 h-2 rounded-full bg-gray-400 dark:bg-gray-500" />
@@ -412,7 +465,7 @@ export default function Dashboard() {
                       <td className={`px-5 py-3.5 text-right font-semibold whitespace-nowrap ${
                         t.type === 'income' ? 'text-success-600' : 'text-danger-600'
                       }`}>
-                        {t.type === 'income' ? '+' : '-'}{formatCurrency(t.amount)}
+                        {t.type === 'income' ? '+' : '-'}{formatCurrency(t.amount, t.currency ?? displayCurrency)}
                       </td>
                     </tr>
                   ))
@@ -440,13 +493,13 @@ export default function Dashboard() {
                   axisLine={false}
                 />
                 <YAxis
-                  tickFormatter={v => v >= 1000 ? `$${(v / 1000).toFixed(0)}k` : `$${v}`}
+                  tickFormatter={v => formatCurrency(v >= 1000 ? Math.round(v / 1000) * 1000 : v, displayCurrency)}
                   tick={{ fontSize: 11, fill: isDark ? '#9ca3af' : '#64748b' }}
                   tickLine={false}
                   axisLine={false}
                 />
                 <Tooltip
-                  formatter={(value: number) => [formatCurrency(value)]}
+                  formatter={(value: number) => [formatCurrency(value, displayCurrency)]}
                   contentStyle={{
                     borderRadius: '8px',
                     border: `1px solid ${isDark ? '#374151' : '#e2e8f0'}`,

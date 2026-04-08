@@ -121,13 +121,23 @@ public class UploadsService
         var ext = Path.GetExtension(originalName);
         var filePath = $"uploads/{userId}/{fileId}{ext}";
 
-        using var stream = new MemoryStream(buffer);
-        await _storageClient!.UploadObjectAsync(
-            _bucketName,
-            filePath,
-            mimeType,
-            stream,
-            new UploadObjectOptions { PredefinedAcl = PredefinedObjectAcl.Private });
+        try
+        {
+            using var stream = new MemoryStream(buffer);
+            // Do NOT set PredefinedAcl — buckets with Uniform Bucket-Level Access
+            // reject per-object ACL settings and throw a 400 GoogleApiException.
+            await _storageClient!.UploadObjectAsync(_bucketName, filePath, mimeType, stream);
+        }
+        catch (Google.GoogleApiException ex)
+        {
+            _logger.LogError(ex, "GCS upload failed for {FilePath}: {Status}", filePath, ex.HttpStatusCode);
+            throw new AppException($"File upload failed: {ex.Message}", 500, "UPLOAD_ERROR");
+        }
+        catch (Exception ex) when (ex is not AppException)
+        {
+            _logger.LogError(ex, "Unexpected error uploading {FilePath}", filePath);
+            throw new AppException("File upload failed due to a server error", 500, "UPLOAD_ERROR");
+        }
 
         var publicUrl = $"https://storage.googleapis.com/{_bucketName}/{filePath}";
 

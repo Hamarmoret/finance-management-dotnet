@@ -4,8 +4,8 @@ import { api, getErrorMessage } from '../../services/api';
 import type { Expense, ExpenseCategory, PnlCenterWithStats } from '@finance/shared';
 import { ExpenseModal } from './components/ExpenseModal';
 import { ExpenseTable } from './components/ExpenseTable';
-import { formatCurrency } from '../../utils/formatters';
 import { PeriodSelector, getPeriodLabel } from '../../components/PeriodSelector';
+import { CurrencyTotals } from '../../components/CurrencyTotals';
 
 export default function Expenses() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
@@ -292,17 +292,16 @@ export default function Expenses() {
       )}
 
       {/* Stats Bar */}
-      <div className="panel p-4 flex flex-wrap gap-6">
+      <div className="panel p-4 flex flex-wrap gap-6 items-start">
         <div>
           <p className="text-sm text-gray-500 dark:text-gray-400">Total Expenses</p>
           <p className="text-xl font-bold text-gray-900 dark:text-white">{total}</p>
         </div>
-        {Object.entries(totalsByCurrency).map(([cur, amt]) => (
-          <div key={cur}>
-            <p className="text-sm text-gray-500 dark:text-gray-400">Page Total ({cur})</p>
-            <p className="text-xl font-bold text-red-600">{formatCurrency(amt, cur)}</p>
-          </div>
-        ))}
+        <CurrencyTotals
+          totals={totalsByCurrency}
+          label="Page Total"
+          amountClassName="text-xl font-bold text-red-600"
+        />
       </div>
 
       {/* Search and Filters */}
