@@ -18,7 +18,6 @@ public class ContactPersonDto
     [JsonPropertyName("country")] public string? Country { get; set; }
     [JsonPropertyName("isPrimary")] public bool IsPrimary { get; set; }
     [JsonPropertyName("notes")] public string? Notes { get; set; }
-    [JsonPropertyName("pnlCenterId")] public string? PnlCenterId { get; set; }
     [JsonPropertyName("createdAt")] public DateTime CreatedAt { get; set; }
     [JsonPropertyName("updatedAt")] public DateTime UpdatedAt { get; set; }
 }
@@ -33,7 +32,6 @@ public class CreateContactPersonRequest
     [JsonPropertyName("country")] public string? Country { get; set; }
     [JsonPropertyName("isPrimary")] public bool? IsPrimary { get; set; }
     [JsonPropertyName("notes")] public string? Notes { get; set; }
-    [JsonPropertyName("pnlCenterId")] public string? PnlCenterId { get; set; }
 }
 
 public class UpdateContactPersonRequest
@@ -46,7 +44,6 @@ public class UpdateContactPersonRequest
     [JsonPropertyName("country")] public string? Country { get; set; }
     [JsonPropertyName("isPrimary")] public bool? IsPrimary { get; set; }
     [JsonPropertyName("notes")] public string? Notes { get; set; }
-    [JsonPropertyName("pnlCenterId")] public string? PnlCenterId { get; set; }
 }
 
 #endregion
@@ -81,8 +78,8 @@ public class ContactPersonsService
 
         var row = await conn.QuerySingleAsync<ContactPersonEntity>(
             """
-            INSERT INTO contact_persons (client_id, name, email, phone, role, linkedin_url, country, is_primary, notes, pnl_center_id, created_by)
-            VALUES (@ClientId, @Name, @Email, @Phone, @Role, @LinkedinUrl, @Country, @IsPrimary, @Notes, @PnlCenterId, @CreatedBy)
+            INSERT INTO contact_persons (client_id, name, email, phone, role, linkedin_url, country, is_primary, notes, created_by)
+            VALUES (@ClientId, @Name, @Email, @Phone, @Role, @LinkedinUrl, @Country, @IsPrimary, @Notes, @CreatedBy)
             RETURNING *
             """,
             new
@@ -96,7 +93,6 @@ public class ContactPersonsService
                 request.Country,
                 IsPrimary = request.IsPrimary ?? false,
                 request.Notes,
-                PnlCenterId = !string.IsNullOrEmpty(request.PnlCenterId) ? Guid.Parse(request.PnlCenterId) : (Guid?)null,
                 CreatedBy = userId,
             });
 
@@ -120,7 +116,6 @@ public class ContactPersonsService
         if (request.Country != null) { fields.Add("country = @Country"); parameters.Add("Country", request.Country); }
         if (request.IsPrimary.HasValue) { fields.Add("is_primary = @IsPrimary"); parameters.Add("IsPrimary", request.IsPrimary.Value); }
         if (request.Notes != null) { fields.Add("notes = @Notes"); parameters.Add("Notes", request.Notes); }
-        if (request.PnlCenterId != null) { fields.Add("pnl_center_id = @PnlCenterId"); parameters.Add("PnlCenterId", !string.IsNullOrEmpty(request.PnlCenterId) ? Guid.Parse(request.PnlCenterId) : (Guid?)null); }
 
         if (fields.Count == 0)
         {
@@ -156,7 +151,6 @@ public class ContactPersonsService
         Country = e.Country,
         IsPrimary = e.IsPrimary,
         Notes = e.Notes,
-        PnlCenterId = e.PnlCenterId?.ToString(),
         CreatedAt = e.CreatedAt,
         UpdatedAt = e.UpdatedAt,
     };
@@ -173,7 +167,6 @@ public class ContactPersonsService
         public string? Country { get; set; }
         public bool IsPrimary { get; set; }
         public string? Notes { get; set; }
-        public Guid? PnlCenterId { get; set; }
         public Guid? CreatedBy { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime UpdatedAt { get; set; }

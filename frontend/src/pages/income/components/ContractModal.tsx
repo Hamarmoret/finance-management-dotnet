@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { X, Loader2, FileText, Info } from 'lucide-react';
-import type { IncomeContract, ServiceType, DropdownOption, Client } from '@finance/shared';
+import type { IncomeContract, ServiceType, DropdownOption, Client, PnlCenter } from '@finance/shared';
 import { SERVICE_TYPE_LABELS } from '@finance/shared';
 import { api, getErrorMessage } from '../../../services/api';
 import { ClientAutocomplete } from '../../../components/ClientAutocomplete';
@@ -34,9 +34,11 @@ export default function ContractModal({ contract, onClose, onSaved }: ContractMo
   );
   const [vatApplicable, setVatApplicable] = useState(contract?.vatApplicable ?? true);
   const [vatPercentage, setVatPercentage] = useState(contract?.vatPercentage?.toString() ?? '18');
+  const [pnlCenterId, setPnlCenterId] = useState(contract?.pnlCenterId ?? '');
   const [notes, setNotes] = useState(contract?.notes ?? '');
 
   const [clientError, setClientError] = useState('');
+  const [pnlCenters, setPnlCenters] = useState<PnlCenter[]>([]);
   const [showCreateClient, setShowCreateClient] = useState(false);
   const [quickCreateClientName, setQuickCreateClientName] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -47,14 +49,16 @@ export default function ContractModal({ contract, onClose, onSaved }: ContractMo
     Object.entries(SERVICE_TYPE_LABELS).map(([val, label]) => ({ value: val, label }))
   );
   useEffect(() => {
-    api.get('/dropdown-options/service_type')
-      .then(res => {
-        const opts: DropdownOption[] = res.data.data ?? [];
-        if (opts.length > 0) {
-          setServiceTypes(opts.filter(o => o.isActive).map(o => ({ value: o.value, label: o.label })));
-        }
-      })
-      .catch(() => {}); // fallback to hardcoded
+    Promise.all([
+      api.get('/dropdown-options/service_type'),
+      api.get('/pnl-centers'),
+    ]).then(([stRes, pnlRes]) => {
+      const opts: DropdownOption[] = stRes.data.data ?? [];
+      if (opts.length > 0) {
+        setServiceTypes(opts.filter(o => o.isActive).map(o => ({ value: o.value, label: o.label })));
+      }
+      setPnlCenters(pnlRes.data.data ?? []);
+    }).catch(() => {});
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -82,6 +86,7 @@ export default function ContractModal({ contract, onClose, onSaved }: ContractMo
       retainerBillingDay: contractType === 'retainer' && retainerBillingDay ? parseInt(retainerBillingDay) : null,
       vatApplicable,
       vatPercentage: vatApplicable && vatPercentage ? parseFloat(vatPercentage) : null,
+      pnlCenterId: pnlCenterId || null,
       notes: notes || null,
     };
 
@@ -188,6 +193,22 @@ export default function ContractModal({ contract, onClose, onSaved }: ContractMo
                   error={clientError}
                 />
               </div>
+
+              {pnlCenters.length > 0 && (
+                <div>
+                  <label className="label dark:text-gray-300">P&L Center</label>
+                  <select
+                    value={pnlCenterId}
+                    onChange={e => setPnlCenterId(e.target.value)}
+                    className="input mt-1 w-full dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                  >
+                    <option value="">— No P&L Center —</option>
+                    {pnlCenters.map(p => (
+                      <option key={p.id} value={p.id}>{p.name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
               <div className="grid grid-cols-2 gap-4">
                 <div>

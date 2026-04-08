@@ -78,7 +78,6 @@ public class MigrationRunner
         ("020c_expenses_vendor_id", Sql020cExpensesVendorId),
         ("020d_backfill_vendors", Sql020dBackfillVendors),
         ("020e_backfill_vendor_ids", Sql020eBackfillVendorIds),
-        ("021_contact_persons_pnl_center", Sql021ContactPersonsPnlCenter),
     ];
 
     #region SQL Migrations
@@ -855,9 +854,6 @@ public class MigrationRunner
           AND e.vendor IS NOT NULL
           AND LOWER(TRIM(e.vendor)) = LOWER(TRIM(v.name))
         """;
-
-    private const string Sql021ContactPersonsPnlCenter =
-        "ALTER TABLE contact_persons ADD COLUMN IF NOT EXISTS pnl_center_id UUID REFERENCES pnl_centers(id) ON DELETE SET NULL";
 
     #endregion
 }
