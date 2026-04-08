@@ -84,6 +84,18 @@ export function ExpenseModal({
     setAllocations(newAllocations);
   }
 
+  function applyEqualSplit() {
+    if (pnlCenters.length === 0) return;
+    const base = Math.floor(10000 / pnlCenters.length) / 100;
+    const remainder = Math.round((100 - base * (pnlCenters.length - 1)) * 100) / 100;
+    setAllocations(
+      pnlCenters.map((c, i) => ({
+        pnlCenterId: c.id,
+        percentage: i === pnlCenters.length - 1 ? remainder : base,
+      }))
+    );
+  }
+
   function addAllocation() {
     setAllocations([...allocations, { pnlCenterId: '', percentage: 0 }]);
   }
@@ -340,7 +352,7 @@ export function ExpenseModal({
               ))}
             </div>
 
-            <div className="mt-2 flex items-center gap-4">
+            <div className="mt-2 flex items-center gap-4 flex-wrap">
               <button
                 type="button"
                 onClick={addAllocation}
@@ -349,6 +361,16 @@ export function ExpenseModal({
                 <Plus className="w-4 h-4" />
                 Add allocation
               </button>
+              {pnlCenters.length > 1 && (
+                <button
+                  type="button"
+                  onClick={applyEqualSplit}
+                  className="flex items-center gap-1 text-sm text-blue-600 hover:text-blue-700"
+                  title="Split equally across all P&L centers"
+                >
+                  Split equally
+                </button>
+              )}
               {distributionDefaults.length > 0 && (
                 <button
                   type="button"

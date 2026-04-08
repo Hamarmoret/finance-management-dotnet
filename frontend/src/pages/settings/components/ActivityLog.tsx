@@ -155,6 +155,26 @@ function getActionDetails(log: AuditLog): string {
     parts.push(target);
   }
 
+  if (log.entityType === 'expense' || log.entityType === 'income') {
+    const label = ENTITY_LABELS[log.entityType] || log.entityType;
+    const values = log.newValues;
+    if (values) {
+      const desc = values.description as string | undefined;
+      const amount = values.amount as number | undefined;
+      const currency = values.currency as string | undefined;
+      const counterpart = (values.vendor ?? values.client) as string | undefined;
+      const detail = [
+        desc,
+        amount != null && currency ? `${currency} ${amount}` : undefined,
+        counterpart,
+      ].filter(Boolean).join(' · ');
+      parts.push(detail ? `${label}: ${detail}` : label);
+    } else {
+      parts.push(label);
+    }
+    return parts.join(' - ');
+  }
+
   if (log.entityType && log.entityType !== 'session' && log.entityType !== 'user') {
     parts.push(ENTITY_LABELS[log.entityType] || log.entityType);
   }

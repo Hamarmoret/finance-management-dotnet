@@ -767,6 +767,7 @@ export interface ContactPerson {
   country: string | null;
   isPrimary: boolean;
   notes: string | null;
+  pnlCenterId: string | null;
   createdAt: Date;
   updatedAt: Date;
 }

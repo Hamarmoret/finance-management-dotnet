@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { X, ChevronDown, ChevronUp, UserPlus, Trash2, Star } from 'lucide-react';
 import { api, getErrorMessage } from '../../../services/api';
-import type { Client, ContactPerson } from '@finance/shared';
+import type { Client, ContactPerson, PnlCenter } from '@finance/shared';
 
 interface ClientModalProps {
   client: Client | null;
@@ -51,9 +51,10 @@ export function ClientModal({ client, initialName, onClose, onSaved }: ClientMod
   const [contactsLoading, setContactsLoading] = useState(false);
   const [showContactForm, setShowContactForm] = useState(false);
   const [contactForm, setContactForm] = useState({
-    name: '', email: '', phone: '', role: '', linkedinUrl: '', country: '', isPrimary: false, notes: '',
+    name: '', email: '', phone: '', role: '', linkedinUrl: '', country: '', isPrimary: false, notes: '', pnlCenterId: '',
   });
   const [contactFormLoading, setContactFormLoading] = useState(false);
+  const [pnlCenters, setPnlCenters] = useState<PnlCenter[]>([]);
 
   useEffect(() => {
     if (client?.address || client?.city || client?.country) setShowAddress(true);
@@ -62,12 +63,18 @@ export function ClientModal({ client, initialName, onClose, onSaved }: ClientMod
   useEffect(() => {
     if (isEditing && activeTab === 'contacts' && client) {
       setContactsLoading(true);
-      api.get(`/clients/${client.id}/contacts`)
-        .then((res) => setContacts(res.data.data ?? []))
+      Promise.all([
+        api.get(`/clients/${client.id}/contacts`),
+        pnlCenters.length === 0 ? api.get('/pnl-centers') : Promise.resolve(null),
+      ])
+        .then(([contactsRes, pnlRes]) => {
+          setContacts(contactsRes.data.data ?? []);
+          if (pnlRes) setPnlCenters(pnlRes.data.data ?? []);
+        })
         .catch(() => {})
         .finally(() => setContactsLoading(false));
     }
-  }, [isEditing, activeTab, client]);
+  }, [isEditing, activeTab, client]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const addTag = () => {
     const t = tagInput.trim().toLowerCase();
@@ -134,10 +141,11 @@ export function ClientModal({ client, initialName, onClose, onSaved }: ClientMod
         country: contactForm.country.trim() || null,
         isPrimary: contactForm.isPrimary,
         notes: contactForm.notes.trim() || null,
+        pnlCenterId: contactForm.pnlCenterId || null,
       });
       setContacts([...contacts, res.data.data]);
       setShowContactForm(false);
-      setContactForm({ name: '', email: '', phone: '', role: '', linkedinUrl: '', country: '', isPrimary: false, notes: '' });
+      setContactForm({ name: '', email: '', phone: '', role: '', linkedinUrl: '', country: '', isPrimary: false, notes: '', pnlCenterId: '' });
     } catch {
       // ignore
     } finally {
@@ -365,6 +373,17 @@ export function ClientModal({ client, initialName, onClose, onSaved }: ClientMod
                       <label className="label">Country</label>
                       <input className="input mt-1" value={contactForm.country} onChange={(e) => setContactForm({ ...contactForm, country: e.target.value })} placeholder="Country" />
                     </div>
+                    {pnlCenters.length > 0 && (
+                      <div className="col-span-2 sm:col-span-1">
+                        <label className="label">P&L Center</label>
+                        <select className="input mt-1" value={contactForm.pnlCenterId} onChange={(e) => setContactForm({ ...contactForm, pnlCenterId: e.target.value })}>
+                          <option value="">No P&L Center</option>
+                          {pnlCenters.map((p) => (
+                            <option key={p.id} value={p.id}>{p.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
                     <div className="col-span-2 flex items-center gap-2">
                       <input
                         type="checkbox"

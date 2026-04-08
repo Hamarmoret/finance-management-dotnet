@@ -343,7 +343,8 @@ public class ExpensesService
             }
 
             // Audit log
-            await LogAuditAsync(conn, tx, Guid.Parse(userId), "create", "expense", expenseRow.Id);
+            await LogAuditAsync(conn, tx, Guid.Parse(userId), "create", "expense", expenseRow.Id,
+                new { description = expenseRow.Description, amount = expenseRow.Amount, currency = expenseRow.Currency, vendor = expenseRow.Vendor });
 
             await tx.CommitAsync();
 
@@ -489,7 +490,8 @@ public class ExpensesService
             }
 
             // Audit log
-            await LogAuditAsync(conn, tx, Guid.Parse(userId), "update", "expense", expenseId);
+            await LogAuditAsync(conn, tx, Guid.Parse(userId), "update", "expense", expenseId,
+                new { description = request.Description, amount = request.Amount, currency = request.Currency, vendor = request.Vendor });
 
             await tx.CommitAsync();
 
@@ -518,6 +520,11 @@ public class ExpensesService
 
         var expenseId = Guid.Parse(id);
 
+        // Fetch before delete for audit log
+        var expenseInfo = await conn.QuerySingleOrDefaultAsync<(string Description, decimal Amount, string Currency, string? Vendor)>(
+            "SELECT description, amount, currency, vendor FROM expenses WHERE id = @Id",
+            new { Id = expenseId });
+
         var rowsAffected = await conn.ExecuteAsync(
             "DELETE FROM expenses WHERE id = @Id",
             new { Id = expenseId });
@@ -526,7 +533,8 @@ public class ExpensesService
             throw new AppException("Expense not found", 404, "NOT_FOUND");
 
         // Audit log
-        await LogAuditAsync(conn, null, Guid.Parse(userId), "delete", "expense", expenseId);
+        await LogAuditAsync(conn, null, Guid.Parse(userId), "delete", "expense", expenseId,
+            new { description = expenseInfo.Description, amount = expenseInfo.Amount, currency = expenseInfo.Currency, vendor = expenseInfo.Vendor });
 
         _logger.LogInformation("Expense {ExpenseId} deleted by user {UserId}", id, userId);
     }
@@ -655,14 +663,22 @@ public class ExpensesService
         Guid userId,
         string action,
         string entityType,
-        Guid entityId)
+        Guid entityId,
+        object? details = null)
     {
         await conn.ExecuteAsync(
             """
-            INSERT INTO audit_logs (user_id, action, entity_type, entity_id)
-            VALUES (@UserId, @Action, @EntityType, @EntityId)
+            INSERT INTO audit_logs (user_id, action, entity_type, entity_id, new_values)
+            VALUES (@UserId, @Action, @EntityType, @EntityId, @NewValues::jsonb)
             """,
-            new { UserId = userId, Action = action, EntityType = entityType, EntityId = entityId },
+            new
+            {
+                UserId = userId,
+                Action = action,
+                EntityType = entityType,
+                EntityId = entityId,
+                NewValues = details != null ? System.Text.Json.JsonSerializer.Serialize(details) : null,
+            },
             tx);
     }
 }

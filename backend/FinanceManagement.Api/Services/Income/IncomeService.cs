@@ -719,7 +719,8 @@ public class IncomeService
             }
 
             // Audit log
-            await LogAuditAsync(conn, tx, userId, "create", "income", income.id);
+            await LogAuditAsync(conn, tx, userId, "create", "income", income.id,
+                new { description = income.description, amount = income.amount, currency = income.currency, client = income.client_name });
 
             await tx.CommitAsync();
 
@@ -926,7 +927,8 @@ public class IncomeService
             }
 
             // Audit log
-            await LogAuditAsync(conn, tx, userId, "update", "income", id);
+            await LogAuditAsync(conn, tx, userId, "update", "income", id,
+                new { description = request.Description, amount = request.Amount, currency = request.Currency, client = request.ClientName });
 
             await tx.CommitAsync();
 
@@ -953,12 +955,17 @@ public class IncomeService
         await using var conn = _db.CreateConnection();
         await conn.OpenAsync();
 
-        // Audit log before delete
-        await LogAuditAsync(conn, null, userId, "delete", "income", id);
+        // Fetch before delete for audit log
+        var incomeInfo = await conn.QuerySingleOrDefaultAsync<(string Description, decimal Amount, string Currency, string? ClientName)>(
+            "SELECT description, amount, currency, client_name FROM income WHERE id = @Id",
+            new { Id = id });
 
         var affected = await conn.ExecuteAsync("DELETE FROM income WHERE id = @Id", new { Id = id });
         if (affected == 0)
             throw new AppException("Income not found", 404, "NOT_FOUND");
+
+        await LogAuditAsync(conn, null, userId, "delete", "income", id,
+            new { description = incomeInfo.Description, amount = incomeInfo.Amount, currency = incomeInfo.Currency, client = incomeInfo.ClientName });
 
         _logger.LogInformation("Income {IncomeId} deleted by user {UserId}", id, userId);
     }
@@ -1123,14 +1130,21 @@ public class IncomeService
     }
 
     private static async Task LogAuditAsync(Npgsql.NpgsqlConnection conn, System.Data.Common.DbTransaction? tx,
-        Guid userId, string action, string entityType, Guid entityId)
+        Guid userId, string action, string entityType, Guid entityId, object? details = null)
     {
         await conn.ExecuteAsync(
             """
-            INSERT INTO audit_logs (user_id, action, entity_type, entity_id)
-            VALUES (@UserId, @Action, @EntityType, @EntityId)
+            INSERT INTO audit_logs (user_id, action, entity_type, entity_id, new_values)
+            VALUES (@UserId, @Action, @EntityType, @EntityId, @NewValues::jsonb)
             """,
-            new { UserId = userId, Action = action, EntityType = entityType, EntityId = entityId },
+            new
+            {
+                UserId = userId,
+                Action = action,
+                EntityType = entityType,
+                EntityId = entityId,
+                NewValues = details != null ? System.Text.Json.JsonSerializer.Serialize(details) : null,
+            },
             tx);
     }
 

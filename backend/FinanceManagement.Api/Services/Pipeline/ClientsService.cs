@@ -233,7 +233,17 @@ public class ClientsService
             $"UPDATE clients SET {string.Join(", ", fields)} WHERE id = @Id RETURNING *", parameters);
 
         if (row != null)
+        {
             await LogAuditAsync(conn, userId, "update", "client", id);
+
+            // Propagate name changes to income.client_name for consistency
+            if (request.Name != null)
+            {
+                await conn.ExecuteAsync(
+                    "UPDATE income SET client_name = @Name WHERE client_id = @Id AND client_name IS NOT NULL",
+                    new { Name = request.Name, Id = id });
+            }
+        }
 
         return row == null ? null : MapToDto(row);
     }
