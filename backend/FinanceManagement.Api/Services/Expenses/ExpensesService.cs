@@ -527,26 +527,37 @@ public class ExpensesService
     {
         await using var conn = _db.CreateConnection();
         await conn.OpenAsync();
+        await using var tx = await conn.BeginTransactionAsync();
 
-        var expenseId = Guid.Parse(id);
+        try
+        {
+            var expenseId = Guid.Parse(id);
 
-        // Fetch before delete for audit log
-        var expenseInfo = await conn.QuerySingleOrDefaultAsync<(string Description, decimal Amount, string Currency, string? Vendor)>(
-            "SELECT description, amount, currency, vendor FROM expenses WHERE id = @Id",
-            new { Id = expenseId });
+            // Fetch + delete + audit in a single transaction so the audit log is either
+            // fully committed alongside the delete or both roll back together.
+            var expenseInfo = await conn.QuerySingleOrDefaultAsync<(string Description, decimal Amount, string Currency, string? Vendor)>(
+                "SELECT description, amount, currency, vendor FROM expenses WHERE id = @Id",
+                new { Id = expenseId }, tx);
 
-        var rowsAffected = await conn.ExecuteAsync(
-            "DELETE FROM expenses WHERE id = @Id",
-            new { Id = expenseId });
+            var rowsAffected = await conn.ExecuteAsync(
+                "DELETE FROM expenses WHERE id = @Id",
+                new { Id = expenseId }, tx);
 
-        if (rowsAffected == 0)
-            throw new AppException("Expense not found", 404, "NOT_FOUND");
+            if (rowsAffected == 0)
+                throw new AppException("Expense not found", 404, "NOT_FOUND");
 
-        // Audit log
-        await LogAuditAsync(conn, null, Guid.Parse(userId), "delete", "expense", expenseId,
-            new { description = expenseInfo.Description, amount = expenseInfo.Amount, currency = expenseInfo.Currency, vendor = expenseInfo.Vendor });
+            await LogAuditAsync(conn, tx, Guid.Parse(userId), "delete", "expense", expenseId,
+                new { description = expenseInfo.Description, amount = expenseInfo.Amount, currency = expenseInfo.Currency, vendor = expenseInfo.Vendor });
 
-        _logger.LogInformation("Expense {ExpenseId} deleted by user {UserId}", id, userId);
+            await tx.CommitAsync();
+
+            _logger.LogInformation("Expense {ExpenseId} deleted by user {UserId}", id, userId);
+        }
+        catch
+        {
+            await tx.RollbackAsync();
+            throw;
+        }
     }
 
     // =============================================

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Wallet, Plus, Filter, Search, X, Download, Upload, FileSpreadsheet, ChevronDown, FileText, Users } from 'lucide-react';
 import { api, getErrorMessage } from '../../services/api';
+import { useDataStore } from '../../stores/dataStore';
 import type { Income as IncomeType, IncomeCategory, PnlCenterWithStats } from '@finance/shared';
 import { IncomeModal } from './components/IncomeModal';
 import { IncomeTable } from './components/IncomeTable';
@@ -12,6 +13,7 @@ import { CurrencyTotals } from '../../components/CurrencyTotals';
 type IncomeTab = 'contracts' | 'by-client' | 'transactions';
 
 export default function Income() {
+  const bump = useDataStore((s) => s.bump);
   const [activeTab, setActiveTab] = useState<IncomeTab>('contracts');
   const [incomeList, setIncomeList] = useState<IncomeType[]>([]);
   const [categories, setCategories] = useState<IncomeCategory[]>([]);
@@ -103,6 +105,7 @@ export default function Income() {
     try {
       await api.delete(`/income/${id}`);
       fetchIncome();
+      bump();
     } catch (err) {
       setError(getErrorMessage(err));
     }
@@ -149,6 +152,7 @@ export default function Income() {
   function handleSaved() {
     handleModalClose();
     fetchIncome();
+    bump();
   }
 
   function clearFilters() {

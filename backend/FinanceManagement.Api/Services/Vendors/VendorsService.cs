@@ -167,7 +167,10 @@ public class VendorsService
         return affected > 0;
     }
 
-    // Used by ExpensesService to resolve or auto-create a vendor from name
+    // Used by ExpensesService to resolve or auto-create a vendor from name.
+    // Uses INSERT ... ON CONFLICT ... RETURNING so the entire lookup-or-create is a single
+    // atomic statement — eliminates the TOCTOU race between the old SELECT-then-INSERT pattern.
+    // Requires migration 022 (idx_vendors_name_lower unique index) to be applied first.
     public static async Task<Guid?> GetOrCreateVendorAsync(
         Npgsql.NpgsqlConnection conn,
         Npgsql.NpgsqlTransaction? tx,
@@ -184,14 +187,15 @@ public class VendorsService
             if (exists > 0) return vendorId;
         }
 
-        var existingId = await conn.ExecuteScalarAsync<Guid?>(
-            "SELECT id FROM vendors WHERE LOWER(TRIM(name)) = LOWER(TRIM(@Name)) LIMIT 1",
-            new { Name = vendorName }, tx);
-
-        if (existingId.HasValue) return existingId;
-
+        // Atomic upsert: inserts if not present, otherwise no-op update to enable RETURNING.
+        // ON CONFLICT references idx_vendors_name_lower (LOWER(TRIM(name))).
         return await conn.ExecuteScalarAsync<Guid>(
-            "INSERT INTO vendors (name, payee_type, status, created_by) VALUES (@Name, 'vendor', 'active', @CreatedBy) RETURNING id",
+            """
+            INSERT INTO vendors (name, payee_type, status, created_by)
+            VALUES (@Name, 'vendor', 'active', @CreatedBy)
+            ON CONFLICT (LOWER(TRIM(name))) DO UPDATE SET updated_at = vendors.updated_at
+            RETURNING id
+            """,
             new { Name = vendorName.Trim(), CreatedBy = userId }, tx);
     }
 

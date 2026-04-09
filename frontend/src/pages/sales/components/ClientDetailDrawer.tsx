@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { X, Building2, Mail, Phone, Globe, MapPin, Tag, DollarSign, FileText, TrendingUp, ExternalLink } from 'lucide-react';
 import { api, getErrorMessage } from '../../../services/api';
+import { useDataStore } from '../../../stores/dataStore';
 import type { Client, Income, Proposal, Lead } from '@finance/shared';
 import { formatCurrency } from '../../../utils/formatters';
 import ContractsList from '../../income/components/ContractsList';
@@ -47,6 +48,7 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 export function ClientDetailDrawer({ client, onClose, onEdit }: ClientDetailDrawerProps) {
+  const version = useDataStore((s) => s.version);
   const [activeTab, setActiveTab] = useState<DrawerTab>('overview');
   const [income, setIncome] = useState<Income[]>([]);
   const [proposals, setProposals] = useState<Proposal[]>([]);
@@ -87,7 +89,9 @@ export function ClientDetailDrawer({ client, onClose, onEdit }: ClientDetailDraw
     };
     fetchRelated();
     return () => { controller.abort(); };
-  }, [client.id, displayName]);
+  // version: refetch when any mutation fires bump() so drawer stays in sync
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [client.id, displayName, version]);
 
   const totalIncome = income.reduce((s, i) => s + i.amount, 0);
   const openProposals = proposals.filter((p) => p.status === 'sent' || p.status === 'viewed').length;

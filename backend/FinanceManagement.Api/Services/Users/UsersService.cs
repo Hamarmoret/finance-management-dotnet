@@ -1,3 +1,4 @@
+using System.Data;
 using System.Text.Json.Serialization;
 using Dapper;
 using FinanceManagement.Api.Database;
@@ -212,16 +213,40 @@ public class UsersService
         if (user.Role == role)
             return user.ToDto();
 
-        // Prevent demoting the last admin (owner doesn't count toward admin quorum)
+        // Prevent demoting the last admin — wrap count check + update in a serializable
+        // transaction so two concurrent demotions can't both pass the count guard.
         if (user.Role == "admin" && role != "admin")
         {
-            var adminCount = await conn.ExecuteScalarAsync<int>(
-                "SELECT COUNT(*) FROM users WHERE role = 'admin' AND is_active = true");
-            if (adminCount <= 1)
-                throw new AppException("Cannot demote the last admin user", 400, "BAD_REQUEST");
+            await using var tx = await conn.BeginTransactionAsync(IsolationLevel.Serializable);
+            try
+            {
+                var adminCount = await conn.ExecuteScalarAsync<int>(
+                    "SELECT COUNT(*) FROM users WHERE role = 'admin' AND is_active = true",
+                    transaction: tx);
+                if (adminCount <= 1)
+                    throw new AppException("Cannot demote the last admin user", 400, "BAD_REQUEST");
+
+                var updated = await conn.QuerySingleAsync<UserEntity>(
+                    """
+                    UPDATE users
+                    SET role = @Role, updated_at = NOW()
+                    WHERE id = @Id
+                    RETURNING id, email, first_name, last_name, role, mfa_enabled, is_active,
+                              password_changed_at, created_at, updated_at
+                    """,
+                    new { Role = role, Id = id }, tx);
+
+                await tx.CommitAsync();
+                return updated.ToDto();
+            }
+            catch
+            {
+                await tx.RollbackAsync();
+                throw;
+            }
         }
 
-        var updated = await conn.QuerySingleAsync<UserEntity>(
+        var updatedSimple = await conn.QuerySingleAsync<UserEntity>(
             """
             UPDATE users
             SET role = @Role, updated_at = NOW()
@@ -231,7 +256,7 @@ public class UsersService
             """,
             new { Role = role, Id = id });
 
-        return updated.ToDto();
+        return updatedSimple.ToDto();
     }
 
     public async Task<UserDto> ToggleActiveAsync(Guid id, bool isActive, Guid adminUserId, string requesterRole)
@@ -253,16 +278,39 @@ public class UsersService
         if (user.Role == "owner")
             throw new AppException("Cannot deactivate the account owner", 403, "FORBIDDEN");
 
-        // Prevent deactivating the last admin (owner doesn't count toward admin quorum)
+        // Prevent deactivating the last admin — serializable transaction guards concurrent deactivations.
         if (!isActive && user.Role == "admin")
         {
-            var adminCount = await conn.ExecuteScalarAsync<int>(
-                "SELECT COUNT(*) FROM users WHERE role = 'admin' AND is_active = true");
-            if (adminCount <= 1)
-                throw new AppException("Cannot deactivate the last admin user", 400, "BAD_REQUEST");
+            await using var tx = await conn.BeginTransactionAsync(IsolationLevel.Serializable);
+            try
+            {
+                var adminCount = await conn.ExecuteScalarAsync<int>(
+                    "SELECT COUNT(*) FROM users WHERE role = 'admin' AND is_active = true",
+                    transaction: tx);
+                if (adminCount <= 1)
+                    throw new AppException("Cannot deactivate the last admin user", 400, "BAD_REQUEST");
+
+                var updated = await conn.QuerySingleAsync<UserEntity>(
+                    """
+                    UPDATE users
+                    SET is_active = @IsActive, updated_at = NOW()
+                    WHERE id = @Id
+                    RETURNING id, email, first_name, last_name, role, mfa_enabled, is_active,
+                              password_changed_at, created_at, updated_at
+                    """,
+                    new { IsActive = isActive, Id = id }, tx);
+
+                await tx.CommitAsync();
+                return updated.ToDto();
+            }
+            catch
+            {
+                await tx.RollbackAsync();
+                throw;
+            }
         }
 
-        var updated = await conn.QuerySingleAsync<UserEntity>(
+        var updatedSimple = await conn.QuerySingleAsync<UserEntity>(
             """
             UPDATE users
             SET is_active = @IsActive, updated_at = NOW()
@@ -272,7 +320,7 @@ public class UsersService
             """,
             new { IsActive = isActive, Id = id });
 
-        return updated.ToDto();
+        return updatedSimple.ToDto();
     }
 
     public async Task DeleteAsync(Guid id, Guid adminUserId, string requesterRole)
@@ -298,22 +346,33 @@ public class UsersService
         if (user.Role == "admin" && requesterRole != "owner")
             throw new AppException("Only the account owner can delete admin users", 403, "FORBIDDEN");
 
-        // Prevent deleting the last admin (only matters when owner is deleting admins)
-        if (user.Role == "admin")
+        // Prevent deleting the last admin — serializable transaction guards concurrent deletes.
+        // Wrap all deletes in a transaction to avoid partially-deleted users if any step fails.
+        await using var tx = await conn.BeginTransactionAsync(
+            user.Role == "admin" ? IsolationLevel.Serializable : IsolationLevel.ReadCommitted);
+        try
         {
-            var adminCount = await conn.ExecuteScalarAsync<int>(
-                "SELECT COUNT(*) FROM users WHERE role = 'admin' AND is_active = true");
-            if (adminCount <= 1)
-                throw new AppException("Cannot delete the last admin user", 400, "BAD_REQUEST");
+            if (user.Role == "admin")
+            {
+                var adminCount = await conn.ExecuteScalarAsync<int>(
+                    "SELECT COUNT(*) FROM users WHERE role = 'admin' AND is_active = true",
+                    transaction: tx);
+                if (adminCount <= 1)
+                    throw new AppException("Cannot delete the last admin user", 400, "BAD_REQUEST");
+            }
+
+            await conn.ExecuteAsync("DELETE FROM user_pnl_permissions WHERE user_id = @Id", new { Id = id }, tx);
+            await conn.ExecuteAsync("DELETE FROM sessions WHERE user_id = @Id", new { Id = id }, tx);
+            await conn.ExecuteAsync("DELETE FROM audit_logs WHERE user_id = @Id", new { Id = id }, tx);
+            await conn.ExecuteAsync("DELETE FROM users WHERE id = @Id", new { Id = id }, tx);
+
+            await tx.CommitAsync();
         }
-
-        // Delete related data first (foreign key constraints)
-        await conn.ExecuteAsync("DELETE FROM user_pnl_permissions WHERE user_id = @Id", new { Id = id });
-        await conn.ExecuteAsync("DELETE FROM sessions WHERE user_id = @Id", new { Id = id });
-        await conn.ExecuteAsync("DELETE FROM audit_logs WHERE user_id = @Id", new { Id = id });
-
-        // Delete the user
-        await conn.ExecuteAsync("DELETE FROM users WHERE id = @Id", new { Id = id });
+        catch
+        {
+            await tx.RollbackAsync();
+            throw;
+        }
     }
 
     public async Task<List<PnlPermissionDto>> GetPnlPermissionsAsync(Guid userId)

@@ -67,7 +67,7 @@ export function IncomeModal({
   const [recurringPattern, setRecurringPattern] = useState<RecurringPattern | null>(
     income?.recurringPattern || null
   );
-  const [attachments, setAttachments] = useState<Attachment[]>([]);
+  const [attachments, setAttachments] = useState<Attachment[]>(income?.attachments ?? []);
   const [allocations, setAllocations] = useState<AllocationInput[]>(
     income?.allocations.map((a) => ({
       pnlCenterId: a.pnlCenterId,

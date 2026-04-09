@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Receipt, Plus, Filter, Search, X, Download, Upload, FileSpreadsheet, ChevronDown } from 'lucide-react';
 import { api, getErrorMessage } from '../../services/api';
+import { useDataStore } from '../../stores/dataStore';
 import type { Expense, ExpenseCategory, PnlCenterWithStats } from '@finance/shared';
 import { ExpenseModal } from './components/ExpenseModal';
 import { ExpenseTable } from './components/ExpenseTable';
@@ -8,6 +9,7 @@ import { PeriodSelector, getPeriodLabel } from '../../components/PeriodSelector'
 import { CurrencyTotals } from '../../components/CurrencyTotals';
 
 export default function Expenses() {
+  const bump = useDataStore((s) => s.bump);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [categories, setCategories] = useState<ExpenseCategory[]>([]);
   const [pnlCenters, setPnlCenters] = useState<PnlCenterWithStats[]>([]);
@@ -107,6 +109,7 @@ export default function Expenses() {
     try {
       await api.delete(`/expenses/${id}`);
       fetchExpenses();
+      bump();
     } catch (err) {
       setError(getErrorMessage(err));
     }
@@ -135,6 +138,7 @@ export default function Expenses() {
   function handleSaved() {
     handleModalClose();
     fetchExpenses();
+    bump();
   }
 
   function clearFilters() {

@@ -82,6 +82,8 @@ public class MigrationRunner
         // Existing Argon2-hashed tokens cannot be validated with the new O(1) lookup,
         // so we invalidate them all. Users with pending resets simply request a new link.
         ("021_invalidate_argon2_reset_tokens", Sql021InvalidateArgon2ResetTokens),
+        // Prevents duplicate vendor rows when two requests race to create the same vendor name.
+        ("022_vendor_name_unique_idx", Sql022VendorNameUniqueIdx),
     ];
 
     #region SQL Migrations
@@ -863,6 +865,11 @@ public class MigrationRunner
     // Invalidate anything that looks like an Argon2 hash so the O(1) SHA-256 lookup works.
     private const string Sql021InvalidateArgon2ResetTokens =
         "UPDATE password_reset_tokens SET used_at = NOW() WHERE used_at IS NULL AND token_hash LIKE '$argon2%'";
+
+    // Unique index on normalized vendor name prevents duplicate rows when two concurrent
+    // requests both call GetOrCreateVendorAsync with the same name (was a TOCTOU race).
+    private const string Sql022VendorNameUniqueIdx =
+        "CREATE UNIQUE INDEX IF NOT EXISTS idx_vendors_name_lower ON vendors (LOWER(TRIM(name)))";
 
     #endregion
 }

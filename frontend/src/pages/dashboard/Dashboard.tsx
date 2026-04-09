@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { api, getErrorMessage } from '../../services/api';
+import { useDataStore } from '../../stores/dataStore';
 import type { ReactNode } from 'react';
 import ContractAlertsWidget from './components/ContractAlertsWidget';
 import {
@@ -123,6 +124,7 @@ const INVOICE_STATUS_COLORS: Record<string, string> = {
 
 export default function Dashboard() {
   const isDark = document.documentElement.classList.contains('dark');
+  const version = useDataStore((s) => s.version);
   const [rawIncome, setRawIncome] = useState<RawIncome[]>([]);
   const [rawExpenses, setRawExpenses] = useState<RawExpense[]>([]);
   const [startDate, setStartDate] = useState(() => {
@@ -158,7 +160,9 @@ export default function Dashboard() {
       }
     };
     fetchDashboardData();
-  }, []);
+  // version: refetch whenever any mutation fires bump() — keeps dashboard in sync
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [version]);
 
   const summaryData = useMemo((): SummaryData | null => {
     if (rawIncome.length === 0 && rawExpenses.length === 0) return null;

@@ -9,6 +9,7 @@ using FinanceManagement.Api.Middleware;
 using FinanceManagement.Api.Models;
 using FinanceManagement.Api.Models.Auth;
 using Konscious.Security.Cryptography;
+using Npgsql;
 
 namespace FinanceManagement.Api.Services.Auth;
 
@@ -170,67 +171,76 @@ public class AuthService
 
     public async Task<LoginResponse> RegisterAsync(RegisterRequest request, string? ipAddress, string? userAgent)
     {
-        await using var conn = _db.CreateConnection();
-        await conn.OpenAsync();
-
-        // Check if email exists
-        var exists = await conn.ExecuteScalarAsync<bool>(
-            "SELECT EXISTS(SELECT 1 FROM users WHERE email = @Email)",
-            new { request.Email });
-
-        if (exists)
-            throw new AppException("Email already registered", 409, "EMAIL_EXISTS");
-
         var passwordHash = HashPassword(request.Password);
 
-        var user = await conn.QuerySingleAsync<UserEntity>(
-            """
-            INSERT INTO users (email, password_hash, first_name, last_name, password_changed_at)
-            VALUES (@Email, @PasswordHash, @FirstName, @LastName, CURRENT_TIMESTAMP)
-            RETURNING *
-            """,
-            new { request.Email, PasswordHash = passwordHash, request.FirstName, request.LastName });
+        await using var conn = _db.CreateConnection();
+        await conn.OpenAsync();
+        await using var tx = await conn.BeginTransactionAsync();
 
-        // Check if this is the first user — make them admin
-        var userCount = await conn.ExecuteScalarAsync<int>("SELECT COUNT(*) FROM users");
-        if (userCount == 1)
+        try
         {
-            await conn.ExecuteAsync(
-                "UPDATE users SET role = 'admin' WHERE id = @Id",
-                new { user.Id });
-            user.Role = "admin";
-        }
-
-        // Create session
-        var refreshToken = JwtHelper.GenerateRefreshToken(user.Id, user.Email, user.Role, _settings.Jwt);
-        var refreshTokenHash = HashToken(refreshToken);
-        var deviceInfo = BuildDeviceInfo(userAgent);
-
-        await conn.ExecuteAsync(
-            """
-            INSERT INTO sessions (user_id, refresh_token_hash, device_info, ip_address, user_agent, expires_at)
-            VALUES (@UserId, @TokenHash, @DeviceInfo::jsonb, @IpAddress::inet, @UserAgent, @ExpiresAt)
-            """,
-            new
+            UserEntity user;
+            try
             {
-                UserId = user.Id,
-                TokenHash = refreshTokenHash,
-                DeviceInfo = JsonSerializer.Serialize(deviceInfo),
-                IpAddress = ipAddress,
-                UserAgent = userAgent,
-                ExpiresAt = DateTime.UtcNow.Add(_settings.Jwt.RefreshExpirationTimeSpan),
-            });
+                user = await conn.QuerySingleAsync<UserEntity>(
+                    """
+                    INSERT INTO users (email, password_hash, first_name, last_name, password_changed_at)
+                    VALUES (@Email, @PasswordHash, @FirstName, @LastName, CURRENT_TIMESTAMP)
+                    RETURNING *
+                    """,
+                    new { request.Email, PasswordHash = passwordHash, request.FirstName, request.LastName },
+                    tx);
+            }
+            catch (PostgresException ex) when (ex.SqlState == "23505")
+            {
+                // Unique constraint violation on users.email — no TOCTOU window
+                throw new AppException("Email already registered", 409, "EMAIL_EXISTS");
+            }
 
-        var accessToken = JwtHelper.GenerateAccessToken(user.Id, user.Email, user.Role, _settings.Jwt);
+            // First-user admin promotion — atomic inside the same transaction: COUNT sees
+            // exactly 1 iff this INSERT is the only row committed (no concurrent race).
+            var userCount = await conn.ExecuteScalarAsync<int>(
+                "SELECT COUNT(*) FROM users", transaction: tx);
+            if (userCount == 1)
+            {
+                await conn.ExecuteAsync(
+                    "UPDATE users SET role = 'admin' WHERE id = @Id",
+                    new { user.Id }, tx);
+                user.Role = "admin";
+            }
 
-        // Audit log
-        await LogAuditAsync(conn, user.Id, "login", "user", user.Id, ipAddress, userAgent);
+            // Create session
+            var refreshToken = JwtHelper.GenerateRefreshToken(user.Id, user.Email, user.Role, _settings.Jwt);
+            var refreshTokenHash = HashToken(refreshToken);
+            var deviceInfo = BuildDeviceInfo(userAgent);
 
-        return new LoginResponse
+            await conn.ExecuteAsync(
+                """
+                INSERT INTO sessions (user_id, refresh_token_hash, device_info, ip_address, user_agent, expires_at)
+                VALUES (@UserId, @TokenHash, @DeviceInfo::jsonb, @IpAddress::inet, @UserAgent, @ExpiresAt)
+                """,
+                new
+                {
+                    UserId = user.Id,
+                    TokenHash = refreshTokenHash,
+                    DeviceInfo = JsonSerializer.Serialize(deviceInfo),
+                    IpAddress = ipAddress,
+                    UserAgent = userAgent,
+                    ExpiresAt = DateTime.UtcNow.Add(_settings.Jwt.RefreshExpirationTimeSpan),
+                }, tx);
+
+            await LogAuditAsync(conn, user.Id, "register", "user", user.Id, ipAddress, userAgent, tx);
+
+            await tx.CommitAsync();
+
+            var accessToken = JwtHelper.GenerateAccessToken(user.Id, user.Email, user.Role, _settings.Jwt);
+            return new LoginResponse { User = user.ToDto(), AccessToken = accessToken, RefreshToken = refreshToken };
+        }
+        catch
         {
-            User = user.ToDto(),
-            AccessToken = accessToken,
-        };
+            await tx.RollbackAsync();
+            throw;
+        }
     }
 
     public async Task<LoginResponse> LoginAsync(LoginRequest request, string? ipAddress, string? userAgent)
@@ -271,46 +281,55 @@ public class AuthService
             "UPDATE users SET failed_login_attempts = 0, locked_until = NULL WHERE id = @Id",
             new { user.Id });
 
-        // Enforce max concurrent sessions
-        var sessionCount = await conn.ExecuteScalarAsync<int>(
-            "SELECT COUNT(*) FROM sessions WHERE user_id = @UserId AND expires_at > CURRENT_TIMESTAMP",
-            new { UserId = user.Id });
-
-        if (sessionCount >= _settings.Session.MaxConcurrent)
-        {
-            // Delete oldest session
-            await conn.ExecuteAsync(
-                """
-                DELETE FROM sessions WHERE id = (
-                  SELECT id FROM sessions WHERE user_id = @UserId ORDER BY created_at ASC LIMIT 1
-                )
-                """,
-                new { UserId = user.Id });
-        }
-
-        // Create session
+        // Wrap session management in a transaction to prevent concurrent logins
+        // from both seeing COUNT < max and both inserting, exceeding MaxConcurrent.
         var refreshToken = JwtHelper.GenerateRefreshToken(user.Id, user.Email, user.Role, _settings.Jwt);
         var refreshTokenHash = HashToken(refreshToken);
         var deviceInfo = BuildDeviceInfo(userAgent);
 
-        await conn.ExecuteAsync(
-            """
-            INSERT INTO sessions (user_id, refresh_token_hash, device_info, ip_address, user_agent, expires_at)
-            VALUES (@UserId, @TokenHash, @DeviceInfo::jsonb, @IpAddress::inet, @UserAgent, @ExpiresAt)
-            """,
-            new
+        await using var tx = await conn.BeginTransactionAsync();
+        try
+        {
+            var sessionCount = await conn.ExecuteScalarAsync<int>(
+                "SELECT COUNT(*) FROM sessions WHERE user_id = @UserId AND expires_at > CURRENT_TIMESTAMP",
+                new { UserId = user.Id }, tx);
+
+            if (sessionCount >= _settings.Session.MaxConcurrent)
             {
-                UserId = user.Id,
-                TokenHash = refreshTokenHash,
-                DeviceInfo = JsonSerializer.Serialize(deviceInfo),
-                IpAddress = ipAddress,
-                UserAgent = userAgent,
-                ExpiresAt = DateTime.UtcNow.Add(_settings.Jwt.RefreshExpirationTimeSpan),
-            });
+                await conn.ExecuteAsync(
+                    """
+                    DELETE FROM sessions WHERE id = (
+                      SELECT id FROM sessions WHERE user_id = @UserId ORDER BY created_at ASC LIMIT 1
+                    )
+                    """,
+                    new { UserId = user.Id }, tx);
+            }
+
+            await conn.ExecuteAsync(
+                """
+                INSERT INTO sessions (user_id, refresh_token_hash, device_info, ip_address, user_agent, expires_at)
+                VALUES (@UserId, @TokenHash, @DeviceInfo::jsonb, @IpAddress::inet, @UserAgent, @ExpiresAt)
+                """,
+                new
+                {
+                    UserId = user.Id,
+                    TokenHash = refreshTokenHash,
+                    DeviceInfo = JsonSerializer.Serialize(deviceInfo),
+                    IpAddress = ipAddress,
+                    UserAgent = userAgent,
+                    ExpiresAt = DateTime.UtcNow.Add(_settings.Jwt.RefreshExpirationTimeSpan),
+                }, tx);
+
+            await LogAuditAsync(conn, user.Id, "login", "user", user.Id, ipAddress, userAgent, tx);
+            await tx.CommitAsync();
+        }
+        catch
+        {
+            await tx.RollbackAsync();
+            throw;
+        }
 
         var accessToken = JwtHelper.GenerateAccessToken(user.Id, user.Email, user.Role, _settings.Jwt);
-
-        await LogAuditAsync(conn, user.Id, "login", "user", user.Id, ipAddress, userAgent);
 
         return new LoginResponse
         {
@@ -436,14 +455,16 @@ public class AuthService
         return new { userAgent };
     }
 
-    private static async Task LogAuditAsync(Npgsql.NpgsqlConnection conn, Guid userId,
-        string action, string entityType, Guid entityId, string? ipAddress, string? userAgent)
+    private static async Task LogAuditAsync(NpgsqlConnection conn, Guid userId,
+        string action, string entityType, Guid entityId, string? ipAddress, string? userAgent,
+        NpgsqlTransaction? tx = null)
     {
         await conn.ExecuteAsync(
             """
             INSERT INTO audit_logs (user_id, action, entity_type, entity_id, ip_address, user_agent)
             VALUES (@UserId, @Action, @EntityType, @EntityId, @IpAddress::inet, @UserAgent)
             """,
-            new { UserId = userId, Action = action, EntityType = entityType, EntityId = entityId, IpAddress = ipAddress, UserAgent = userAgent });
+            new { UserId = userId, Action = action, EntityType = entityType, EntityId = entityId, IpAddress = ipAddress, UserAgent = userAgent },
+            tx);
     }
 }

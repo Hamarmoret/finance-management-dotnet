@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Plus, Search, Pencil, Trash2, AlertCircle, ChevronLeft, ChevronRight } from 'lucide-react';
 import { api, getErrorMessage } from '../../../services/api';
+import { useDataStore } from '../../../stores/dataStore';
 import type { Lead, LeadStatus } from '@finance/shared';
 import { formatCurrency } from '../../../utils/formatters';
 import { LeadModal } from './LeadModal';
@@ -26,6 +27,7 @@ interface LeadsTabProps {
 }
 
 export default function LeadsTab({ startDate, endDate }: LeadsTabProps) {
+  const bump = useDataStore((s) => s.bump);
   const [leads, setLeads] = useState<Lead[]>([]);
   const [statusCounts, setStatusCounts] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
@@ -91,8 +93,8 @@ export default function LeadsTab({ startDate, endDate }: LeadsTabProps) {
     try {
       await api.delete(`/leads/${id}`);
       setDeleteConfirm(null);
-      fetchLeads();
-      fetchCounts();
+      await Promise.all([fetchLeads(), fetchCounts()]);
+      bump();
     } catch (err) {
       setError(getErrorMessage(err));
     }
