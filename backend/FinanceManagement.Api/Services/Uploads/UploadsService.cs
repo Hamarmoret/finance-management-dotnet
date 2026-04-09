@@ -50,6 +50,11 @@ public class UploadsService
     private readonly StorageClient? _storageClient;
     private readonly ILogger<UploadsService> _logger;
 
+    // Credential is application-global and long-lived — cache it once to avoid
+    // a metadata server round-trip on every upload/download signed-URL request.
+    private static Google.Apis.Auth.OAuth2.GoogleCredential? _cachedCredential;
+    private static readonly SemaphoreSlim _credentialLock = new(1, 1);
+
     private static readonly HashSet<string> AllowedMimeTypes = new(StringComparer.OrdinalIgnoreCase)
     {
         "application/pdf",
@@ -125,7 +130,7 @@ public class UploadsService
         var ext = Path.GetExtension(filename);
         var filePath = $"uploads/{userId}/{fileId}{ext}";
 
-        var credential = await Google.Apis.Auth.OAuth2.GoogleCredential.GetApplicationDefaultAsync();
+        var credential = await GetOrFetchCredentialAsync();
         var urlSigner = UrlSigner.FromCredential(credential);
 
         var signedUrl = await urlSigner.SignAsync(
@@ -196,7 +201,7 @@ public class UploadsService
     {
         EnsureStorageClient();
 
-        var credential = await Google.Apis.Auth.OAuth2.GoogleCredential.GetApplicationDefaultAsync();
+        var credential = await GetOrFetchCredentialAsync();
         var urlSigner = UrlSigner.FromCredential(credential);
 
         return await urlSigner.SignAsync(
@@ -229,6 +234,11 @@ public class UploadsService
         {
             throw new AppException("File not found", 404, "NOT_FOUND");
         }
+        catch (Google.GoogleApiException ex)
+        {
+            _logger.LogError(ex, "GCS error deleting {FilePath}: {Status}", filePath, ex.HttpStatusCode);
+            throw new AppException($"File deletion failed", 502, "STORAGE_ERROR");
+        }
     }
 
     public async Task<List<FileListItemDto>> ListUserFilesAsync(string userId, string? prefix = null)
@@ -260,5 +270,30 @@ public class UploadsService
     {
         if (_storageClient == null)
             throw new AppException("Storage service not available", 503, "SERVICE_UNAVAILABLE");
+    }
+
+    /// <summary>
+    /// Returns the application-default GCS credential, fetching it once and caching it
+    /// for the lifetime of the process.  A 10-second timeout prevents the metadata server
+    /// round-trip from hanging upload requests indefinitely.
+    /// </summary>
+    private static async Task<Google.Apis.Auth.OAuth2.GoogleCredential> GetOrFetchCredentialAsync()
+    {
+        if (_cachedCredential != null) return _cachedCredential;
+
+        await _credentialLock.WaitAsync();
+        try
+        {
+            if (_cachedCredential != null) return _cachedCredential;
+
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            _cachedCredential = await Google.Apis.Auth.OAuth2.GoogleCredential
+                .GetApplicationDefaultAsync(cts.Token);
+            return _cachedCredential;
+        }
+        finally
+        {
+            _credentialLock.Release();
+        }
     }
 }

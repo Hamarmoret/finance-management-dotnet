@@ -1,6 +1,7 @@
 using System.Text.Json.Serialization;
 using Dapper;
 using FinanceManagement.Api.Database;
+using FinanceManagement.Api.Middleware;
 
 namespace FinanceManagement.Api.Services.Analytics;
 
@@ -30,7 +31,8 @@ public class AnalyticsService
         {
             incomeFilter = " AND i.id IN (SELECT income_id FROM income_allocations WHERE pnl_center_id = @PnlCenterId)";
             expenseFilter = " AND e.id IN (SELECT expense_id FROM expense_allocations WHERE pnl_center_id = @PnlCenterId)";
-            p.Add("PnlCenterId", Guid.Parse(pnlCenterId));
+            if (!Guid.TryParse(pnlCenterId, out var pnlGuid)) throw new AppException("Invalid pnlCenterId format", 400, "VALIDATION_ERROR");
+            p.Add("PnlCenterId", pnlGuid);
         }
 
         var curIncome = await conn.ExecuteScalarAsync<decimal>(
@@ -76,7 +78,8 @@ public class AnalyticsService
         {
             incomeFilter = " AND i.id IN (SELECT income_id FROM income_allocations WHERE pnl_center_id = @PnlCenterId)";
             expenseFilter = " AND e.id IN (SELECT expense_id FROM expense_allocations WHERE pnl_center_id = @PnlCenterId)";
-            p.Add("PnlCenterId", Guid.Parse(pnlCenterId));
+            if (!Guid.TryParse(pnlCenterId, out var pnlGuid)) throw new AppException("Invalid pnlCenterId format", 400, "VALIDATION_ERROR");
+            p.Add("PnlCenterId", pnlGuid);
         }
 
         var incomeByMonth = await conn.QueryAsync<dynamic>(

@@ -56,7 +56,7 @@ public class ClientsController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] CreateClientRequest request)
     {
-        var userId = Guid.Parse(HttpContext.GetUserId()!);
+        var userId = HttpContext.GetRequiredUserId();
         var client = await _clientsService.CreateAsync(request, userId);
         return StatusCode(201, ApiResponse<ClientDto>.Ok(client));
     }
@@ -67,7 +67,7 @@ public class ClientsController : ControllerBase
         if (!Guid.TryParse(id, out var guid))
             throw new AppException("Invalid client ID", 400, "VALIDATION_ERROR");
 
-        var userId = Guid.Parse(HttpContext.GetUserId()!);
+        var userId = HttpContext.GetRequiredUserId();
         var client = await _clientsService.UpdateAsync(guid, request, userId);
         if (client == null)
             throw new AppException("Client not found", 404, "NOT_FOUND");
@@ -81,7 +81,7 @@ public class ClientsController : ControllerBase
         if (!Guid.TryParse(id, out var guid))
             throw new AppException("Invalid client ID", 400, "VALIDATION_ERROR");
 
-        var userId = Guid.Parse(HttpContext.GetUserId()!);
+        var userId = HttpContext.GetRequiredUserId();
         var deleted = await _clientsService.DeleteAsync(guid, userId);
         if (!deleted)
             throw new AppException("Client not found", 404, "NOT_FOUND");

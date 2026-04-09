@@ -53,7 +53,7 @@ public class UsersController : ControllerBase
     [HttpGet("{id:guid}")]
     public async Task<IActionResult> GetById(Guid id)
     {
-        var requesterId = Guid.Parse(HttpContext.GetUserId()!);
+        var requesterId = HttpContext.GetRequiredUserId();
         if (id != requesterId)
             RequireAdmin();
 
@@ -69,7 +69,7 @@ public class UsersController : ControllerBase
     public async Task<IActionResult> UpdateRole(Guid id, [FromBody] UpdateRoleRequest request)
     {
         RequireAdmin();
-        var adminUserId = Guid.Parse(HttpContext.GetUserId()!);
+        var adminUserId = HttpContext.GetRequiredUserId();
         var requesterRole = HttpContext.GetUserRole()!;
         var user = await _usersService.UpdateRoleAsync(id, request.Role, adminUserId, requesterRole);
         return Ok(ApiResponse<UserDto>.Ok(user));
@@ -83,7 +83,7 @@ public class UsersController : ControllerBase
     public async Task<IActionResult> ToggleActive(Guid id, [FromBody] ToggleActiveRequest request)
     {
         RequireAdmin();
-        var adminUserId = Guid.Parse(HttpContext.GetUserId()!);
+        var adminUserId = HttpContext.GetRequiredUserId();
         var requesterRole = HttpContext.GetUserRole()!;
         var user = await _usersService.ToggleActiveAsync(id, request.IsActive, adminUserId, requesterRole);
         return Ok(ApiResponse<UserDto>.Ok(user));
@@ -97,7 +97,7 @@ public class UsersController : ControllerBase
     public async Task<IActionResult> Delete(Guid id)
     {
         RequireAdmin();
-        var adminUserId = Guid.Parse(HttpContext.GetUserId()!);
+        var adminUserId = HttpContext.GetRequiredUserId();
         var requesterRole = HttpContext.GetUserRole()!;
         await _usersService.DeleteAsync(id, adminUserId, requesterRole);
         return Ok(ApiResponse<object>.Ok(new { message = "User permanently deleted" }));
@@ -123,7 +123,7 @@ public class UsersController : ControllerBase
     public async Task<IActionResult> SetPnlPermissions(Guid id, [FromBody] SetPnlPermissionsRequest request)
     {
         RequireAdmin();
-        var adminUserId = Guid.Parse(HttpContext.GetUserId()!);
+        var adminUserId = HttpContext.GetRequiredUserId();
         var permissions = await _usersService.SetPnlPermissionsAsync(id, request.Permissions, adminUserId);
         return Ok(ApiResponse<List<PnlPermissionDto>>.Ok(permissions));
     }
@@ -136,7 +136,7 @@ public class UsersController : ControllerBase
     public async Task<IActionResult> InviteUser([FromBody] InviteUserRequest request)
     {
         RequireAdmin();
-        var adminUserId = Guid.Parse(HttpContext.GetUserId()!);
+        var adminUserId = HttpContext.GetRequiredUserId();
         var requesterRole = HttpContext.GetUserRole()!;
         var user = await _usersService.InviteUserAsync(
             request.Email, request.FirstName, request.LastName, request.Role, adminUserId, requesterRole);

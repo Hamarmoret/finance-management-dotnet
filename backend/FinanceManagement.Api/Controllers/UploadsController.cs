@@ -26,7 +26,7 @@ public class UploadsController : ControllerBase
     [HttpPost("signed-url")]
     public async Task<IActionResult> GetSignedUploadUrl([FromBody] SignedUrlRequest request)
     {
-        var userId = HttpContext.GetUserId()!;
+        var userId = HttpContext.GetRequiredUserId().ToString();
         var result = await _uploadsService.GetSignedUploadUrlAsync(request.Filename, request.MimeType, userId);
         return Ok(ApiResponse<SignedUrlResultDto>.Ok(result));
     }
@@ -41,7 +41,7 @@ public class UploadsController : ControllerBase
         if (file == null || file.Length == 0)
             throw new AppException("No file provided", 400, "VALIDATION_ERROR");
 
-        var userId = HttpContext.GetUserId()!;
+        var userId = HttpContext.GetRequiredUserId().ToString();
 
         using var ms = new MemoryStream();
         await file.CopyToAsync(ms);
@@ -67,7 +67,7 @@ public class UploadsController : ControllerBase
         if (files.Count > 10)
             throw new AppException("Maximum 10 files allowed", 400, "VALIDATION_ERROR");
 
-        var userId = HttpContext.GetUserId()!;
+        var userId = HttpContext.GetRequiredUserId().ToString();
         var results = new List<UploadResultDto>();
 
         foreach (var file in files)
@@ -94,7 +94,7 @@ public class UploadsController : ControllerBase
         if (string.IsNullOrEmpty(path))
             throw new AppException("File path is required", 400, "VALIDATION_ERROR");
 
-        var userId = HttpContext.GetUserId()!;
+        var userId = HttpContext.GetRequiredUserId().ToString();
         if (!path.StartsWith($"uploads/{userId}/"))
             throw new AppException("Access denied", 403, "FORBIDDEN");
 
@@ -164,7 +164,7 @@ public class UploadsController : ControllerBase
         if (string.IsNullOrEmpty(path))
             throw new AppException("File path is required", 400, "VALIDATION_ERROR");
 
-        var userId = HttpContext.GetUserId()!;
+        var userId = HttpContext.GetRequiredUserId().ToString();
         if (!path.StartsWith($"uploads/{userId}/"))
             throw new AppException("Access denied", 403, "FORBIDDEN");
 
@@ -180,7 +180,7 @@ public class UploadsController : ControllerBase
     [HttpGet("list")]
     public async Task<IActionResult> ListFiles([FromQuery] string? prefix = null)
     {
-        var userId = HttpContext.GetUserId()!;
+        var userId = HttpContext.GetRequiredUserId().ToString();
         var files = await _uploadsService.ListUserFilesAsync(userId, prefix);
         return Ok(ApiResponse<List<FileListItemDto>>.Ok(files));
     }

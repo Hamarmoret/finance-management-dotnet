@@ -77,7 +77,7 @@ public class AuthController : ControllerBase
     [Authorize]
     public async Task<IActionResult> Logout()
     {
-        var userId = Guid.Parse(HttpContext.GetUserId()!);
+        var userId = HttpContext.GetRequiredUserId();
         await _authService.LogoutAsync(userId, GetIpAddress(), GetUserAgent());
         ClearRefreshTokenCookie();
         return Ok(ApiResponse<object>.Ok(new { message = "Logged out successfully" }));
@@ -87,7 +87,7 @@ public class AuthController : ControllerBase
     [Authorize]
     public async Task<IActionResult> GetMe()
     {
-        var userId = Guid.Parse(HttpContext.GetUserId()!);
+        var userId = HttpContext.GetRequiredUserId();
         var user = await _authService.GetMeAsync(userId);
         return Ok(ApiResponse<UserDto>.Ok(user));
     }
@@ -96,7 +96,7 @@ public class AuthController : ControllerBase
     [Authorize]
     public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordRequest request)
     {
-        var userId = Guid.Parse(HttpContext.GetUserId()!);
+        var userId = HttpContext.GetRequiredUserId();
         await _authService.ChangePasswordAsync(userId, request.CurrentPassword, request.NewPassword,
             GetIpAddress(), GetUserAgent());
         return Ok(ApiResponse<object>.Ok(new { message = "Password changed successfully" }));

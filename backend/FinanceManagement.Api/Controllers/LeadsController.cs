@@ -60,7 +60,7 @@ public class LeadsController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] CreateLeadRequest request)
     {
-        var userId = Guid.Parse(HttpContext.GetUserId()!);
+        var userId = HttpContext.GetRequiredUserId();
         var lead = await _leadsService.CreateAsync(request, userId);
         return StatusCode(201, ApiResponse<LeadDto>.Ok(lead));
     }
@@ -71,7 +71,7 @@ public class LeadsController : ControllerBase
         if (!Guid.TryParse(id, out var guid))
             throw new AppException("Invalid lead ID", 400, "VALIDATION_ERROR");
 
-        var userId = Guid.Parse(HttpContext.GetUserId()!);
+        var userId = HttpContext.GetRequiredUserId();
         var lead = await _leadsService.UpdateAsync(guid, request, userId);
         if (lead == null)
             throw new AppException("Lead not found", 404, "NOT_FOUND");
@@ -85,7 +85,7 @@ public class LeadsController : ControllerBase
         if (!Guid.TryParse(id, out var guid))
             throw new AppException("Invalid lead ID", 400, "VALIDATION_ERROR");
 
-        var userId = Guid.Parse(HttpContext.GetUserId()!);
+        var userId = HttpContext.GetRequiredUserId();
         var deleted = await _leadsService.DeleteAsync(guid, userId);
         if (!deleted)
             throw new AppException("Lead not found", 404, "NOT_FOUND");
@@ -113,7 +113,7 @@ public class LeadsController : ControllerBase
         if (!Guid.TryParse(id, out var guid))
             throw new AppException("Invalid lead ID", 400, "VALIDATION_ERROR");
 
-        var userId = Guid.Parse(HttpContext.GetUserId()!);
+        var userId = HttpContext.GetRequiredUserId();
         var activity = await _leadsService.CreateActivityAsync(guid, request, userId);
         return StatusCode(201, ApiResponse<LeadActivityDto>.Ok(activity));
     }

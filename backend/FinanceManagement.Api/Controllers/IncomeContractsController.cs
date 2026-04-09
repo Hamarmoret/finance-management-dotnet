@@ -88,7 +88,7 @@ public class IncomeContractsController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] CreateContractRequest request)
     {
-        var userId = Guid.Parse(HttpContext.GetUserId()!);
+        var userId = HttpContext.GetRequiredUserId();
         var contract = await _service.CreateAsync(request, userId);
         return StatusCode(201, ApiResponse<IncomeContractDto>.Ok(contract));
     }
@@ -96,7 +96,7 @@ public class IncomeContractsController : ControllerBase
     [HttpPut("{id:guid}")]
     public async Task<IActionResult> Update(Guid id, [FromBody] UpdateContractRequest request)
     {
-        var userId = Guid.Parse(HttpContext.GetUserId()!);
+        var userId = HttpContext.GetRequiredUserId();
         var contract = await _service.UpdateAsync(id, request, userId);
         return Ok(ApiResponse<IncomeContractDto>.Ok(contract));
     }
@@ -104,7 +104,7 @@ public class IncomeContractsController : ControllerBase
     [HttpDelete("{id:guid}")]
     public async Task<IActionResult> Delete(Guid id)
     {
-        var userId = Guid.Parse(HttpContext.GetUserId()!);
+        var userId = HttpContext.GetRequiredUserId();
         await _service.DeleteAsync(id, userId);
         return Ok(ApiResponse<object>.Ok(new { message = "Contract deleted" }));
     }
@@ -112,7 +112,7 @@ public class IncomeContractsController : ControllerBase
     [HttpPost("{id:guid}/duplicate")]
     public async Task<IActionResult> Duplicate(Guid id, [FromBody] DuplicateContractRequest request)
     {
-        var userId = Guid.Parse(HttpContext.GetUserId()!);
+        var userId = HttpContext.GetRequiredUserId();
         var contract = await _service.DuplicateAsync(id, request, userId);
         return StatusCode(201, ApiResponse<IncomeContractDto>.Ok(contract));
     }
@@ -151,7 +151,7 @@ public class IncomeContractsController : ControllerBase
     public async Task<IActionResult> GenerateMilestones(
         Guid id, [FromBody] GenerateRetainerMilestonesRequest request)
     {
-        var userId = Guid.Parse(HttpContext.GetUserId()!);
+        var userId = HttpContext.GetRequiredUserId();
         var milestones = await _service.GenerateRetainerMilestonesAsync(id, request, userId);
         return Ok(ApiResponse<List<IncomeMilestoneDto>>.Ok(milestones));
     }
@@ -160,7 +160,7 @@ public class IncomeContractsController : ControllerBase
     public async Task<IActionResult> MarkMilestonePaid(
         Guid milestoneId, [FromBody] MarkMilestonePaidRequest request)
     {
-        var userId = Guid.Parse(HttpContext.GetUserId()!);
+        var userId = HttpContext.GetRequiredUserId();
         var milestone = await _service.MarkMilestonePaidAsync(milestoneId, request, userId);
         return Ok(ApiResponse<IncomeMilestoneDto>.Ok(milestone));
     }
@@ -170,7 +170,7 @@ public class IncomeContractsController : ControllerBase
     [HttpPost("convert-proposal")]
     public async Task<IActionResult> ConvertProposal([FromBody] ConvertProposalToContractRequest request)
     {
-        var userId = Guid.Parse(HttpContext.GetUserId()!);
+        var userId = HttpContext.GetRequiredUserId();
         var contract = await _service.ConvertProposalAsync(request, userId);
         return StatusCode(201, ApiResponse<IncomeContractDto>.Ok(contract));
     }

@@ -50,7 +50,7 @@ public class PnlCentersController : ControllerBase
     [HttpPut("distribution-defaults")]
     public async Task<IActionResult> SetDistributionDefaults([FromBody] SetDistributionDefaultsRequest request)
     {
-        var userId = Guid.Parse(HttpContext.GetUserId()!);
+        var userId = HttpContext.GetRequiredUserId();
         var defaults = await _pnlCentersService.SetDistributionDefaultsAsync(request.Allocations, userId);
         return Ok(ApiResponse<List<PnlDistributionDefaultDto>>.Ok(defaults));
     }
@@ -73,7 +73,7 @@ public class PnlCentersController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] CreatePnlCenterRequest request)
     {
-        var userId = Guid.Parse(HttpContext.GetUserId()!);
+        var userId = HttpContext.GetRequiredUserId();
         var pnlCenter = await _pnlCentersService.CreateAsync(request.Name, request.Description, userId);
         return StatusCode(201, ApiResponse<PnlCenterDto>.Ok(pnlCenter));
     }
@@ -85,7 +85,7 @@ public class PnlCentersController : ControllerBase
     [HttpPut("{id:guid}")]
     public async Task<IActionResult> Update(Guid id, [FromBody] UpdatePnlCenterRequest request)
     {
-        var userId = Guid.Parse(HttpContext.GetUserId()!);
+        var userId = HttpContext.GetRequiredUserId();
         var pnlCenter = await _pnlCentersService.UpdateAsync(id, request.Name, request.Description, request.IsActive, userId);
         return Ok(ApiResponse<PnlCenterDto>.Ok(pnlCenter));
     }
@@ -97,7 +97,7 @@ public class PnlCentersController : ControllerBase
     [HttpDelete("{id:guid}")]
     public async Task<IActionResult> Delete(Guid id)
     {
-        var userId = Guid.Parse(HttpContext.GetUserId()!);
+        var userId = HttpContext.GetRequiredUserId();
         await _pnlCentersService.DeleteAsync(id, userId);
         return Ok(ApiResponse<object>.Ok(new { message = "P&L Center deleted successfully" }));
     }

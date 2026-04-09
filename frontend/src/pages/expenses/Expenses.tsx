@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Receipt, Plus, Filter, Search, X, Download, Upload, FileSpreadsheet, ChevronDown } from 'lucide-react';
 import { api, getErrorMessage } from '../../services/api';
 import type { Expense, ExpenseCategory, PnlCenterWithStats } from '@finance/shared';
@@ -34,7 +34,15 @@ export default function Expenses() {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
 
+  // Abort controller: cancels in-flight list request when filters change or component unmounts,
+  // preventing a slow response from overwriting state set by a newer (faster) request.
+  const fetchAbortRef = useRef<AbortController | null>(null);
+
   const fetchExpenses = useCallback(async () => {
+    fetchAbortRef.current?.abort();
+    const controller = new AbortController();
+    fetchAbortRef.current = controller;
+
     try {
       setLoading(true);
       const params = new URLSearchParams({
@@ -52,21 +60,23 @@ export default function Expenses() {
         success: boolean;
         data: Expense[];
         pagination: { total: number; totalPages: number };
-      }>(`/expenses?${params}`);
+      }>(`/expenses?${params}`, { signal: controller.signal });
 
       setExpenses(response.data.data);
       setTotal(response.data.pagination.total);
       setTotalPages(response.data.pagination.totalPages);
       setError(null);
     } catch (err) {
+      if ((err as { name?: string }).name === 'CanceledError') return; // aborted — ignore
       setError(getErrorMessage(err));
     } finally {
-      setLoading(false);
+      if (!controller.signal.aborted) setLoading(false);
     }
   }, [page, search, categoryFilter, pnlCenterFilter, startDate, endDate]);
 
   useEffect(() => {
     fetchExpenses();
+    return () => { fetchAbortRef.current?.abort(); };
   }, [fetchExpenses]);
 
   useEffect(() => {

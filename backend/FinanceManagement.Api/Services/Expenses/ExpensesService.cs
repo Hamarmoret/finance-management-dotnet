@@ -101,18 +101,24 @@ public class ExpensesService
 
         if (!string.IsNullOrEmpty(dateFrom))
         {
+            if (!DateTime.TryParse(dateFrom, out var dtFrom))
+                throw new AppException("Invalid dateFrom format", 400, "VALIDATION_ERROR");
             conditions.Add("e.expense_date >= @DateFrom");
-            parameters.Add("DateFrom", DateTime.Parse(dateFrom));
+            parameters.Add("DateFrom", dtFrom);
         }
         if (!string.IsNullOrEmpty(dateTo))
         {
+            if (!DateTime.TryParse(dateTo, out var dtTo))
+                throw new AppException("Invalid dateTo format", 400, "VALIDATION_ERROR");
             conditions.Add("e.expense_date <= @DateTo");
-            parameters.Add("DateTo", DateTime.Parse(dateTo));
+            parameters.Add("DateTo", dtTo);
         }
         if (!string.IsNullOrEmpty(categoryId))
         {
+            if (!Guid.TryParse(categoryId, out var catGuid))
+                throw new AppException("Invalid categoryId format", 400, "VALIDATION_ERROR");
             conditions.Add("e.category_id = @CategoryId");
-            parameters.Add("CategoryId", Guid.Parse(categoryId));
+            parameters.Add("CategoryId", catGuid);
         }
         if (!string.IsNullOrEmpty(vendor))
         {
@@ -300,8 +306,8 @@ public class ExpensesService
                 request.Description,
                 request.Amount,
                 Currency = request.Currency ?? "USD",
-                CategoryId = !string.IsNullOrEmpty(request.CategoryId) ? (Guid?)Guid.Parse(request.CategoryId) : null,
-                ExpenseDate = DateTime.Parse(request.ExpenseDate),
+                CategoryId = !string.IsNullOrEmpty(request.CategoryId) && Guid.TryParse(request.CategoryId, out var catId) ? (Guid?)catId : null,
+                ExpenseDate = DateTime.TryParse(request.ExpenseDate, out var expDate) ? expDate : throw new AppException("Invalid expenseDate format", 400, "VALIDATION_ERROR"),
                 request.IsRecurring,
                 RecurringPattern = request.RecurringPattern != null
                     ? JsonSerializer.Serialize(request.RecurringPattern)
@@ -404,13 +410,17 @@ public class ExpensesService
             }
             if (request.CategoryId != null)
             {
+                if (!Guid.TryParse(request.CategoryId, out var updCatId))
+                    throw new AppException("Invalid categoryId format", 400, "VALIDATION_ERROR");
                 fields.Add("category_id = @CategoryId");
-                parameters.Add("CategoryId", Guid.Parse(request.CategoryId));
+                parameters.Add("CategoryId", updCatId);
             }
             if (request.ExpenseDate != null)
             {
+                if (!DateTime.TryParse(request.ExpenseDate, out var updDate))
+                    throw new AppException("Invalid expenseDate format", 400, "VALIDATION_ERROR");
                 fields.Add("expense_date = @ExpenseDate");
-                parameters.Add("ExpenseDate", DateTime.Parse(request.ExpenseDate));
+                parameters.Add("ExpenseDate", updDate);
             }
             if (request.IsRecurring.HasValue)
             {

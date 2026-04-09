@@ -326,7 +326,7 @@ public class AuthService
             throw new AppException("Invalid refresh token", 401, "INVALID_TOKEN");
 
         var userId = principal.FindFirst("userId")?.Value;
-        if (userId == null)
+        if (string.IsNullOrEmpty(userId) || !Guid.TryParse(userId, out var userGuidFromToken))
             throw new AppException("Invalid refresh token", 401, "INVALID_TOKEN");
 
         await using var conn = _db.CreateConnection();
@@ -344,7 +344,7 @@ public class AuthService
 
         var user = await conn.QuerySingleOrDefaultAsync<UserEntity>(
             "SELECT * FROM users WHERE id = @Id AND is_active = true",
-            new { Id = Guid.Parse(userId) });
+            new { Id = userGuidFromToken });
 
         if (user == null)
             throw new AppException("User not found or deactivated", 401, "USER_NOT_FOUND");

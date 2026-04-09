@@ -102,35 +102,30 @@ export default function BusinessPlan() {
   useEffect(() => {
     if (!selectedPlanId) return;
 
-    // Cancel any in-flight requests
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-    }
-    abortControllerRef.current = new AbortController();
+    // Cancel any in-flight requests from the previous plan selection
+    abortControllerRef.current?.abort();
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+    const { signal } = controller;
 
-    // Reset scenario when plan changes
     setActiveScenarioId(null);
 
     const fetchAllPlanData = async () => {
       setDetailsLoading(true);
       try {
         await Promise.all([
-          fetchPlanDetails(selectedPlanId),
-          fetchPlanWithEngine(selectedPlanId),
-          fetchActualsComparison(selectedPlanId),
+          fetchPlanDetails(selectedPlanId, signal),
+          fetchPlanWithEngine(selectedPlanId, signal),
+          fetchActualsComparison(selectedPlanId, signal),
         ]);
       } finally {
-        setDetailsLoading(false);
+        if (!signal.aborted) setDetailsLoading(false);
       }
     };
 
     fetchAllPlanData();
 
-    return () => {
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-      }
-    };
+    return () => { controller.abort(); };
   }, [selectedPlanId]);
 
   // Set default scenario when engine data loads
@@ -153,30 +148,33 @@ export default function BusinessPlan() {
     }
   };
 
-  const fetchPlanDetails = async (planId: string) => {
+  const fetchPlanDetails = async (planId: string, signal?: AbortSignal) => {
     try {
-      const response = await api.get(`/business-plans/${planId}`);
+      const response = await api.get(`/business-plans/${planId}`, { signal });
       setSelectedPlan(response.data.data ?? null);
     } catch (err) {
+      if ((err as { name?: string }).name === 'CanceledError') return;
       setError(getErrorMessage(err));
     }
   };
 
-  const fetchPlanWithEngine = async (planId: string) => {
+  const fetchPlanWithEngine = async (planId: string, signal?: AbortSignal) => {
     try {
-      const response = await api.get(`/business-plans/${planId}/engine`);
+      const response = await api.get(`/business-plans/${planId}/engine`, { signal });
       setPlanWithEngine(response.data.data ?? null);
     } catch (err) {
+      if ((err as { name?: string }).name === 'CanceledError') return;
       console.error('Failed to fetch plan engine data:', err);
     }
   };
 
-  const fetchActualsComparison = async (planId: string) => {
+  const fetchActualsComparison = async (planId: string, signal?: AbortSignal) => {
     try {
-      const response = await api.get(`/business-plans/${planId}/actuals`);
+      const response = await api.get(`/business-plans/${planId}/actuals`, { signal });
       const data = response.data.data;
       setActualsComparison(Array.isArray(data) ? data : []);
     } catch (err) {
+      if ((err as { name?: string }).name === 'CanceledError') return;
       console.error('Failed to fetch actuals:', err);
     }
   };

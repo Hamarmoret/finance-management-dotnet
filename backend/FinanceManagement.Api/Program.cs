@@ -192,7 +192,11 @@ using (var scope = app.Services.CreateScope())
     }
     catch (Exception ex)
     {
-        Log.Error(ex, "Migration runner failed — app will start but may be in degraded state");
+        // A catastrophic migration failure (e.g. DB unreachable) means every request will fail.
+        // Exit so Cloud Run keeps the previous healthy revision active instead of routing here.
+        Log.Fatal(ex, "Migration runner failed — shutting down to preserve previous revision");
+        await Log.CloseAndFlushAsync();
+        Environment.Exit(1);
     }
 }
 

@@ -71,7 +71,7 @@ public class BusinessPlansController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] CreateBusinessPlanRequest request)
     {
-        var userId = Guid.Parse(HttpContext.GetUserId()!);
+        var userId = HttpContext.GetRequiredUserId();
         var plan = await _businessPlansService.CreateAsync(request, userId);
         return StatusCode(201, ApiResponse<BusinessPlanDto>.Ok(plan));
     }

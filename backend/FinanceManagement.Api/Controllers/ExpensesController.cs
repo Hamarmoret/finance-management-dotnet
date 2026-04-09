@@ -70,7 +70,7 @@ public class ExpensesController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] CreateExpenseRequest request)
     {
-        var userId = HttpContext.GetUserId()!;
+        var userId = HttpContext.GetRequiredUserId().ToString();
         var expense = await _expensesService.CreateAsync(request, userId);
         return StatusCode(201, ApiResponse<ExpenseDto>.Ok(expense));
     }
@@ -81,7 +81,7 @@ public class ExpensesController : ControllerBase
     [HttpPut("{id}")]
     public async Task<IActionResult> Update(string id, [FromBody] UpdateExpenseRequest request)
     {
-        var userId = HttpContext.GetUserId()!;
+        var userId = HttpContext.GetRequiredUserId().ToString();
         var expense = await _expensesService.UpdateAsync(id, request, userId);
         return Ok(ApiResponse<ExpenseDto>.Ok(expense));
     }
@@ -92,7 +92,7 @@ public class ExpensesController : ControllerBase
     [HttpDelete("{id}")]
     public async Task<IActionResult> Delete(string id)
     {
-        var userId = HttpContext.GetUserId()!;
+        var userId = HttpContext.GetRequiredUserId().ToString();
         await _expensesService.DeleteAsync(id, userId);
         return Ok(ApiResponse<object>.Ok(new { message = "Expense deleted successfully" }));
     }

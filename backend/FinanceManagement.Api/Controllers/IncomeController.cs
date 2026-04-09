@@ -81,7 +81,7 @@ public class IncomeController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] CreateIncomeRequest request)
     {
-        var userId = Guid.Parse(HttpContext.GetUserId()!);
+        var userId = HttpContext.GetRequiredUserId();
         var income = await _incomeService.CreateAsync(request, userId);
         return StatusCode(201, ApiResponse<IncomeDto>.Ok(income));
     }
@@ -89,7 +89,7 @@ public class IncomeController : ControllerBase
     [HttpPut("{id:guid}")]
     public async Task<IActionResult> Update(Guid id, [FromBody] UpdateIncomeRequest request)
     {
-        var userId = Guid.Parse(HttpContext.GetUserId()!);
+        var userId = HttpContext.GetRequiredUserId();
         var income = await _incomeService.UpdateAsync(id, request, userId);
         return Ok(ApiResponse<IncomeDto>.Ok(income));
     }
@@ -97,7 +97,7 @@ public class IncomeController : ControllerBase
     [HttpDelete("{id:guid}")]
     public async Task<IActionResult> Delete(Guid id)
     {
-        var userId = Guid.Parse(HttpContext.GetUserId()!);
+        var userId = HttpContext.GetRequiredUserId();
         await _incomeService.DeleteAsync(id, userId);
         return Ok(ApiResponse<object>.Ok(new { message = "Income deleted successfully" }));
     }

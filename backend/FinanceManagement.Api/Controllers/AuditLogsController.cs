@@ -22,7 +22,7 @@ public class AuditLogsController : ControllerBase
         [FromQuery] string? entityType = null,
         [FromQuery] string? dateFrom = null, [FromQuery] string? dateTo = null)
     {
-        var requesterId = HttpContext.GetUserId()!;
+        var requesterId = HttpContext.GetRequiredUserId().ToString();
         var requesterRole = HttpContext.GetUserRole();
         var isAdmin = requesterRole is "admin" or "owner";
 

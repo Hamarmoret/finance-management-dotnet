@@ -17,6 +17,21 @@ public static class AuthExtensions
 
     public static string? GetUserEmail(this HttpContext context) =>
         context.User.FindFirstValue(ClaimTypes.Email);
+
+    /// <summary>
+    /// Returns the authenticated user's ID as a <see cref="Guid"/>.
+    /// Throws <see cref="AppException"/> (401) if the claim is absent or malformed.
+    /// Use on every [Authorize] endpoint instead of <c>Guid.Parse(GetUserId()!)</c>.
+    /// </summary>
+    public static Guid GetRequiredUserId(this HttpContext context)
+    {
+        var raw = context.User.FindFirstValue("userId");
+        if (string.IsNullOrEmpty(raw))
+            throw new AppException("Authentication required", 401, "UNAUTHORIZED");
+        if (!Guid.TryParse(raw, out var guid))
+            throw new AppException("Invalid authentication token", 401, "INVALID_TOKEN");
+        return guid;
+    }
 }
 
 public static class JwtHelper

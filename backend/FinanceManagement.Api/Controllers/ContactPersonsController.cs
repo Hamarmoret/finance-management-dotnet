@@ -33,7 +33,7 @@ public class ContactPersonsController : ControllerBase
         if (!Guid.TryParse(clientId, out var clientGuid))
             throw new AppException("Invalid client ID", 400, "VALIDATION_ERROR");
 
-        var userId = Guid.Parse(HttpContext.GetUserId()!);
+        var userId = HttpContext.GetRequiredUserId();
         var contact = await _contactPersonsService.CreateAsync(clientGuid, request, userId);
         return StatusCode(201, ApiResponse<ContactPersonDto>.Ok(contact));
     }

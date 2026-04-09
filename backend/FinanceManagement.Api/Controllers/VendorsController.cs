@@ -54,7 +54,7 @@ public class VendorsController : ControllerBase
         if (string.IsNullOrWhiteSpace(request.Name))
             throw new AppException("Name is required", 400, "VALIDATION_ERROR");
 
-        var userId = Guid.Parse(HttpContext.GetUserId()!);
+        var userId = HttpContext.GetRequiredUserId();
         var vendor = await _vendorsService.CreateAsync(request, userId);
         return StatusCode(201, ApiResponse<VendorDto>.Ok(vendor));
     }
@@ -65,7 +65,7 @@ public class VendorsController : ControllerBase
         if (!Guid.TryParse(id, out var guid))
             throw new AppException("Invalid vendor ID", 400, "VALIDATION_ERROR");
 
-        var userId = Guid.Parse(HttpContext.GetUserId()!);
+        var userId = HttpContext.GetRequiredUserId();
         var vendor = await _vendorsService.UpdateAsync(guid, request, userId);
         if (vendor == null)
             throw new AppException("Vendor not found", 404, "NOT_FOUND");
@@ -79,7 +79,7 @@ public class VendorsController : ControllerBase
         if (!Guid.TryParse(id, out var guid))
             throw new AppException("Invalid vendor ID", 400, "VALIDATION_ERROR");
 
-        var userId = Guid.Parse(HttpContext.GetUserId()!);
+        var userId = HttpContext.GetRequiredUserId();
         var deleted = await _vendorsService.DeleteAsync(guid, userId);
         if (!deleted)
             throw new AppException("Vendor not found", 404, "NOT_FOUND");

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Wallet, Plus, Filter, Search, X, Download, Upload, FileSpreadsheet, ChevronDown, FileText, Users } from 'lucide-react';
 import { api, getErrorMessage } from '../../services/api';
 import type { Income as IncomeType, IncomeCategory, PnlCenterWithStats } from '@finance/shared';
@@ -39,7 +39,13 @@ export default function Income() {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
 
+  const fetchAbortRef = useRef<AbortController | null>(null);
+
   const fetchIncome = useCallback(async () => {
+    fetchAbortRef.current?.abort();
+    const controller = new AbortController();
+    fetchAbortRef.current = controller;
+
     try {
       setLoading(true);
       const params = new URLSearchParams({
@@ -58,21 +64,23 @@ export default function Income() {
         success: boolean;
         data: IncomeType[];
         pagination: { total: number; totalPages: number };
-      }>(`/income?${params}`);
+      }>(`/income?${params}`, { signal: controller.signal });
 
       setIncomeList(response.data.data);
       setTotal(response.data.pagination.total);
       setTotalPages(response.data.pagination.totalPages);
       setError(null);
     } catch (err) {
+      if ((err as { name?: string }).name === 'CanceledError') return;
       setError(getErrorMessage(err));
     } finally {
-      setLoading(false);
+      if (!controller.signal.aborted) setLoading(false);
     }
   }, [page, search, categoryFilter, pnlCenterFilter, statusFilter, startDate, endDate]);
 
   useEffect(() => {
     fetchIncome();
+    return () => { fetchAbortRef.current?.abort(); };
   }, [fetchIncome]);
 
   useEffect(() => {

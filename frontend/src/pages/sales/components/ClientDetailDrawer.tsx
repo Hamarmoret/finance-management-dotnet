@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { X, Building2, Mail, Phone, Globe, MapPin, Tag, DollarSign, FileText, TrendingUp, ExternalLink } from 'lucide-react';
 import { api, getErrorMessage } from '../../../services/api';
 import type { Client, Income, Proposal, Lead } from '@finance/shared';
@@ -54,31 +54,39 @@ export function ClientDetailDrawer({ client, onClose, onEdit }: ClientDetailDraw
   const [contractCount, setContractCount] = useState(0);
   const [loadingData, setLoadingData] = useState(false);
   const [dataError, setDataError] = useState<string | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
 
   const displayName = client.companyName || client.name;
 
   useEffect(() => {
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+    const { signal } = controller;
+
     const fetchRelated = async () => {
       setLoadingData(true);
       setDataError(null);
       try {
         const [incomeRes, proposalsRes, leadsRes, contractsRes] = await Promise.all([
-          api.get(`/income?clientName=${encodeURIComponent(displayName)}&limit=100`),
-          api.get(`/proposals?clientId=${client.id}&limit=100`),
-          api.get(`/leads?clientId=${client.id}&limit=100`),
-          api.get(`/income-contracts?clientId=${client.id}&limit=1`),
+          api.get(`/income?clientName=${encodeURIComponent(displayName)}&limit=100`, { signal }),
+          api.get(`/proposals?clientId=${client.id}&limit=100`, { signal }),
+          api.get(`/leads?clientId=${client.id}&limit=100`, { signal }),
+          api.get(`/income-contracts?clientId=${client.id}&limit=1`, { signal }),
         ]);
         setIncome(incomeRes.data.data ?? []);
         setProposals(proposalsRes.data.data ?? []);
         setLeads(leadsRes.data.data ?? []);
         setContractCount(contractsRes.data.pagination?.total ?? 0);
       } catch (err) {
+        if ((err as { name?: string }).name === 'CanceledError') return;
         setDataError(getErrorMessage(err));
       } finally {
-        setLoadingData(false);
+        if (!signal.aborted) setLoadingData(false);
       }
     };
     fetchRelated();
+    return () => { controller.abort(); };
   }, [client.id, displayName]);
 
   const totalIncome = income.reduce((s, i) => s + i.amount, 0);

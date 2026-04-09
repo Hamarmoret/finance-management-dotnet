@@ -37,7 +37,7 @@ public class EmailService
                 EnableSsl = true,
             };
 
-            var message = new MailMessage
+            using var message = new MailMessage
             {
                 From = new MailAddress(_gmailUser!, AppName),
                 Subject = subject,
