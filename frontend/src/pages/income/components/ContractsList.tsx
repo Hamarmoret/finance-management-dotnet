@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Plus, Search, Filter, X, FileText, Loader2, TrendingUp, AlertTriangle, Clock } from 'lucide-react';
+import { Plus, Search, Filter, X, FileText, Loader2, TrendingUp, AlertTriangle, Clock, LayoutGrid, LayoutList } from 'lucide-react';
 import type { IncomeContractSummary, IncomeContract, ContractStats } from '@finance/shared';
 import { api, getErrorMessage } from '../../../services/api';
 import { formatCurrency } from '../../../utils/formatters';
@@ -7,6 +7,7 @@ import { PeriodSelector, getPeriodLabel } from '../../../components/PeriodSelect
 import ContractCard from './ContractCard';
 import ContractModal from './ContractModal';
 import ContractDetailView from './ContractDetailView';
+import { SERVICE_TYPE_LABELS } from '@finance/shared';
 
 interface ContractsListProps {
   /** When set, locks the client filter and hides search/filter UI */
@@ -36,6 +37,10 @@ export default function ContractsList({ presetClientId }: ContractsListProps) {
   const [selectedContractId, setSelectedContractId] = useState<string | null>(null);
   const [detailContract, setDetailContract] = useState<IncomeContract | null>(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>(() =>
+    (localStorage.getItem('contractsViewMode') as 'grid' | 'list') ?? 'grid'
+  );
+  const [showOverdueModal, setShowOverdueModal] = useState(false);
 
   const fetchContracts = useCallback(async () => {
     setLoading(true);
@@ -155,6 +160,23 @@ export default function ContractsList({ presetClientId }: ContractsListProps) {
               onChange={(s, e) => { setStartDate(s); setEndDate(e); setPage(1); }}
             />
           )}
+          {/* View toggle */}
+          <div className="flex rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+            <button
+              onClick={() => { setViewMode('grid'); localStorage.setItem('contractsViewMode', 'grid'); }}
+              className={`p-2 transition-colors ${viewMode === 'grid' ? 'bg-primary-600 text-white' : 'text-gray-500 hover:bg-gray-50 dark:hover:bg-gray-700 dark:text-gray-400'}`}
+              title="Grid view"
+            >
+              <LayoutGrid className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => { setViewMode('list'); localStorage.setItem('contractsViewMode', 'list'); }}
+              className={`p-2 transition-colors border-l border-gray-200 dark:border-gray-700 ${viewMode === 'list' ? 'bg-primary-600 text-white' : 'text-gray-500 hover:bg-gray-50 dark:hover:bg-gray-700 dark:text-gray-400'}`}
+              title="List view"
+            >
+              <LayoutList className="w-4 h-4" />
+            </button>
+          </div>
           <button
             onClick={() => { setEditingContract(null); setShowModal(true); }}
             className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
@@ -183,7 +205,11 @@ export default function ContractsList({ presetClientId }: ContractsListProps) {
               {formatCurrency(stats.totalCollected, 'ILS')}
             </p>
           </div>
-          <div className="card p-4">
+          <button
+            onClick={() => stats.overduePayments > 0 && setShowOverdueModal(true)}
+            className={`card p-4 text-left w-full transition-shadow ${stats.overduePayments > 0 ? 'hover:shadow-md cursor-pointer' : 'cursor-default'}`}
+            title={stats.overduePayments > 0 ? 'Click to see overdue details' : undefined}
+          >
             <div className="flex items-center gap-1 mb-1">
               <AlertTriangle className="w-3.5 h-3.5 text-danger-600" />
               <p className="text-xs text-gray-500 dark:text-gray-400">Overdue</p>
@@ -194,7 +220,7 @@ export default function ContractsList({ presetClientId }: ContractsListProps) {
             {stats.overdueAmount > 0 && (
               <p className="text-xs text-danger-500 dark:text-danger-400">{formatCurrency(stats.overdueAmount, 'ILS')}</p>
             )}
-          </div>
+          </button>
           <div className="card p-4">
             <div className="flex items-center gap-1 mb-1">
               <Clock className="w-3.5 h-3.5 text-primary-600" />
@@ -303,15 +329,80 @@ export default function ContractsList({ presetClientId }: ContractsListProps) {
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {contracts.map(c => (
-              <ContractCard
-                key={c.id}
-                contract={c}
-                onClick={() => openDetail(c.id)}
-              />
-            ))}
-          </div>
+          {viewMode === 'grid' ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {contracts.map(c => (
+                <ContractCard key={c.id} contract={c} onClick={() => openDetail(c.id)} />
+              ))}
+            </div>
+          ) : (
+            <div className="card overflow-hidden">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/60 text-xs text-gray-500 dark:text-gray-400">
+                    <th className="text-left font-medium px-4 py-3">Contract</th>
+                    <th className="text-left font-medium px-3 py-3 hidden sm:table-cell">Type</th>
+                    <th className="text-left font-medium px-3 py-3">Status</th>
+                    <th className="text-right font-medium px-3 py-3 hidden md:table-cell">Total Value</th>
+                    <th className="text-right font-medium px-3 py-3 hidden md:table-cell">Collected</th>
+                    <th className="text-left font-medium px-3 py-3 hidden lg:table-cell">Alerts</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+                  {contracts.map(c => {
+                    const pct = c.totalValue > 0 ? Math.min((c.totalPaid / c.totalValue) * 100, 100) : 0;
+                    return (
+                      <tr
+                        key={c.id}
+                        onClick={() => openDetail(c.id)}
+                        className="hover:bg-gray-50 dark:hover:bg-gray-700/40 cursor-pointer transition-colors"
+                      >
+                        <td className="px-4 py-3">
+                          <p className="font-medium text-gray-900 dark:text-white truncate max-w-[200px]">{c.title}</p>
+                          {c.clientName && <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{c.clientName}</p>}
+                          {c.serviceType && <p className="text-xs text-primary-600 dark:text-primary-400">{SERVICE_TYPE_LABELS[c.serviceType] ?? c.serviceType}</p>}
+                        </td>
+                        <td className="px-3 py-3 hidden sm:table-cell">
+                          <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${c.contractType === 'retainer' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' : 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300'}`}>
+                            {c.contractType}
+                          </span>
+                        </td>
+                        <td className="px-3 py-3">
+                          <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${
+                            c.status === 'active' ? 'bg-success-100 text-success-700 dark:bg-success-900/20 dark:text-success-400' :
+                            c.status === 'completed' ? 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300' :
+                            c.status === 'cancelled' ? 'bg-danger-100 text-danger-600 dark:bg-danger-900/20 dark:text-danger-400' :
+                            'bg-warning-100 text-warning-700 dark:bg-warning-900/20 dark:text-warning-400'
+                          }`}>
+                            {c.status.replace('_', ' ')}
+                          </span>
+                        </td>
+                        <td className="px-3 py-3 text-right hidden md:table-cell">
+                          <p className="font-medium text-gray-900 dark:text-white">{formatCurrency(c.totalValue, c.currency)}</p>
+                          <div className="h-1 bg-gray-200 dark:bg-gray-700 rounded-full mt-1 w-20 ml-auto">
+                            <div className={`h-full rounded-full ${pct >= 100 ? 'bg-success-500' : 'bg-primary-500'}`} style={{ width: `${pct}%` }} />
+                          </div>
+                        </td>
+                        <td className="px-3 py-3 text-right hidden md:table-cell">
+                          <p className="text-success-600 dark:text-success-400">{formatCurrency(c.totalPaid, c.currency)}</p>
+                          <p className="text-xs text-gray-400">{pct.toFixed(0)}%</p>
+                        </td>
+                        <td className="px-3 py-3 hidden lg:table-cell">
+                          <div className="flex flex-col gap-0.5 text-xs">
+                            {c.overdueCount > 0 && <span className="text-danger-600 dark:text-danger-400 flex items-center gap-1"><AlertTriangle className="w-3 h-3" />{c.overdueCount} overdue</span>}
+                            {c.upcomingCount > 0 && <span className="text-warning-600 dark:text-warning-500 flex items-center gap-1"><Clock className="w-3 h-3" />{c.upcomingCount} due soon</span>}
+                            {c.overdueCount === 0 && c.upcomingCount === 0 && c.milestoneCount > 0 && (
+                              <span className="text-gray-400">{c.paidCount}/{c.milestoneCount} paid</span>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
 
           {totalPages > 1 && (
             <div className="flex items-center justify-between">
@@ -346,6 +437,91 @@ export default function ContractsList({ presetClientId }: ContractsListProps) {
           onSaved={handleSaved}
         />
       )}
+
+      {showOverdueModal && (
+        <OverdueModal onClose={() => setShowOverdueModal(false)} onOpenContract={id => { setShowOverdueModal(false); openDetail(id); }} />
+      )}
+    </div>
+  );
+}
+
+// ── Overdue milestone details modal ─────────────────────────────────────────
+
+interface OverdueMilestone {
+  milestoneId: string;
+  contractId: string;
+  contractTitle: string;
+  clientName: string | null;
+  description: string;
+  amountDue: number;
+  currency: string;
+  dueDate: string;
+}
+
+function OverdueModal({ onClose, onOpenContract }: { onClose: () => void; onOpenContract: (id: string) => void }) {
+  const [items, setItems] = useState<OverdueMilestone[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    api.get('/income-contracts/alerts/overdue')
+      .then(r => setItems(r.data.data ?? []))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  const totalByCurrency = items.reduce((acc, m) => {
+    acc[m.currency] = (acc[m.currency] ?? 0) + m.amountDue;
+    return acc;
+  }, {} as Record<string, number>);
+
+  return (
+    <div className="fixed inset-0 z-50 overflow-y-auto">
+      <div className="flex min-h-full items-center justify-center p-4">
+        <div className="fixed inset-0 bg-black/50" onClick={onClose} />
+        <div className="relative bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-lg">
+          <div className="flex items-center justify-between p-4 border-b dark:border-gray-700">
+            <div>
+              <h2 className="text-base font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 text-danger-600" />
+                Overdue Payments
+              </h2>
+              {Object.entries(totalByCurrency).map(([c, a]) => (
+                <span key={c} className="text-sm text-danger-600 dark:text-danger-400 font-medium mr-3">
+                  {formatCurrency(a, c)}
+                </span>
+              ))}
+            </div>
+            <button onClick={onClose} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+          <div className="max-h-[60vh] overflow-y-auto divide-y divide-gray-100 dark:divide-gray-700">
+            {loading ? (
+              <div className="flex justify-center py-10"><Loader2 className="w-6 h-6 animate-spin text-gray-400" /></div>
+            ) : items.length === 0 ? (
+              <p className="text-center text-gray-500 dark:text-gray-400 py-10 text-sm">No overdue payments</p>
+            ) : items.map((m, i) => (
+              <button
+                key={i}
+                onClick={() => onOpenContract(m.contractId)}
+                className="w-full text-left px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700/40 transition-colors"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{m.contractTitle}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{m.description}</p>
+                    {m.clientName && <p className="text-xs text-gray-400 dark:text-gray-500">{m.clientName}</p>}
+                  </div>
+                  <div className="text-right shrink-0">
+                    <p className="text-sm font-semibold text-danger-600 dark:text-danger-400">{formatCurrency(m.amountDue, m.currency)}</p>
+                    <p className="text-xs text-gray-400">{m.dueDate}</p>
+                  </div>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

@@ -89,16 +89,16 @@ function AlertPanel({
 }) {
   const colorMap = {
     danger: {
-      border: 'border-danger-200 dark:border-danger-800',
-      bg: 'bg-danger-50 dark:bg-danger-900/10',
-      badge: 'bg-danger-100 text-danger-700 dark:bg-danger-900/30 dark:text-danger-400',
-      row: 'hover:bg-danger-50/50 dark:hover:bg-danger-900/20',
+      border: 'border-red-200 dark:border-red-700',
+      bg: 'bg-red-50 dark:bg-red-900/25',
+      badge: 'bg-red-100 text-red-700 dark:bg-red-800/60 dark:text-red-200',
+      row: 'hover:bg-red-50 dark:hover:bg-red-900/20',
     },
     warning: {
-      border: 'border-warning-200 dark:border-warning-800',
-      bg: 'bg-warning-50 dark:bg-warning-900/10',
-      badge: 'bg-warning-100 text-warning-700 dark:bg-warning-900/30 dark:text-warning-400',
-      row: 'hover:bg-warning-50/50 dark:hover:bg-warning-900/20',
+      border: 'border-amber-200 dark:border-amber-700',
+      bg: 'bg-amber-50 dark:bg-amber-900/25',
+      badge: 'bg-amber-100 text-amber-700 dark:bg-amber-800/60 dark:text-amber-200',
+      row: 'hover:bg-amber-50 dark:hover:bg-amber-900/20',
     },
   }[color];
 
