@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { CheckCircle, Trash2, Loader2, ExternalLink, Paperclip } from 'lucide-react';
+import { CheckCircle, Trash2, Loader2, ExternalLink, Paperclip, Pencil, Check } from 'lucide-react';
 import type { IncomeMilestone, MilestoneStatus, ContractAttachment } from '@finance/shared';
 import DocumentsPanel from './DocumentsPanel';
 import { api, getErrorMessage } from '../../../services/api';
@@ -30,6 +30,7 @@ export default function MilestoneRow({
   onDeleted,
 }: MilestoneRowProps) {
   const [saving, setSaving] = useState<string | null>(null);
+  const [editMode, setEditMode] = useState(false);
   const [showMarkPaid, setShowMarkPaid] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -84,6 +85,7 @@ export default function MilestoneRow({
               <InlineText
                 value={milestone.description}
                 disabled={milestone.status === 'paid'}
+                editMode={editMode}
                 saving={saving === 'description'}
                 onSave={v => saveField('description', v)}
                 className="font-medium text-gray-900 dark:text-white text-sm"
@@ -96,6 +98,7 @@ export default function MilestoneRow({
                 label="Proforma #"
                 value={milestone.proformaInvoiceNumber ?? ''}
                 disabled={milestone.status === 'paid'}
+                editMode={editMode}
                 saving={saving === 'proformaInvoiceNumber'}
                 onSave={v => saveField('proformaInvoiceNumber', v || null)}
               />
@@ -104,6 +107,7 @@ export default function MilestoneRow({
                 type="date"
                 value={milestone.proformaInvoiceDate ?? ''}
                 disabled={milestone.status === 'paid'}
+                editMode={editMode}
                 saving={saving === 'proformaInvoiceDate'}
                 onSave={v => saveField('proformaInvoiceDate', v || null)}
               />
@@ -111,6 +115,7 @@ export default function MilestoneRow({
                 label="Tax Invoice #"
                 value={milestone.taxInvoiceNumber ?? ''}
                 disabled={milestone.status === 'paid'}
+                editMode={editMode}
                 saving={saving === 'taxInvoiceNumber'}
                 onSave={v => saveField('taxInvoiceNumber', v || null)}
               />
@@ -119,6 +124,7 @@ export default function MilestoneRow({
                 type="date"
                 value={milestone.taxInvoiceDate ?? ''}
                 disabled={milestone.status === 'paid'}
+                editMode={editMode}
                 saving={saving === 'taxInvoiceDate'}
                 onSave={v => saveField('taxInvoiceDate', v || null)}
               />
@@ -141,6 +147,7 @@ export default function MilestoneRow({
                 <InlineAmount
                   value={milestone.amountDue}
                   disabled={milestone.status === 'paid'}
+                  editMode={editMode}
                   saving={saving === 'amountDue'}
                   onSave={v => saveField('amountDue', v)}
                   currency={contractCurrency}
@@ -156,6 +163,7 @@ export default function MilestoneRow({
                 type="date"
                 value={milestone.dueDate}
                 disabled={milestone.status === 'paid'}
+                editMode={editMode}
                 saving={saving === 'dueDate'}
                 onSave={v => saveField('dueDate', v)}
                 className="text-xs text-gray-400 dark:text-gray-500"
@@ -175,6 +183,15 @@ export default function MilestoneRow({
                   </span>
                 )}
               </button>
+              {milestone.status !== 'paid' && (
+                <button
+                  onClick={() => setEditMode(v => !v)}
+                  className={`btn btn-ghost btn-sm ${editMode ? 'text-primary-600 dark:text-primary-400 bg-primary-50 dark:bg-primary-900/20' : 'text-gray-400 hover:text-gray-600'}`}
+                  title={editMode ? 'Done editing' : 'Edit milestone'}
+                >
+                  {editMode ? <Check className="w-4 h-4" /> : <Pencil className="w-4 h-4" />}
+                </button>
+              )}
               {milestone.status !== 'paid' && (
                 <button
                   onClick={() => setShowMarkPaid(true)}
@@ -232,12 +249,14 @@ export default function MilestoneRow({
 function InlineText({
   value,
   disabled,
+  editMode,
   saving,
   onSave,
   className = '',
 }: {
   value: string;
   disabled: boolean;
+  editMode: boolean;
   saving: boolean;
   onSave: (v: string) => void;
   className?: string;
@@ -252,7 +271,13 @@ function InlineText({
         disabled={disabled}
         onChange={e => setDraft(e.target.value)}
         onBlur={() => { if (draft !== value) onSave(draft); }}
-        className={`bg-transparent border-0 border-b border-transparent hover:border-gray-300 dark:hover:border-gray-500 focus:border-primary-500 outline-none p-0 ${className} ${disabled ? 'cursor-default' : ''}`}
+        className={`bg-transparent border-0 border-b outline-none p-0 ${className} ${
+          disabled
+            ? 'cursor-default border-transparent'
+            : editMode
+              ? 'border-primary-400 dark:border-primary-500 bg-primary-50/30 dark:bg-primary-900/10 px-1 rounded'
+              : 'border-transparent hover:border-gray-300 dark:hover:border-gray-500 focus:border-primary-500'
+        }`}
       />
       {saving && <Loader2 className="w-3 h-3 animate-spin text-gray-400" />}
     </span>
@@ -264,6 +289,7 @@ function InlineField({
   value,
   type = 'text',
   disabled,
+  editMode,
   saving,
   onSave,
   className = '',
@@ -272,6 +298,7 @@ function InlineField({
   value: string;
   type?: string;
   disabled: boolean;
+  editMode: boolean;
   saving: boolean;
   onSave: (v: string) => void;
   className?: string;
@@ -288,7 +315,13 @@ function InlineField({
           disabled={disabled}
           onChange={e => setDraft(e.target.value)}
           onBlur={() => { if (draft !== value) onSave(draft); }}
-          className={`bg-transparent border-0 border-b border-transparent hover:border-gray-300 dark:hover:border-gray-500 focus:border-primary-500 outline-none p-0 text-xs w-full ${disabled ? 'cursor-default' : ''}`}
+          className={`bg-transparent border-0 border-b outline-none p-0 text-xs w-full ${
+            disabled
+              ? 'cursor-default border-transparent'
+              : editMode
+                ? 'border-primary-400 dark:border-primary-500'
+                : 'border-transparent hover:border-gray-300 dark:hover:border-gray-500 focus:border-primary-500'
+          }`}
         />
         {saving && <Loader2 className="w-3 h-3 animate-spin text-gray-400" />}
       </span>
@@ -299,18 +332,37 @@ function InlineField({
 function InlineAmount({
   value,
   disabled,
+  editMode,
   saving,
   onSave,
   currency,
 }: {
   value: number;
   disabled: boolean;
+  editMode: boolean;
   saving: boolean;
   onSave: (v: number) => void;
   currency: string;
 }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value.toString());
+
+  // In editMode, always show the input
+  if (editMode && !disabled) {
+    return (
+      <input
+        type="number"
+        step="0.01"
+        value={draft}
+        onChange={e => setDraft(e.target.value)}
+        onBlur={() => {
+          const n = parseFloat(draft);
+          if (!isNaN(n) && n !== value) onSave(n);
+        }}
+        className="w-28 text-right text-sm font-semibold border border-primary-400 dark:border-primary-500 rounded px-1 py-0.5 dark:bg-gray-700 dark:text-white"
+      />
+    );
+  }
 
   if (!editing || disabled) {
     return (

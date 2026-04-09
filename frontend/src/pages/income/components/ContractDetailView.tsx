@@ -73,6 +73,20 @@ export default function ContractDetailView({ contract: initialContract, onBack, 
       amount = parseFloat(newAmount);
     }
     if (isNaN(amount) || amount <= 0) { setError('Amount must be greater than 0'); return; }
+
+    // Validate: new milestone must not push allocated total over contract value
+    if (contract.totalValue > 0) {
+      const existingTotal = milestones.reduce((s, m) => s + m.amountDue, 0);
+      const remaining = contract.totalValue - existingTotal;
+      if (amount > remaining) {
+        setError(
+          `Amount exceeds remaining contract value. ` +
+          `Remaining: ${new Intl.NumberFormat('en-US', { style: 'currency', currency: contract.currency, minimumFractionDigits: 0 }).format(remaining)}`
+        );
+        return;
+      }
+    }
+
     setSavingNew(true);
     setError(null);
     try {

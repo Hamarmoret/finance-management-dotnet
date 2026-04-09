@@ -93,7 +93,10 @@ export function ClientDetailDrawer({ client, onClose, onEdit }: ClientDetailDraw
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [client.id, displayName, version]);
 
-  const totalIncome = income.reduce((s, i) => s + i.amount, 0);
+  const totalsByCurrency = income.reduce((acc, i) => {
+    acc[i.currency] = (acc[i.currency] ?? 0) + i.amount;
+    return acc;
+  }, {} as Record<string, number>);
   const openProposals = proposals.filter((p) => p.status === 'sent' || p.status === 'viewed').length;
   const activeLeads = leads.filter((l) => !['won', 'lost'].includes(l.status)).length;
 
@@ -138,7 +141,7 @@ export function ClientDetailDrawer({ client, onClose, onEdit }: ClientDetailDraw
           <div className="grid grid-cols-4 gap-0 border-b border-gray-200 dark:border-gray-700 shrink-0">
             {[
               { label: 'Contracts', value: contractCount.toString(), icon: FileText },
-              { label: 'Total Income', value: formatCurrency(totalIncome), icon: DollarSign },
+              { label: 'Total Income', value: Object.entries(totalsByCurrency).map(([c, a]) => formatCurrency(a, c)).join(' + ') || '—', icon: DollarSign },
               { label: 'Open Proposals', value: openProposals.toString(), icon: FileText },
               { label: 'Active Leads', value: activeLeads.toString(), icon: TrendingUp },
             ].map(({ label, value, icon: Icon }) => (
@@ -281,7 +284,7 @@ export function ClientDetailDrawer({ client, onClose, onEdit }: ClientDetailDraw
                           {i.invoiceStatus ? <StatusBadge status={i.invoiceStatus} /> : <span className="text-gray-400">—</span>}
                         </td>
                         <td className="py-2.5 text-right font-medium text-gray-900 dark:text-white whitespace-nowrap">
-                          {formatCurrency(i.amount)}
+                          {formatCurrency(i.amount, i.currency)}
                         </td>
                       </tr>
                     ))}
@@ -289,7 +292,13 @@ export function ClientDetailDrawer({ client, onClose, onEdit }: ClientDetailDraw
                   <tfoot>
                     <tr className="border-t border-gray-200 dark:border-gray-700">
                       <td colSpan={3} className="pt-2 text-sm font-medium text-gray-500 dark:text-gray-400">Total</td>
-                      <td className="pt-2 text-right font-semibold text-gray-900 dark:text-white">{formatCurrency(totalIncome)}</td>
+                      <td className="pt-2 text-right font-semibold text-gray-900 dark:text-white">
+                        {Object.entries(totalsByCurrency).map(([currency, amount], idx) => (
+                          <span key={currency} className={idx > 0 ? 'block' : ''}>
+                            {formatCurrency(amount, currency)}
+                          </span>
+                        ))}
+                      </td>
                     </tr>
                   </tfoot>
                 </table>

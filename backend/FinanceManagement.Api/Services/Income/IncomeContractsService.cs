@@ -1073,6 +1073,21 @@ public class IncomeContractsService
         if (contract == null)
             throw new AppException("Contract not found", 404, "NOT_FOUND");
 
+        // Validate: sum of existing milestones + new amount must not exceed contract total
+        if (contract.total_value > 0)
+        {
+            var existingTotal = await conn.ExecuteScalarAsync<decimal>(
+                "SELECT COALESCE(SUM(amount_due), 0) FROM income_milestones WHERE contract_id = @ContractId",
+                new { ContractId = contractId });
+
+            if (existingTotal + request.AmountDue > contract.total_value)
+                throw new AppException(
+                    $"Milestone amount exceeds contract value. " +
+                    $"Already allocated: {existingTotal:F2} {contract.currency}, " +
+                    $"contract total: {contract.total_value:F2} {contract.currency}",
+                    400, "MILESTONE_EXCEEDS_CONTRACT");
+        }
+
         var row = await conn.QuerySingleAsync<DbMilestoneRow>(
             """
             INSERT INTO income_milestones (contract_id, description, amount_due, currency, due_date, sort_order, notes)
@@ -1110,7 +1125,28 @@ public class IncomeContractsService
         p.Add("Id", milestoneId);
 
         if (request.Description != null) { sets.Add("description = @Description"); p.Add("Description", request.Description); }
-        if (request.AmountDue != null) { sets.Add("amount_due = @AmountDue"); p.Add("AmountDue", request.AmountDue); }
+        if (request.AmountDue != null)
+        {
+            // Validate: sum of OTHER milestones + new amount must not exceed contract total
+            var contractTotal = await conn.ExecuteScalarAsync<decimal>(
+                "SELECT total_value FROM income_contracts WHERE id = @Id",
+                new { Id = existing.contract_id });
+
+            if (contractTotal > 0)
+            {
+                var otherTotal = await conn.ExecuteScalarAsync<decimal>(
+                    "SELECT COALESCE(SUM(amount_due), 0) FROM income_milestones WHERE contract_id = @ContractId AND id != @MilestoneId",
+                    new { ContractId = existing.contract_id, MilestoneId = milestoneId });
+
+                if (otherTotal + request.AmountDue > contractTotal)
+                    throw new AppException(
+                        $"Milestone amount exceeds contract value. " +
+                        $"Other milestones total: {otherTotal:F2}, contract total: {contractTotal:F2}",
+                        400, "MILESTONE_EXCEEDS_CONTRACT");
+            }
+
+            sets.Add("amount_due = @AmountDue"); p.Add("AmountDue", request.AmountDue);
+        }
         if (request.DueDate != null) { sets.Add("due_date = @DueDate::date"); p.Add("DueDate", request.DueDate); }
         if (request.Status != null && request.Status != "paid") // paid only via mark-paid
         {
