@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
-import { X, Loader2, FileText, Info } from 'lucide-react';
-import type { IncomeContract, ServiceType, DropdownOption, Client, PnlCenter } from '@finance/shared';
+import { X, Loader2, FileText, Info, CheckCircle, Paperclip } from 'lucide-react';
+import type { IncomeContract, ServiceType, DropdownOption, Client, PnlCenter, ContractAttachment } from '@finance/shared';
 import { SERVICE_TYPE_LABELS } from '@finance/shared';
 import { api, getErrorMessage } from '../../../services/api';
 import { ClientAutocomplete } from '../../../components/ClientAutocomplete';
 import { ClientModal } from '../../sales/components/ClientModal';
+import DocumentsPanel from './DocumentsPanel';
 
 interface ContractModalProps {
   contract?: IncomeContract | null;
@@ -43,6 +44,9 @@ export default function ContractModal({ contract, onClose, onSaved }: ContractMo
   const [quickCreateClientName, setQuickCreateClientName] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Post-create file upload step (create mode only)
+  const [createdContract, setCreatedContract] = useState<IncomeContract | null>(null);
+  const [attachments, setAttachments] = useState<ContractAttachment[]>([]);
 
   // Load service types from API (with hardcoded fallback)
   const [serviceTypes, setServiceTypes] = useState<{ value: string; label: string }[]>(
@@ -95,13 +99,63 @@ export default function ContractModal({ contract, onClose, onSaved }: ContractMo
       const res = isEdit
         ? await api.put(`/income-contracts/${contract!.id}`, payload)
         : await api.post('/income-contracts', payload);
-      onSaved(res.data.data);
+      const saved: IncomeContract = res.data.data;
+      if (!isEdit) {
+        // Enter post-create file upload step
+        setCreatedContract(saved);
+      } else {
+        onSaved(saved);
+      }
     } catch (err) {
       setError(getErrorMessage(err));
     } finally {
       setIsSubmitting(false);
     }
   };
+
+  // Post-create: show file upload step before closing
+  if (createdContract) {
+    return (
+      <div className="fixed inset-0 z-50 overflow-y-auto">
+        <div className="flex min-h-full items-center justify-center p-4">
+          <div className="fixed inset-0 bg-black/50" onClick={() => { onSaved(createdContract); }} />
+          <div className="relative bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-lg w-full">
+            <div className="flex items-center justify-between p-4 border-b dark:border-gray-700">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                <Paperclip className="w-5 h-5" />
+                Attach Files to Contract
+              </h2>
+              <button onClick={() => { onSaved(createdContract); }} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-4 space-y-3">
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                Contract <span className="font-medium text-gray-700 dark:text-gray-200">{createdContract.title}</span> created.
+                Attach the approved proposal or any other documents now (optional).
+              </p>
+              <DocumentsPanel
+                attachments={attachments}
+                entityType="contract"
+                entityId={createdContract.id}
+                onAttachmentsChanged={setAttachments}
+                allowedTypes={['contract', 'proposal', 'other']}
+              />
+            </div>
+            <div className="p-4 border-t dark:border-gray-700 flex justify-end">
+              <button
+                onClick={() => { onSaved(createdContract); }}
+                className="btn btn-primary btn-md flex items-center gap-2"
+              >
+                <CheckCircle className="w-4 h-4" />
+                Done
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <>

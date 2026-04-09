@@ -1351,6 +1351,73 @@ public class IncomeContractsService
         return MapMilestone(updated, contract.title, contract.client_name);
     }
 
+    // ── Unmark milestone paid ─────────────────────────────────────────────────
+
+    public async Task<IncomeMilestoneDto> UnmarkMilestonePaidAsync(Guid milestoneId, Guid userId)
+    {
+        await using var conn = _db.CreateConnection();
+        await conn.OpenAsync();
+
+        var milestone = await conn.QuerySingleOrDefaultAsync<DbMilestoneRow>(
+            "SELECT * FROM income_milestones WHERE id = @Id", new { Id = milestoneId });
+
+        if (milestone == null)
+            throw new AppException("Milestone not found", 404, "NOT_FOUND");
+
+        if (milestone.status != "paid")
+            throw new AppException("Milestone is not marked as paid", 400, "BAD_REQUEST");
+
+        var contract = await conn.QuerySingleOrDefaultAsync<DbContractRow>(
+            """
+            SELECT *, 0::decimal as total_paid, 0::decimal as total_outstanding,
+                0 as overdue_count, 0 as upcoming_count, 0 as milestone_count, 0 as paid_count
+            FROM income_contracts WHERE id = @Id
+            """,
+            new { Id = milestone.contract_id });
+
+        if (contract == null)
+            throw new AppException("Contract not found", 404, "NOT_FOUND");
+
+        await using var tx = await conn.BeginTransactionAsync();
+        try
+        {
+            // Delete the linked income record
+            if (milestone.income_id.HasValue)
+                await conn.ExecuteAsync(
+                    "DELETE FROM income WHERE id = @IncomeId",
+                    new { IncomeId = milestone.income_id.Value }, tx);
+
+            // Reset milestone: revert status based on due date
+            var updated = await conn.QuerySingleAsync<DbMilestoneRow>(
+                """
+                UPDATE income_milestones SET
+                    status = CASE WHEN due_date < CURRENT_DATE THEN 'overdue' ELSE 'pending' END,
+                    income_id = NULL,
+                    payment_received_date = NULL,
+                    payment_method = NULL,
+                    actual_amount_paid = NULL
+                WHERE id = @Id
+                RETURNING *, null::text as contract_title, null::text as client_name
+                """,
+                new { Id = milestoneId }, tx);
+
+            await conn.ExecuteAsync(
+                "INSERT INTO audit_logs (user_id, action, entity_type, entity_id) VALUES (@UserId, @Action, @EntityType, @EntityId)",
+                new { UserId = userId, Action = "unmark_paid", EntityType = "milestone", EntityId = milestoneId }, tx);
+
+            await tx.CommitAsync();
+
+            _logger.LogInformation("Milestone {MilestoneId} payment reverted by user {UserId}", milestoneId, userId);
+
+            return MapMilestone(updated, contract.title, contract.client_name);
+        }
+        catch
+        {
+            await tx.RollbackAsync();
+            throw;
+        }
+    }
+
     // ── Proposal → Contract conversion ────────────────────────────────────────
 
     public async Task<IncomeContractDto> ConvertProposalAsync(

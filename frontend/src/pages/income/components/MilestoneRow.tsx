@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { CheckCircle, Trash2, Loader2, ExternalLink, Paperclip, Pencil, Check } from 'lucide-react';
+import { CheckCircle, Trash2, Loader2, ExternalLink, Paperclip, Pencil, Check, RotateCcw } from 'lucide-react';
 import type { IncomeMilestone, MilestoneStatus, ContractAttachment } from '@finance/shared';
 import DocumentsPanel from './DocumentsPanel';
 import { api, getErrorMessage } from '../../../services/api';
@@ -33,6 +33,7 @@ export default function MilestoneRow({
   const [editMode, setEditMode] = useState(false);
   const [showMarkPaid, setShowMarkPaid] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [unmarking, setUnmarking] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showDocs, setShowDocs] = useState(false);
   const [attachments, setAttachments] = useState<ContractAttachment[]>(milestone.attachments ?? []);
@@ -48,6 +49,20 @@ export default function MilestoneRow({
       setError(getErrorMessage(err));
     } finally {
       setSaving(null);
+    }
+  };
+
+  const handleUnmarkPaid = async () => {
+    if (!confirm('Revert this milestone to unpaid? The linked income record will be deleted.')) return;
+    setUnmarking(true);
+    setError(null);
+    try {
+      const res = await api.post(`/income-contracts/milestones/${milestone.id}/unmark-paid`);
+      onUpdated(res.data.data);
+    } catch (err) {
+      setError(getErrorMessage(err));
+    } finally {
+      setUnmarking(false);
     }
   };
 
@@ -199,6 +214,16 @@ export default function MilestoneRow({
                   title="Mark as paid"
                 >
                   <CheckCircle className="w-4 h-4" />
+                </button>
+              )}
+              {milestone.status === 'paid' && (
+                <button
+                  onClick={handleUnmarkPaid}
+                  disabled={unmarking}
+                  className="btn btn-ghost btn-sm text-warning-600 dark:text-warning-500 hover:bg-warning-50"
+                  title="Revert payment"
+                >
+                  {unmarking ? <Loader2 className="w-4 h-4 animate-spin" /> : <RotateCcw className="w-4 h-4" />}
                 </button>
               )}
               {milestone.status !== 'paid' && (

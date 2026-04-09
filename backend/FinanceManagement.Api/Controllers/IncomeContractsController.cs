@@ -165,6 +165,14 @@ public class IncomeContractsController : ControllerBase
         return Ok(ApiResponse<IncomeMilestoneDto>.Ok(milestone));
     }
 
+    [HttpPost("milestones/{milestoneId:guid}/unmark-paid")]
+    public async Task<IActionResult> UnmarkMilestonePaid(Guid milestoneId)
+    {
+        var userId = HttpContext.GetRequiredUserId();
+        var milestone = await _service.UnmarkMilestonePaidAsync(milestoneId, userId);
+        return Ok(ApiResponse<IncomeMilestoneDto>.Ok(milestone));
+    }
+
     // ── Proposal conversion ───────────────────────────────────────────────────
 
     [HttpPost("convert-proposal")]
