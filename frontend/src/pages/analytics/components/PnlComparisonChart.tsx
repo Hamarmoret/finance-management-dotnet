@@ -24,6 +24,7 @@ interface PnlCenterStats {
 interface PnlComparisonChartProps {
   data: PnlCenterStats[];
   viewType?: 'chart' | 'pie' | 'table';
+  onPnlClick?: (id: string, name: string) => void;
 }
 
 const COLORS = [
@@ -32,28 +33,20 @@ const COLORS = [
 ];
 
 function formatCurrency(value: number): string {
-  if (Math.abs(value) >= 1000000) {
-    return `$${(value / 1000000).toFixed(1)}M`;
-  }
-  if (Math.abs(value) >= 1000) {
-    return `$${(value / 1000).toFixed(0)}K`;
-  }
+  if (Math.abs(value) >= 1000000) return `$${(value / 1000000).toFixed(1)}M`;
+  if (Math.abs(value) >= 1000) return `$${(value / 1000).toFixed(0)}K`;
   return `$${value}`;
 }
 
-export function PnlComparisonChart({ data, viewType = 'chart' }: PnlComparisonChartProps) {
+export function PnlComparisonChart({ data, viewType = 'chart', onPnlClick }: PnlComparisonChartProps) {
   if (data.length === 0) {
-    return (
-      <div className="h-64 flex items-center justify-center text-gray-500">
-        No P&L centers available
-      </div>
-    );
+    return <div className="h-64 flex items-center justify-center text-gray-500">No P&L centers available</div>;
   }
 
-  // Sort by profit descending
   const chartData = [...data]
-    .map((pnl) => ({
-      name: pnl.name.length > 15 ? pnl.name.substring(0, 15) + '...' : pnl.name,
+    .map(pnl => ({
+      id: pnl.id,
+      name: pnl.name.length > 15 ? pnl.name.substring(0, 15) + '…' : pnl.name,
       fullName: pnl.name,
       profit: pnl.netProfit,
       income: pnl.totalIncome,
@@ -61,17 +54,13 @@ export function PnlComparisonChart({ data, viewType = 'chart' }: PnlComparisonCh
     }))
     .sort((a, b) => b.profit - a.profit);
 
-  // Pie chart view - show income distribution
   if (viewType === 'pie') {
     const pieData = data
-      .filter((pnl) => pnl.totalIncome > 0)
-      .map((pnl) => ({
-        name: pnl.name,
-        value: pnl.totalIncome,
-      }));
+      .filter(pnl => pnl.totalIncome > 0)
+      .map(pnl => ({ id: pnl.id, name: pnl.name, value: pnl.totalIncome }));
 
     return (
-      <div className="h-64">
+      <div className="h-64" style={onPnlClick ? { cursor: 'pointer' } : undefined}>
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
             <Pie
@@ -83,80 +72,50 @@ export function PnlComparisonChart({ data, viewType = 'chart' }: PnlComparisonCh
               paddingAngle={2}
               dataKey="value"
               nameKey="name"
+              onClick={onPnlClick ? (d) => onPnlClick(d.id, d.name) : undefined}
             >
-              {pieData.map((_, index) => (
-                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+              {pieData.map((_, i) => (
+                <Cell key={`cell-${i}`} fill={COLORS[i % COLORS.length]} />
               ))}
             </Pie>
             <Tooltip
               formatter={(value: number) => [`$${value.toLocaleString()}`, 'Income']}
-              contentStyle={{
-                backgroundColor: '#fff',
-                border: '1px solid #E5E7EB',
-                borderRadius: '8px',
-              }}
+              contentStyle={{ backgroundColor: '#fff', border: '1px solid #E5E7EB', borderRadius: '8px' }}
             />
-            <Legend
-              layout="vertical"
-              align="right"
-              verticalAlign="middle"
-              formatter={(value: string) => (
-                <span className="text-sm">{value}</span>
-              )}
-            />
+            <Legend layout="vertical" align="right" verticalAlign="middle"
+              formatter={(v: string) => <span className="text-sm">{v}</span>} />
           </PieChart>
         </ResponsiveContainer>
       </div>
     );
   }
 
-  // Default bar chart view
   return (
-    <div className="h-64">
+    <div className="h-64" style={onPnlClick ? { cursor: 'pointer' } : undefined}>
       <ResponsiveContainer width="100%" height="100%">
         <BarChart
           data={chartData}
           layout="vertical"
           margin={{ top: 5, right: 30, left: 80, bottom: 5 }}
+          onClick={onPnlClick
+            ? (chartState) => {
+                const payload = chartState?.activePayload?.[0]?.payload;
+                if (payload) onPnlClick(payload.id, payload.fullName);
+              }
+            : undefined}
         >
           <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" horizontal />
-          <XAxis
-            type="number"
-            tickFormatter={formatCurrency}
-            tick={{ fontSize: 12, fill: '#6B7280' }}
-            axisLine={{ stroke: '#E5E7EB' }}
-          />
-          <YAxis
-            type="category"
-            dataKey="name"
-            tick={{ fontSize: 12, fill: '#6B7280' }}
-            axisLine={{ stroke: '#E5E7EB' }}
-            width={70}
-          />
+          <XAxis type="number" tickFormatter={formatCurrency} tick={{ fontSize: 12, fill: '#6B7280' }} axisLine={{ stroke: '#E5E7EB' }} />
+          <YAxis type="category" dataKey="name" tick={{ fontSize: 12, fill: '#6B7280' }} axisLine={{ stroke: '#E5E7EB' }} width={70} />
           <Tooltip
-            formatter={(value: number, name: string) => [
-              `$${value.toLocaleString()}`,
-              name === 'profit' ? 'Net Profit' : name,
-            ]}
-            labelFormatter={(label, payload) => {
-              if (payload && payload[0]) {
-                return payload[0].payload.fullName;
-              }
-              return label;
-            }}
-            contentStyle={{
-              backgroundColor: '#fff',
-              border: '1px solid #E5E7EB',
-              borderRadius: '8px',
-            }}
+            formatter={(value: number, name: string) => [`$${value.toLocaleString()}`, name === 'profit' ? 'Net Profit' : name]}
+            labelFormatter={(_label, payload) => payload?.[0]?.payload?.fullName ?? _label}
+            contentStyle={{ backgroundColor: '#fff', border: '1px solid #E5E7EB', borderRadius: '8px' }}
           />
           <ReferenceLine x={0} stroke="#9CA3AF" />
           <Bar dataKey="profit" name="Net Profit" radius={[0, 4, 4, 0]}>
-            {chartData.map((entry, index) => (
-              <Cell
-                key={`cell-${index}`}
-                fill={entry.profit >= 0 ? '#10B981' : '#EF4444'}
-              />
+            {chartData.map((entry, i) => (
+              <Cell key={`cell-${i}`} fill={entry.profit >= 0 ? '#10B981' : '#EF4444'} />
             ))}
           </Bar>
         </BarChart>

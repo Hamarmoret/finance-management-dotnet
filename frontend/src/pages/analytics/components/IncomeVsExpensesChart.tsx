@@ -19,19 +19,16 @@ interface MonthlyData {
 
 interface IncomeVsExpensesChartProps {
   data: MonthlyData[];
+  onBarClick?: (month: string, year: number, series: 'income' | 'expenses') => void;
 }
 
 function formatCurrency(value: number): string {
-  if (value >= 1000000) {
-    return `$${(value / 1000000).toFixed(1)}M`;
-  }
-  if (value >= 1000) {
-    return `$${(value / 1000).toFixed(0)}K`;
-  }
+  if (value >= 1000000) return `$${(value / 1000000).toFixed(1)}M`;
+  if (value >= 1000) return `$${(value / 1000).toFixed(0)}K`;
   return `$${value}`;
 }
 
-export function IncomeVsExpensesChart({ data }: IncomeVsExpensesChartProps) {
+export function IncomeVsExpensesChart({ data, onBarClick }: IncomeVsExpensesChartProps) {
   if (data.length === 0) {
     return (
       <div className="h-64 flex items-center justify-center text-gray-500">
@@ -43,29 +40,14 @@ export function IncomeVsExpensesChart({ data }: IncomeVsExpensesChartProps) {
   return (
     <div className="h-64">
       <ResponsiveContainer width="100%" height="100%">
-        <BarChart
-          data={data}
-          margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
-        >
+        <BarChart data={data} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
-          <XAxis
-            dataKey="month"
-            tick={{ fontSize: 12, fill: '#6B7280' }}
-            axisLine={{ stroke: '#E5E7EB' }}
-          />
-          <YAxis
-            tickFormatter={formatCurrency}
-            tick={{ fontSize: 12, fill: '#6B7280' }}
-            axisLine={{ stroke: '#E5E7EB' }}
-          />
+          <XAxis dataKey="month" tick={{ fontSize: 12, fill: '#6B7280' }} axisLine={{ stroke: '#E5E7EB' }} />
+          <YAxis tickFormatter={formatCurrency} tick={{ fontSize: 12, fill: '#6B7280' }} axisLine={{ stroke: '#E5E7EB' }} />
           <Tooltip
             formatter={(value: number) => [`$${value.toLocaleString()}`, '']}
             labelStyle={{ color: '#111827' }}
-            contentStyle={{
-              backgroundColor: '#fff',
-              border: '1px solid #E5E7EB',
-              borderRadius: '8px',
-            }}
+            contentStyle={{ backgroundColor: '#fff', border: '1px solid #E5E7EB', borderRadius: '8px' }}
           />
           <Legend />
           <Bar
@@ -73,12 +55,16 @@ export function IncomeVsExpensesChart({ data }: IncomeVsExpensesChartProps) {
             name="Income"
             fill="#10B981"
             radius={[4, 4, 0, 0]}
+            style={onBarClick ? { cursor: 'pointer' } : undefined}
+            onClick={onBarClick ? (d) => onBarClick(d.month, d.year, 'income') : undefined}
           />
           <Bar
             dataKey="expenses"
             name="Expenses"
             fill="#EF4444"
             radius={[4, 4, 0, 0]}
+            style={onBarClick ? { cursor: 'pointer' } : undefined}
+            onClick={onBarClick ? (d) => onBarClick(d.month, d.year, 'expenses') : undefined}
           />
         </BarChart>
       </ResponsiveContainer>
