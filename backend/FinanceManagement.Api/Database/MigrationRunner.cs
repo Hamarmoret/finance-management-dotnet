@@ -78,6 +78,10 @@ public class MigrationRunner
         ("020c_expenses_vendor_id", Sql020cExpensesVendorId),
         ("020d_backfill_vendors", Sql020dBackfillVendors),
         ("020e_backfill_vendor_ids", Sql020eBackfillVendorIds),
+        // Security: reset tokens previously stored as Argon2 hashes are now stored as SHA-256.
+        // Existing Argon2-hashed tokens cannot be validated with the new O(1) lookup,
+        // so we invalidate them all. Users with pending resets simply request a new link.
+        ("021_invalidate_argon2_reset_tokens", Sql021InvalidateArgon2ResetTokens),
     ];
 
     #region SQL Migrations
@@ -854,6 +858,11 @@ public class MigrationRunner
           AND e.vendor IS NOT NULL
           AND LOWER(TRIM(e.vendor)) = LOWER(TRIM(v.name))
         """;
+
+    // Argon2-hashed tokens start with '$argon2'. SHA-256 tokens are 64 hex chars.
+    // Invalidate anything that looks like an Argon2 hash so the O(1) SHA-256 lookup works.
+    private const string Sql021InvalidateArgon2ResetTokens =
+        "UPDATE password_reset_tokens SET used_at = NOW() WHERE used_at IS NULL AND token_hash LIKE '$argon2%'";
 
     #endregion
 }

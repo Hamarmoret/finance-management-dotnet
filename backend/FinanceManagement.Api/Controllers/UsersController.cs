@@ -20,7 +20,7 @@ public class UsersController : ControllerBase
 
     /// <summary>
     /// GET /api/users
-    /// List all users (paginated with filters)
+    /// List all users (admin only)
     /// </summary>
     [HttpGet]
     public async Task<IActionResult> GetAll(
@@ -30,6 +30,7 @@ public class UsersController : ControllerBase
         [FromQuery] string? role = null,
         [FromQuery] bool? isActive = null)
     {
+        RequireAdmin();
         var (users, total) = await _usersService.GetAllAsync(page, limit, search, role, isActive);
 
         return Ok(new PaginatedResponse<UserDto>
@@ -47,11 +48,15 @@ public class UsersController : ControllerBase
 
     /// <summary>
     /// GET /api/users/{id}
-    /// Get user by ID with pnl permissions
+    /// Get user by ID. Admins may view any profile; others may only view their own.
     /// </summary>
     [HttpGet("{id:guid}")]
     public async Task<IActionResult> GetById(Guid id)
     {
+        var requesterId = Guid.Parse(HttpContext.GetUserId()!);
+        if (id != requesterId)
+            RequireAdmin();
+
         var user = await _usersService.GetByIdAsync(id);
         return Ok(ApiResponse<UserWithPermissionsDto>.Ok(user));
     }
@@ -100,11 +105,12 @@ public class UsersController : ControllerBase
 
     /// <summary>
     /// GET /api/users/{id}/permissions
-    /// Get user's P&amp;L permissions
+    /// Get user's P&amp;L permissions (admin only)
     /// </summary>
     [HttpGet("{id:guid}/permissions")]
     public async Task<IActionResult> GetPnlPermissions(Guid id)
     {
+        RequireAdmin();
         var permissions = await _usersService.GetPnlPermissionsAsync(id);
         return Ok(ApiResponse<List<PnlPermissionDto>>.Ok(permissions));
     }

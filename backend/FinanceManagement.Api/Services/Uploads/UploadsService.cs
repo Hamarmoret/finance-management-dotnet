@@ -64,6 +64,44 @@ public class UploadsService
         "text/csv",
     };
 
+    // Magic byte signatures for file types that can contain executable content.
+    // Text-based formats (CSV, XML) are omitted — their bytes are indistinguishable
+    // from plain text and they cannot be executed by the browser anyway.
+    private static readonly Dictionary<string, byte[][]> MagicSignatures =
+        new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["application/pdf"]  = [[ 0x25, 0x50, 0x44, 0x46 ]],           // %PDF
+        ["image/jpeg"]       = [[ 0xFF, 0xD8, 0xFF ]],
+        ["image/png"]        = [[ 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A ]],
+        ["image/gif"]        = [[ 0x47, 0x49, 0x46, 0x38, 0x37, 0x61 ], // GIF87a
+                                [ 0x47, 0x49, 0x46, 0x38, 0x39, 0x61 ]], // GIF89a
+        ["image/webp"]       = [[ 0x52, 0x49, 0x46, 0x46 ]],            // RIFF….WEBP
+        // Office Open XML (docx, xlsx) and legacy Office (doc, xls) are ZIP-based — PK magic
+        ["application/vnd.openxmlformats-officedocument.wordprocessingml.document"]
+                             = [[ 0x50, 0x4B, 0x03, 0x04 ]],
+        ["application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"]
+                             = [[ 0x50, 0x4B, 0x03, 0x04 ]],
+        ["application/msword"]     = [[ 0xD0, 0xCF, 0x11, 0xE0 ]],     // OLE2
+        ["application/vnd.ms-excel"] = [[ 0xD0, 0xCF, 0x11, 0xE0 ]],
+    };
+
+    /// <summary>
+    /// Returns true if the buffer starts with one of the known magic byte sequences for the
+    /// declared MIME type. Types with no registered signature (e.g. text/csv) always pass.
+    /// </summary>
+    private static bool HasValidMagicBytes(byte[] buffer, string mimeType)
+    {
+        if (!MagicSignatures.TryGetValue(mimeType, out var signatures))
+            return true; // no magic check defined for this type
+
+        foreach (var sig in signatures)
+        {
+            if (buffer.Length >= sig.Length && buffer.AsSpan(0, sig.Length).SequenceEqual(sig))
+                return true;
+        }
+        return false;
+    }
+
     public UploadsService(AppSettings settings, ILogger<UploadsService> logger)
     {
         _bucketName = settings.Gcs.BucketName;
@@ -116,6 +154,9 @@ public class UploadsService
 
         if (!AllowedMimeTypes.Contains(mimeType))
             throw new AppException($"File type {mimeType} is not allowed", 400, "VALIDATION_ERROR");
+
+        if (!HasValidMagicBytes(buffer, mimeType))
+            throw new AppException("File content does not match the declared file type", 400, "VALIDATION_ERROR");
 
         var fileId = Guid.NewGuid().ToString();
         var ext = Path.GetExtension(originalName);

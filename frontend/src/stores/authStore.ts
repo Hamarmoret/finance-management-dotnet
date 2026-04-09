@@ -7,7 +7,8 @@ import { api, scheduleTokenRefresh } from '../services/api';
 interface AuthState {
   user: User | null;
   accessToken: string | null;
-  refreshToken: string | null;
+  // refreshToken is intentionally absent — it lives in an HttpOnly cookie,
+  // never in JS-accessible storage, to protect against XSS token theft.
   isAuthenticated: boolean;
   isLoading: boolean;
   isInitialized: boolean;
@@ -31,7 +32,6 @@ export const useAuthStore = create<AuthState>()(
     (set, get) => ({
       user: null,
       accessToken: null,
-      refreshToken: null,
       isAuthenticated: false,
       isLoading: true,
       isInitialized: false,
@@ -54,7 +54,6 @@ export const useAuthStore = create<AuthState>()(
           set({
             user: data.user,
             accessToken: data.accessToken,
-            refreshToken: data.refreshToken || null,
             isAuthenticated: true,
             mfaToken: null,
           });
@@ -84,7 +83,6 @@ export const useAuthStore = create<AuthState>()(
         set({
           user: data.user,
           accessToken: data.accessToken,
-          refreshToken: data.refreshToken || null,
           isAuthenticated: true,
           mfaToken: null,
         });
@@ -103,39 +101,35 @@ export const useAuthStore = create<AuthState>()(
       },
 
       logout: async () => {
-        const { refreshToken: rt } = get();
-        // Make API call first while we still have the token
+        // POST /auth/logout — the HttpOnly cookie is sent automatically,
+        // and the backend will clear it via Set-Cookie on the response.
         try {
-          await api.post('/auth/logout', { refreshToken: rt });
+          await api.post('/auth/logout');
         } catch {
           // Ignore errors during logout - we'll clear local state anyway
         }
 
-        // Clear state after API call
+        // Clear in-memory state and local storage
         set({
           user: null,
           accessToken: null,
-          refreshToken: null,
           isAuthenticated: false,
           mfaToken: null,
         });
-
-        // Also clear the persisted storage directly to ensure clean logout
         localStorage.removeItem('auth-storage');
       },
 
       refreshAccessToken: async () => {
-        const { refreshToken: rt } = get();
         try {
-          const response = await api.post('/auth/refresh', { refreshToken: rt });
-          const { accessToken, refreshToken: newRt } = response.data.data;
-          set({ accessToken, refreshToken: newRt || rt });
+          // Cookie is sent automatically; no body needed
+          const response = await api.post('/auth/refresh');
+          const { accessToken } = response.data.data;
+          set({ accessToken });
         } catch {
           // If refresh fails, logout
           set({
             user: null,
             accessToken: null,
-            refreshToken: null,
             isAuthenticated: false,
           });
           localStorage.removeItem('auth-storage');
@@ -144,7 +138,7 @@ export const useAuthStore = create<AuthState>()(
 
       fetchUser: async () => {
         try {
-          const response = await api.get('/users/me');
+          const response = await api.get('/auth/me');
           set({ user: response.data.data, isAuthenticated: true });
         } catch (err) {
           // Only clear auth on confirmed 401 (real auth failure).
@@ -184,7 +178,6 @@ export const useAuthStore = create<AuthState>()(
           set({
             user: null,
             accessToken: null,
-            refreshToken: null,
             isAuthenticated: false,
             isLoading: false,
             isInitialized: true,
@@ -196,13 +189,13 @@ export const useAuthStore = create<AuthState>()(
           try {
             await get().fetchUser();
           } catch {
-            // Token might be expired, try to refresh
+            // Token might be expired, try to refresh via cookie
             try {
               await get().refreshAccessToken();
               await get().fetchUser();
             } catch {
               // Refresh failed, clear auth state
-              set({ user: null, accessToken: null, refreshToken: null, isAuthenticated: false });
+              set({ user: null, accessToken: null, isAuthenticated: false });
               localStorage.removeItem('auth-storage');
             }
           }
@@ -216,8 +209,8 @@ export const useAuthStore = create<AuthState>()(
       name: 'auth-storage',
       partialize: (state) => ({
         accessToken: state.accessToken,
-        refreshToken: state.refreshToken,
         user: state.user,
+        // refreshToken deliberately excluded — stored in HttpOnly cookie only
       }),
     }
   )

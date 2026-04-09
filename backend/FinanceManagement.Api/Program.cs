@@ -1,7 +1,9 @@
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.IdentityModel.Tokens;
 using Serilog;
 using Dapper;
@@ -44,7 +46,11 @@ var dbContext = new DbContext(appSettings.Database.ConnectionString);
 builder.Services.AddSingleton(dbContext);
 builder.Services.AddTransient<MigrationRunner>();
 
-// JWT Authentication
+// ── JWT constants (issuer + audience pinned so tokens from other systems are rejected) ──
+const string JwtIssuer   = "finance-management-api";
+const string JwtAudience = "finance-management-clients";
+
+// JWT Authentication (#9)
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
@@ -53,9 +59,11 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidateIssuerSigningKey = true,
             IssuerSigningKey = new SymmetricSecurityKey(
                 Encoding.UTF8.GetBytes(appSettings.Jwt.AccessSecret)),
-            ValidateIssuer = false,
-            ValidateAudience = false,
-            ClockSkew = TimeSpan.Zero,
+            ValidateIssuer   = true,
+            ValidIssuer      = JwtIssuer,
+            ValidateAudience = true,
+            ValidAudience    = JwtAudience,
+            ClockSkew        = TimeSpan.Zero,
         };
 
         options.Events = new JwtBearerEvents
@@ -90,6 +98,56 @@ builder.Services.AddCors(options =>
             .AllowAnyHeader()
             .AllowAnyMethod()
             .AllowCredentials();
+    });
+});
+
+// ── Rate limiting (#4) — built-in .NET middleware, no extra packages needed ──
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = 429;
+    options.OnRejected = async (ctx, _) =>
+    {
+        ctx.HttpContext.Response.ContentType = "application/json";
+        await ctx.HttpContext.Response.WriteAsync(JsonSerializer.Serialize(new ApiError
+        {
+            Error = new ErrorDetail { Code = "RATE_LIMITED", Message = "Too many requests. Please try again later." }
+        }));
+    };
+
+    // Login: 10 attempts per minute per IP
+    options.AddFixedWindowLimiter("login", o =>
+    {
+        o.Window            = TimeSpan.FromMinutes(1);
+        o.PermitLimit       = 10;
+        o.QueueLimit        = 0;
+        o.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
+    });
+
+    // Register: 5 per hour per IP
+    options.AddFixedWindowLimiter("register", o =>
+    {
+        o.Window            = TimeSpan.FromHours(1);
+        o.PermitLimit       = 5;
+        o.QueueLimit        = 0;
+        o.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
+    });
+
+    // Token refresh: 30 per minute per IP
+    options.AddFixedWindowLimiter("refresh", o =>
+    {
+        o.Window            = TimeSpan.FromMinutes(1);
+        o.PermitLimit       = 30;
+        o.QueueLimit        = 0;
+        o.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
+    });
+
+    // Forgot password: 3 per 10 minutes per IP
+    options.AddFixedWindowLimiter("forgot-password", o =>
+    {
+        o.Window            = TimeSpan.FromMinutes(10);
+        o.PermitLimit       = 3;
+        o.QueueLimit        = 0;
+        o.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
     });
 });
 
@@ -138,26 +196,46 @@ using (var scope = app.Services.CreateScope())
     }
 }
 
-// Promote designated account owner (runs independently of migration runner)
-try
+// Promote designated account owner — email read from env var, not hard-coded (#7)
+var ownerEmail = Environment.GetEnvironmentVariable("OWNER_EMAIL");
+if (!string.IsNullOrWhiteSpace(ownerEmail))
 {
-    await using var ownerConn = dbContext.CreateConnection();
-    await ownerConn.OpenAsync();
-    var affected = await ownerConn.ExecuteAsync(
-        "UPDATE users SET role = 'owner', updated_at = NOW() WHERE LOWER(email) = 'ofer@hackerseye.com' AND role != 'owner'");
-    if (affected > 0)
-        Log.Information("Account owner promotion applied: ofer@hackerseye.com promoted to owner");
-    else
-        Log.Information("Account owner check: ofer@hackerseye.com already owner or not found");
-}
-catch (Exception ex)
-{
-    Log.Error(ex, "Failed to promote account owner — check role constraint includes 'owner'");
+    try
+    {
+        await using var ownerConn = dbContext.CreateConnection();
+        await ownerConn.OpenAsync();
+        var affected = await ownerConn.ExecuteAsync(
+            "UPDATE users SET role = 'owner', updated_at = NOW() WHERE LOWER(email) = LOWER(@Email) AND role != 'owner'",
+            new { Email = ownerEmail });
+        if (affected > 0)
+            Log.Information("Account owner promotion applied for {Email}", ownerEmail);
+        else
+            Log.Information("Account owner check: {Email} already owner or not found", ownerEmail);
+    }
+    catch (Exception ex)
+    {
+        Log.Error(ex, "Failed to promote account owner — check role constraint includes 'owner'");
+    }
 }
 
-// Middleware pipeline
+// ── Middleware pipeline ───────────────────────────────────────────────────────
+
 app.UseMiddleware<ErrorHandlingMiddleware>();
+
+// Security headers (#8)
+app.Use(async (ctx, next) =>
+{
+    ctx.Response.Headers["X-Content-Type-Options"]  = "nosniff";
+    ctx.Response.Headers["X-Frame-Options"]         = "DENY";
+    ctx.Response.Headers["Referrer-Policy"]         = "strict-origin-when-cross-origin";
+    ctx.Response.Headers["Permissions-Policy"]      = "geolocation=(), microphone=(), camera=()";
+    // Content-Security-Policy: API only serves JSON, no HTML. Still worth setting.
+    ctx.Response.Headers["Content-Security-Policy"] = "default-src 'none'; frame-ancestors 'none'";
+    await next();
+});
+
 app.UseCors();
+app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();

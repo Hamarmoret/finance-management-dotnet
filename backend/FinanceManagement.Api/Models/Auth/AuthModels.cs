@@ -52,7 +52,15 @@ public class LoginResponse
 public class RefreshRequest
 {
     [JsonPropertyName("refreshToken")]
-    public string RefreshToken { get; set; } = string.Empty;
+    public string? RefreshToken { get; set; }
+}
+
+/// <summary>Returned by AuthService.RefreshAsync — carries the rotated token internally.</summary>
+public class RefreshResult
+{
+    public UserDto User { get; set; } = new();
+    public string AccessToken { get; set; } = string.Empty;
+    public string? NewRefreshToken { get; set; }
 }
 
 public class ChangePasswordRequest

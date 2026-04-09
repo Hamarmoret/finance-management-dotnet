@@ -40,11 +40,6 @@ public class AuthService
     {
         var trimmedHash = hash.Trim();
 
-        _logger.LogDebug(
-            "Password verify: hash length={Length}, prefix={Prefix}",
-            trimmedHash.Length,
-            trimmedHash.Length >= 10 ? trimmedHash[..10] : trimmedHash);
-
         try
         {
             // Parse the PHC format: $argon2id$v=19$m=65536,t=3,p=4$<salt>$<hash>
@@ -324,7 +319,7 @@ public class AuthService
         };
     }
 
-    public async Task<object> RefreshAsync(string refreshToken, string? ipAddress, string? userAgent)
+    public async Task<RefreshResult> RefreshAsync(string refreshToken, string? ipAddress, string? userAgent)
     {
         var principal = JwtHelper.ValidateRefreshToken(refreshToken, _settings.Jwt);
         if (principal == null)
@@ -368,7 +363,12 @@ public class AuthService
 
         var accessToken = JwtHelper.GenerateAccessToken(user.Id, user.Email, user.Role, _settings.Jwt);
 
-        return new { user = user.ToDto(), accessToken };
+        return new RefreshResult
+        {
+            User = user.ToDto(),
+            AccessToken = accessToken,
+            NewRefreshToken = newRefreshToken,
+        };
     }
 
     public async Task LogoutAsync(Guid userId, string? ipAddress, string? userAgent)

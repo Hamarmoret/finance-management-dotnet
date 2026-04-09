@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using FinanceManagement.Api.Middleware;
 using FinanceManagement.Api.Models;
 using FinanceManagement.Api.Services.AuditLogs;
 
@@ -21,7 +22,14 @@ public class AuditLogsController : ControllerBase
         [FromQuery] string? entityType = null,
         [FromQuery] string? dateFrom = null, [FromQuery] string? dateTo = null)
     {
-        var (logs, total) = await _auditLogsService.GetAllAsync(page, limit, userId, action, entityType, dateFrom, dateTo);
+        var requesterId = HttpContext.GetUserId()!;
+        var requesterRole = HttpContext.GetUserRole();
+        var isAdmin = requesterRole is "admin" or "owner";
+
+        // Non-admins can only query their own audit logs
+        var effectiveUserId = isAdmin ? userId : requesterId;
+
+        var (logs, total) = await _auditLogsService.GetAllAsync(page, limit, effectiveUserId, action, entityType, dateFrom, dateTo);
         return Ok(new PaginatedResponse<AuditLogDto>
         {
             Data = logs,

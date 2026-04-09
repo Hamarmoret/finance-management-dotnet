@@ -10,38 +10,35 @@ export const api = axios.create({
   withCredentials: true,
 });
 
-// Separate axios instance for refresh calls - bypasses interceptors entirely
+// Separate axios instance for refresh calls - bypasses interceptors entirely.
+// withCredentials is required so the browser sends the HttpOnly refresh_token cookie.
 const refreshClient = axios.create({
   baseURL: API_URL,
   headers: {
     'Content-Type': 'application/json',
   },
+  withCredentials: true,
 });
 
-// ── Helper: read/write auth from localStorage ──────────────────────────
-function getAuthState(): { accessToken: string | null; refreshToken: string | null } {
+// ── Helper: read/write access token from localStorage ─────────────────
+// The refresh token is delivered via HttpOnly cookie and is never stored in JS.
+function getAccessToken(): string | null {
   try {
     const raw = localStorage.getItem('auth-storage');
-    if (!raw) return { accessToken: null, refreshToken: null };
+    if (!raw) return null;
     const { state } = JSON.parse(raw);
-    return {
-      accessToken: state?.accessToken ?? null,
-      refreshToken: state?.refreshToken ?? null,
-    };
+    return state?.accessToken ?? null;
   } catch {
-    return { accessToken: null, refreshToken: null };
+    return null;
   }
 }
 
-function setAuthTokens(accessToken: string, refreshToken?: string) {
+function setAccessToken(accessToken: string) {
   try {
     const raw = localStorage.getItem('auth-storage');
     if (!raw) return;
     const parsed = JSON.parse(raw);
     parsed.state.accessToken = accessToken;
-    if (refreshToken) {
-      parsed.state.refreshToken = refreshToken;
-    }
     localStorage.setItem('auth-storage', JSON.stringify(parsed));
   } catch {
     // Ignore
@@ -55,7 +52,7 @@ function clearAuth() {
 // ── Request interceptor ────────────────────────────────────────────────
 api.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
-    const { accessToken } = getAuthState();
+    const accessToken = getAccessToken();
     if (accessToken) {
       config.headers.Authorization = `Bearer ${accessToken}`;
     }
@@ -113,7 +110,7 @@ api.interceptors.response.use(
       })
         .then(() => {
           // After refresh, update the auth header and retry
-          const { accessToken } = getAuthState();
+          const accessToken = getAccessToken();
           if (accessToken) {
             originalRequest.headers.Authorization = `Bearer ${accessToken}`;
           }
@@ -126,21 +123,17 @@ api.interceptors.response.use(
     isRefreshing = true;
 
     try {
-      const { refreshToken: rt } = getAuthState();
-      if (!rt) {
-        throw new Error('No refresh token available');
-      }
+      // The HttpOnly refresh_token cookie is sent automatically by the browser.
+      // No body needed — the backend reads the cookie.
+      const response = await refreshClient.post('/auth/refresh');
+      const { accessToken } = response.data.data;
 
-      // Use refreshClient (no interceptors) to avoid infinite loop
-      const response = await refreshClient.post('/auth/refresh', { refreshToken: rt });
-      const { accessToken, refreshToken: newRefreshToken } = response.data.data;
-
-      // Update stored tokens
-      setAuthTokens(accessToken, newRefreshToken);
+      // Store the new access token
+      setAccessToken(accessToken);
 
       processQueue(null);
 
-      // Retry the original request with new token
+      // Retry the original request with the new token
       originalRequest.headers.Authorization = `Bearer ${accessToken}`;
       return api(originalRequest);
     } catch (refreshError) {
@@ -178,8 +171,8 @@ export function scheduleTokenRefresh() {
     refreshTimer = null;
   }
 
-  const { accessToken, refreshToken: rt } = getAuthState();
-  if (!accessToken || !rt) return;
+  const accessToken = getAccessToken();
+  if (!accessToken) return;
 
   const expiry = getTokenExpiry(accessToken);
   if (!expiry) return;
@@ -198,13 +191,11 @@ export function scheduleTokenRefresh() {
 
   refreshTimer = setTimeout(async () => {
     try {
-      const { refreshToken: currentRt } = getAuthState();
-      if (!currentRt) return;
+      // Cookie is sent automatically; no body required
+      const response = await refreshClient.post('/auth/refresh');
+      const { accessToken: newAt } = response.data.data;
 
-      const response = await refreshClient.post('/auth/refresh', { refreshToken: currentRt });
-      const { accessToken: newAt, refreshToken: newRt } = response.data.data;
-
-      setAuthTokens(newAt, newRt);
+      setAccessToken(newAt);
 
       // Schedule next refresh
       scheduleTokenRefresh();
