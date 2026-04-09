@@ -24,19 +24,21 @@ Full-stack financial management web app with expense/income tracking, P&L center
 Finance-Management-dotnet/
 ├── backend/FinanceManagement.Api/
 │   ├── Config/           # EnvironmentConfig, AppSettings
-│   ├── Controllers/      # 14 controllers
-│   ├── Database/         # DbContext.cs, MigrationRunner.cs (9 migrations)
+│   ├── Controllers/      # 16 controllers
+│   ├── Database/         # DbContext.cs, MigrationRunner.cs (22 migrations)
 │   ├── Middleware/        # AuthMiddleware, ErrorHandlingMiddleware
 │   ├── Models/           # DTOs grouped by domain
-│   ├── Services/         # 15 services
+│   ├── Services/         # 17 services
 │   └── FinanceManagement.Api.csproj
 ├── frontend/
 │   ├── src/
-│   │   ├── components/   # DataTable, FileUpload, RecurringToggle, layouts
-│   │   ├── pages/        # auth, analytics, dashboard, expenses, income, pnl-centers, settings, business-plan
-│   │   ├── services/     # api.ts (Axios client)
-│   │   ├── stores/       # authStore.ts (Zustand)
-│   │   ├── types/        # shared.ts
+│   │   ├── components/   # DataTable, FileUpload, RecurringToggle, PeriodSelector,
+│   │   │                 # ClientAutocomplete, VendorAutocomplete, layouts
+│   │   ├── pages/        # auth, analytics, dashboard, expenses, income,
+│   │   │                 # pnl-centers, settings, business-plan, sales
+│   │   ├── services/     # api.ts (Axios client), currencyService.ts
+│   │   ├── stores/       # authStore.ts, dataStore.ts (Zustand)
+│   │   ├── shared/       # types.ts
 │   │   └── utils/        # formatters.ts
 │   └── package.json
 ├── Dockerfile.backend
@@ -69,14 +71,18 @@ Frontend scripts: `dev`, `build`, `preview`, `lint`, `lint:fix`, `test`, `test:c
 - **Provider**: PostgreSQL via Supabase
 - **Host**: `db.ogfjdysvqceshqjzijae.supabase.co:5432`
 - **ORM**: Dapper (raw SQL, no EF Core)
-- **Migrations**: Auto-run on startup via `MigrationRunner.cs` (9 sequential migrations)
+- **Migrations**: Auto-run on startup via `MigrationRunner.cs` (22 migrations, 001–022)
 - **SQL placeholders**: `@ParamName` style (Dapper/Npgsql convention)
+- **Fatal migration failure**: `Environment.Exit(1)` on outer catch so Cloud Run stays on previous healthy revision
 
 ### Schema (key tables)
 - `users` — auth, MFA, lockout tracking
 - `sessions` — refresh tokens, device info
 - `pnl_centers`, `expenses`, `income` — core financial data
 - `leads`, `clients`, `proposals`, `attachments` — pipeline
+- `contact_persons` — contacts linked to clients
+- `income_contracts`, `income_milestones` — contract billing
+- `vendors` — payees (vendor/employee/other); `idx_vendors_name_lower` unique index on LOWER(TRIM(name))
 - `business_plans` — with drivers & cost categories
 - `audit_logs` — compliance trail
 - `password_reset_tokens`
@@ -95,8 +101,10 @@ Frontend scripts: `dev`, `build`, `preview`, `lint`, `lint:fix`, `test`, `test:c
 | Users | UsersController | UsersService |
 | P&L | PnlCentersController | PnlCentersService |
 | Expenses | ExpensesController | ExpensesService |
-| Income | IncomeController | IncomeService |
+| Income | IncomeController, IncomeContractsController | IncomeService, IncomeContractsService |
 | Pipeline | ClientsController, LeadsController, ProposalsController | ClientsService, LeadsService, ProposalsService |
+| Contacts | ContactPersonsController | ContactPersonsService |
+| Vendors | VendorsController | VendorsService |
 | Analytics | AnalyticsController | AnalyticsService |
 | Audit | AuditLogsController | AuditLogsService |
 | Business Plans | BusinessPlansController | BusinessPlansService |
@@ -274,3 +282,74 @@ Used in: Dashboard, Expenses, Income, P&L Centers, Sales (Leads + Proposals tabs
 - Period selector now in the page header (replaces the Start/End Date fields that were in the expanded filters panel)
 - Page subtitle shows active period label
 - Filter panel retained for Category, P&L Center, Status (Income only)
+
+---
+
+## Vendors / Payees Module (Complete)
+
+### DB Migrations (020a–022)
+- **020a**: `vendors` table (id, name, payee_type, email, phone, address, city, country, tax_id, notes, status, created_by, timestamps)
+- **020b**: `update_vendors_updated_at` trigger
+- **020c**: `expenses.vendor_id UUID FK → vendors(id)`
+- **020d**: Backfill vendor records from distinct `expenses.vendor` strings
+- **020e**: Link `expenses.vendor_id` to backfilled vendor rows
+- **021**: Invalidate Argon2-hashed password reset tokens (now SHA-256)
+- **022**: `CREATE UNIQUE INDEX idx_vendors_name_lower ON vendors (LOWER(TRIM(name)))` — required for upsert
+
+### Backend
+- **`VendorsService.cs`** — full CRUD + `GetOrCreateVendorAsync` (atomic `INSERT ... ON CONFLICT DO UPDATE ... RETURNING id`)
+- **`VendorsController.cs`** — `GET/POST/PUT/DELETE /api/vendors`
+- **`ExpensesService.cs`** — `vendor_id` in INSERT/UPDATE, JOIN vendors in SELECT (COALESCE vendor name)
+
+### Frontend
+- **`VendorAutocomplete.tsx`** — debounced search → `GET /vendors?search=`, "Create new" option when no match
+- **`VendorModal.tsx`** — create/edit payee (Name, Type, Email, Phone, Tax ID, City/Country, Address, Notes, Status)
+- **`PayeesTab.tsx`** in Sales page — search + type filter + table + pagination
+- **`Sales.tsx`** — added Payees and Contacts tabs
+- **`ExpenseModal.tsx`** — replaced vendor text input with `VendorAutocomplete` (required)
+
+### Inline Create Flow
+- Typing unknown name in autocomplete → "Create 'X' as new payee/client" option
+- Clicking opens modal pre-filled with name → on save, auto-selects result in parent form
+- Both `ClientAutocomplete` and `VendorAutocomplete` support this via `onCreateNew` prop
+
+---
+
+## Security Audit Remediations (12 fixes, all committed)
+
+- **`GetRequiredUserId()` extension** on `HttpContext` — returns `Guid`, throws `AppException(401)` on null/malformed claim. Replaced all 53 instances of `Guid.Parse(GetUserId()!)` across all 15 controllers.
+- **`EmailService.cs`** — `using var message = new MailMessage(...)` prevents dispose-on-exception leak
+- **`UploadsService.cs`** — GCS `GoogleCredential` cached with `SemaphoreSlim` + 10s timeout (was fetched per-request); `DeleteFileAsync` catches all `GoogleApiException` not only 404
+- **`ExpensesService.cs`** — `TryParse` guards on all date/categoryId/Guid filter params (was `Guid.Parse` / `DateTime.Parse` → 500 on bad input)
+- **`AnalyticsService.cs`** — same `TryParse` guards on pnlCenterId
+- **`AuthService.cs`** `RefreshAsync` — combined null+TryParse check for userId claim
+- **`Program.cs`** — migration failure → `Log.Fatal` + `Environment.Exit(1)` (was `Log.Error`, app started with broken schema)
+- **Frontend**: `AbortController` pattern in `Expenses.tsx`, `Income.tsx`, `BusinessPlan.tsx`, `ClientDetailDrawer.tsx` — cancels in-flight requests on unmount/filter change; guards `CanceledError`
+
+---
+
+## SRE Stability & Data Consistency Fixes (all committed)
+
+### Backend Transactions & Race Conditions
+| Race | Fix |
+|------|-----|
+| `RegisterAsync` email duplicate | INSERT first, catch `23505` unique violation — no SELECT-then-INSERT window |
+| `RegisterAsync` first-admin | COUNT inside same transaction as INSERT |
+| `LoginAsync` max-sessions | COUNT + DELETE-oldest + INSERT wrapped in one transaction |
+| `UpdateRoleAsync` last-admin demotion | Serializable-isolation transaction wraps count + UPDATE |
+| `ToggleActiveAsync` last-admin deactivation | Serializable-isolation transaction |
+| `DeleteAsync` (UsersService) | All 4 DELETEs (perms, sessions, audit, user) in one transaction |
+| `GetOrCreateVendorAsync` vendor duplicate | `INSERT ... ON CONFLICT (LOWER(TRIM(name))) DO UPDATE SET updated_at = vendors.updated_at RETURNING id` |
+| `ExpensesService.DeleteAsync` audit atomicity | fetch-info + DELETE + audit log in one transaction |
+
+### Frontend: Cross-Component State Sync
+- **`stores/dataStore.ts`** — new Zustand store: `version: number` + `bump()`. Acts as a global mutation bus.
+- **`Expenses.tsx` / `Income.tsx`** — call `bump()` after every save and delete
+- **`Dashboard.tsx`** — added `version` to `useEffect` deps → auto-refetches when any mutation fires
+- **`ClientDetailDrawer.tsx`** — added `version` to `useEffect` deps → keeps drawer in sync with mutations
+- **`LeadsTab.tsx`** `handleDelete` — `await Promise.all([fetchLeads(), fetchCounts()])` + `bump()`
+
+### Known Gotchas
+- `Income` type does NOT have `attachments` (only `Expense` does) — don't try to init from `income.attachments`
+- `GetOrCreateVendorAsync` requires migration 022 (`idx_vendors_name_lower`) to be applied before the `ON CONFLICT` clause works
+- `UsersService` admin-quorum operations use `IsolationLevel.Serializable` — PostgreSQL may return serialization errors under high concurrency; callers should handle `23P01` and retry if needed
