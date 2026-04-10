@@ -353,3 +353,70 @@ Used in: Dashboard, Expenses, Income, P&L Centers, Sales (Leads + Proposals tabs
 - `Income` type does NOT have `attachments` (only `Expense` does) — don't try to init from `income.attachments`
 - `GetOrCreateVendorAsync` requires migration 022 (`idx_vendors_name_lower`) to be applied before the `ON CONFLICT` clause works
 - `UsersService` admin-quorum operations use `IsolationLevel.Serializable` — PostgreSQL may return serialization errors under high concurrency; callers should handle `23P01` and retry if needed
+
+---
+
+## Income Contracts Module — Recent Enhancements
+
+### Milestone amount validation (front + back)
+- `IncomeContractsService.CreateMilestoneAsync` / `UpdateMilestoneAsync` — sum existing milestones and reject if total would exceed `contract.total_value`
+- `ContractDetailView.tsx` — shows remaining contract amount and blocks save when a new milestone would exceed it
+- `MilestoneRow.tsx` — explicit edit mode toggled by a pencil button so editable fields are visibly highlighted; save semantics unchanged (still saves on blur)
+
+### Unmark-paid + post-create file upload
+- `POST /income-contracts/milestones/{id}/unmark-paid` — atomically deletes the linked income record and resets the milestone status (pending or overdue based on `due_date`) in one transaction
+- `MilestoneRow.tsx` — RotateCcw "Revert payment" button on paid milestone rows with confirmation prompt
+- `ContractModal.tsx` — after creating a new contract, shows a `DocumentsPanel` step (contract / proposal / other) so the approved proposal can be attached immediately before `onSaved` fires
+
+### Duplicate contract flow
+- `POST /income-contracts/{id}/duplicate` (already in controller at line 112) — paired with `DuplicateContractModal.tsx` on the frontend
+- `ContractDetailView.tsx` — calls `onDuplicated` so the parent list refreshes and the new contract opens in detail view
+
+### Contracts list — list view toggle + grid view
+- `ContractsList.tsx` — Grid/List toggle persisted in `localStorage` (key `contractsViewMode`); list mode shows compact table with type badge, status, value, collected %, and alert indicators
+
+### P&L Center selector in contract form
+- `IncomeContractsService` accepts `pnl_center_id`; the contract form (`ContractModal.tsx`) has a P&L center select. The earlier "contact P&L field" idea was reverted in favour of putting it on the contract itself.
+
+### P&L Center detail modal — Summary / Income / Expenses tabs
+- `PnlCenterDetail.tsx` — three tabs; Income and Expenses tabs show up to 100 records with totals broken down by currency, date, category, client/vendor
+
+---
+
+## Analytics — Drill-Down + Widget Manager
+
+- `frontend/src/pages/analytics/components/DrillDownModal.tsx` — generic transaction drill-down modal. Props: `{ title, subtitle?, items: DrillDownItem[], onClose }`. `DrillDownItem` shape: `{ id, date, description, amount, currency, category, vendorOrClient, type: 'income'|'expense', notes?, invoiceStatus?, pnlCenters? }`. Sortable date column, expandable per-row detail, sticky summary bar (income / expenses / net), mixed-type aware, dark-mode ready.
+- `Analytics.tsx` — wires 5 chart-click handlers (`onPointClick` / `onCategoryClick`) into `DrillDownModal`.
+- Widget manager + chart/table toggle on each analytics widget — settings persisted per user.
+
+---
+
+## Multi-Currency & Mark-as-Paid Enhancements
+
+- `currencyService.ts` — `convertTotals(totalsByCurrency, target)` uses live exchange rates so dashboard summary cards can render in any chosen display currency.
+- Profile setting + `getPreferredCurrency()` / `setPreferredCurrency()` for the user's default display currency.
+- Mark-paid modal on milestones now collects invoice number / payment method / payment date and writes them through to the linked income record.
+
+---
+
+## Clickable Stat Cards (Drill-Down Everywhere)
+
+Stat cards across the app are clickable and open a drill-down modal showing the underlying records.
+
+### Reusable building blocks
+- `frontend/src/pages/analytics/components/DrillDownModal.tsx` — generic transaction-style drill-down (see Analytics section above). Reused unchanged.
+- `frontend/src/pages/income/components/MilestoneListModal.tsx` — extracted from the original inline `OverdueModal` in `ContractsList.tsx` and parameterized. Props: `{ title, icon, accent: 'danger'|'warning'|'success'|'primary', fetchUrl, emptyMessage, onClose, onOpenContract }`. Used for milestone subsets (overdue / outstanding / paid).
+
+### Where it's wired
+- **Dashboard (`Dashboard.tsx`)** — Total Income, Total Expenses, Net Profit, and the Pending Invoices custom card all open `DrillDownModal` filtered from `rawIncome` / `rawExpenses` over the active period. The nested `{N} overdue` subtext on the Pending Invoices card opens its own overdue drill-down via `stopPropagation`. `SummaryCard` gained an optional `onClick` prop with hover-shadow + keyboard support.
+- **Contracts list (`ContractsList.tsx`)** — Total Value clears active filters and resets to page 1 (no modal — the underlying contract list is already on the page). Collected, Outstanding, and Overdue all open `MilestoneListModal` against the matching alerts endpoint. The single `showOverdueModal` flag was replaced with an `activeModal` union so all three drill-downs share one state slot.
+- **P&L Centers (`PnlCenters.tsx`)** — top three aggregate cards (Total Income / Total Expenses / Net Profit) become buttons that lazy-fetch `/income` and `/expenses` (limit 500), filter by the active period, and open `DrillDownModal`. A spinner replaces the card icon while loading. Per-center cards still open `PnlCenterDetail` unchanged.
+- **Analytics** — already drill-down enabled (no change).
+
+### Backend endpoints added
+- `GET /income-contracts/alerts/outstanding` — all milestones where `status != 'paid'` on contracts in `('active','on_hold')`, ordered by `due_date ASC`
+- `GET /income-contracts/alerts/paid?limit=200` — all paid milestones on active/on-hold contracts, ordered by `COALESCE(payment_received_date, due_date) DESC`, capped
+- Both mirror the existing `alerts/overdue` and `alerts/upcoming` endpoints in `IncomeContractsController.cs`.
+
+### Deliberately not clickable
+Stat displays sitting directly above the table they describe (Income, Expenses, Sales tabs) — the "details" are already visible.
