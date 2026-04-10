@@ -36,6 +36,7 @@ import {
   Legend,
   ResponsiveContainer,
 } from 'recharts';
+import { DrillDownModal, type DrillDownItem } from '../analytics/components/DrillDownModal';
 
 // PeriodSelector drives startDate/endDate strings; cutoff derived inline
 
@@ -141,6 +142,7 @@ export default function Dashboard() {
   const [convertedSummary, setConvertedSummary] = useState<{
     income: number; expenses: number; net: number; pending: number;
   } | null>(null);
+  const [drillDown, setDrillDown] = useState<{ title: string; subtitle?: string; items: DrillDownItem[] } | null>(null);
 
   useEffect(() => {
     const fetchDashboardData = async () => {
@@ -260,6 +262,51 @@ export default function Dashboard() {
       });
   }, [rawIncome, rawExpenses, startDate, endDate]);
 
+  const drillDownItems = useMemo(() => {
+    const cutoff = parseCutoff(startDate);
+    const cutoffEnd = parseCutoff(endDate);
+    const inPeriod = (dateStr: string) => {
+      const d = new Date(dateStr);
+      return (!cutoff || d >= cutoff) && (!cutoffEnd || d <= cutoffEnd);
+    };
+    const incomeToDDI = (i: RawIncome): DrillDownItem => ({
+      id: i.id,
+      date: i.incomeDate.split('T')[0],
+      description: i.description || i.clientName || 'Income',
+      amount: i.amount,
+      currency: i.currency ?? 'ILS',
+      category: i.category?.name ?? null,
+      vendorOrClient: i.clientName ?? null,
+      type: 'income',
+      invoiceStatus: i.invoiceStatus ?? null,
+      pnlCenters: i.pnlCenter?.name ? [i.pnlCenter.name] : undefined,
+    });
+    const expenseToDDI = (e: RawExpense): DrillDownItem => ({
+      id: e.id,
+      date: e.expenseDate.split('T')[0],
+      description: e.description || e.vendor || 'Expense',
+      amount: e.amount,
+      currency: e.currency ?? 'ILS',
+      category: e.category?.name ?? null,
+      vendorOrClient: e.vendor ?? null,
+      type: 'expense',
+      pnlCenters: e.pnlCenter?.name ? [e.pnlCenter.name] : undefined,
+    });
+    const incomeInPeriod = rawIncome.filter(i => inPeriod(i.incomeDate));
+    const expensesInPeriod = rawExpenses.filter(e => inPeriod(e.expenseDate));
+    return {
+      income: incomeInPeriod.map(incomeToDDI),
+      expenses: expensesInPeriod.map(expenseToDDI),
+      all: [...incomeInPeriod.map(incomeToDDI), ...expensesInPeriod.map(expenseToDDI)],
+      pending: incomeInPeriod
+        .filter(i => i.invoiceStatus === 'draft' || i.invoiceStatus === 'sent')
+        .map(incomeToDDI),
+      overdue: incomeInPeriod
+        .filter(i => i.invoiceStatus === 'overdue')
+        .map(incomeToDDI),
+    };
+  }, [rawIncome, rawExpenses, startDate, endDate]);
+
   const transactions = useMemo(() => {
     const cutoff = parseCutoff(startDate);
     const cutoffEnd = parseCutoff(endDate);
@@ -370,6 +417,7 @@ export default function Dashboard() {
             change={summaryData.incomeChange}
             positiveIsGood
             icon={<TrendingUp className="w-5 h-5" />}
+            onClick={() => setDrillDown({ title: 'Total Income', subtitle: getPeriodLabel(startDate, endDate), items: drillDownItems.income })}
           />
           <SummaryCard
             title={`Total Expenses (${displayCurrency})`}
@@ -377,6 +425,7 @@ export default function Dashboard() {
             change={summaryData.expensesChange}
             positiveIsGood={false}
             icon={<TrendingDown className="w-5 h-5" />}
+            onClick={() => setDrillDown({ title: 'Total Expenses', subtitle: getPeriodLabel(startDate, endDate), items: drillDownItems.expenses })}
           />
           <SummaryCard
             title={`Net Profit (${displayCurrency})`}
@@ -384,8 +433,15 @@ export default function Dashboard() {
             change={summaryData.profitChange}
             positiveIsGood
             icon={<DollarSign className="w-5 h-5" />}
+            onClick={() => setDrillDown({ title: 'Net Profit', subtitle: getPeriodLabel(startDate, endDate), items: drillDownItems.all })}
           />
-          <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
+          <div
+            role="button"
+            tabIndex={0}
+            onClick={() => setDrillDown({ title: 'Pending Invoices', subtitle: getPeriodLabel(startDate, endDate), items: drillDownItems.pending })}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setDrillDown({ title: 'Pending Invoices', subtitle: getPeriodLabel(startDate, endDate), items: drillDownItems.pending }); } }}
+            className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden cursor-pointer hover:shadow-md transition-shadow"
+          >
             <div className="bg-primary-600 h-10 flex items-center px-5">
               <span className="text-white font-medium text-sm">Pending Invoices</span>
             </div>
@@ -398,10 +454,17 @@ export default function Dashboard() {
                 {summaryData.pendingCount} invoice{summaryData.pendingCount !== 1 ? 's' : ''} pending
               </p>
               {summaryData.overdueCount > 0 && (
-                <p className="mt-1 text-sm text-danger-600 flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setDrillDown({ title: 'Overdue Invoices', subtitle: getPeriodLabel(startDate, endDate), items: drillDownItems.overdue });
+                  }}
+                  className="mt-1 text-sm text-danger-600 flex items-center gap-1 hover:underline"
+                >
                   <AlertCircle className="w-3.5 h-3.5" />
                   {summaryData.overdueCount} overdue
-                </p>
+                </button>
               )}
             </div>
           </div>
@@ -575,6 +638,16 @@ export default function Dashboard() {
           onClose={() => setSelectedTransaction(null)}
         />
       )}
+
+      {/* Stat Card Drill-Down Modal */}
+      {drillDown && (
+        <DrillDownModal
+          title={drillDown.title}
+          subtitle={drillDown.subtitle}
+          items={drillDown.items}
+          onClose={() => setDrillDown(null)}
+        />
+      )}
     </div>
   );
 }
@@ -587,13 +660,23 @@ interface SummaryCardProps {
   change: number;
   positiveIsGood: boolean;
   icon?: ReactNode;
+  onClick?: () => void;
 }
 
-function SummaryCard({ title, value, change, positiveIsGood }: SummaryCardProps) {
+function SummaryCard({ title, value, change, positiveIsGood, onClick }: SummaryCardProps) {
   const isGood = positiveIsGood ? change >= 0 : change <= 0;
   const changeAbs = Math.abs(change);
+  const interactive = !!onClick;
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
+    <div
+      onClick={onClick}
+      role={interactive ? 'button' : undefined}
+      tabIndex={interactive ? 0 : undefined}
+      onKeyDown={interactive ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick?.(); } } : undefined}
+      className={`bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden ${
+        interactive ? 'cursor-pointer hover:shadow-md transition-shadow' : ''
+      }`}
+    >
       <div className="bg-primary-600 h-10 flex items-center px-5">
         <span className="text-white font-medium text-sm">{title}</span>
       </div>
