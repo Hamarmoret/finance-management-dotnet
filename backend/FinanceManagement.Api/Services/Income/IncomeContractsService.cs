@@ -1565,6 +1565,44 @@ public class IncomeContractsService
         return rows.Select(r => MapMilestone(r, r.contract_title, r.client_name, forceOverdue: true)).ToList();
     }
 
+    public async Task<List<IncomeMilestoneDto>> GetOutstandingMilestonesAsync()
+    {
+        await using var conn = _db.CreateConnection();
+        await conn.OpenAsync();
+
+        var rows = await conn.QueryAsync<DbMilestoneRow>(
+            """
+            SELECT m.*, ic.title as contract_title, ic.client_name
+            FROM income_milestones m
+            JOIN income_contracts ic ON ic.id = m.contract_id
+            WHERE m.status != 'paid'
+              AND ic.status IN ('active', 'on_hold')
+            ORDER BY m.due_date ASC
+            """);
+
+        return rows.Select(r => MapMilestone(r, r.contract_title, r.client_name)).ToList();
+    }
+
+    public async Task<List<IncomeMilestoneDto>> GetPaidMilestonesAsync(int limit = 200)
+    {
+        await using var conn = _db.CreateConnection();
+        await conn.OpenAsync();
+
+        var rows = await conn.QueryAsync<DbMilestoneRow>(
+            """
+            SELECT m.*, ic.title as contract_title, ic.client_name
+            FROM income_milestones m
+            JOIN income_contracts ic ON ic.id = m.contract_id
+            WHERE m.status = 'paid'
+              AND ic.status IN ('active', 'on_hold')
+            ORDER BY COALESCE(m.payment_received_date, m.due_date) DESC
+            LIMIT @Limit
+            """,
+            new { Limit = limit });
+
+        return rows.Select(r => MapMilestone(r, r.contract_title, r.client_name)).ToList();
+    }
+
     // ── Projections ───────────────────────────────────────────────────────────
 
     public async Task<List<MilestoneProjectionDto>> GetProjectionsAsync(int months = 12)

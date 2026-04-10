@@ -199,6 +199,20 @@ public class IncomeContractsController : ControllerBase
         return Ok(ApiResponse<List<IncomeMilestoneDto>>.Ok(milestones));
     }
 
+    [HttpGet("alerts/outstanding")]
+    public async Task<IActionResult> GetOutstanding()
+    {
+        var milestones = await _service.GetOutstandingMilestonesAsync();
+        return Ok(ApiResponse<List<IncomeMilestoneDto>>.Ok(milestones));
+    }
+
+    [HttpGet("alerts/paid")]
+    public async Task<IActionResult> GetPaid([FromQuery] int limit = 200)
+    {
+        var milestones = await _service.GetPaidMilestonesAsync(limit);
+        return Ok(ApiResponse<List<IncomeMilestoneDto>>.Ok(milestones));
+    }
+
     // ── Projections ───────────────────────────────────────────────────────────
 
     [HttpGet("projections")]
