@@ -1,10 +1,34 @@
 import { useState, useEffect } from 'react';
-import { Building2, Plus, Pencil, Trash2, TrendingUp, TrendingDown } from 'lucide-react';
+import { Building2, Plus, Pencil, Trash2, TrendingUp, TrendingDown, Loader2 } from 'lucide-react';
 import { api, getErrorMessage } from '../../services/api';
 import type { PnlCenterWithStats } from '@finance/shared';
 import { PnlCenterModal } from './components/PnlCenterModal';
 import { PnlCenterDetail } from './components/PnlCenterDetail';
 import { PeriodSelector, getPeriodLabel } from '../../components/PeriodSelector';
+import { DrillDownModal, type DrillDownItem } from '../analytics/components/DrillDownModal';
+
+interface RawIncome {
+  id: string;
+  description?: string;
+  clientName?: string;
+  amount: number;
+  incomeDate: string;
+  invoiceStatus?: string;
+  category?: { name: string };
+  pnlCenter?: { name: string };
+  currency?: string;
+}
+
+interface RawExpense {
+  id: string;
+  description?: string;
+  vendor?: string;
+  amount: number;
+  expenseDate: string;
+  category?: { name: string };
+  pnlCenter?: { name: string };
+  currency?: string;
+}
 
 function formatCurrency(amount: number): string {
   return new Intl.NumberFormat('en-US', {
@@ -25,6 +49,63 @@ export default function PnlCenters() {
   const [detailCenter, setDetailCenter] = useState<PnlCenterWithStats | null>(null);
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const [drillDown, setDrillDown] = useState<{ title: string; subtitle?: string; items: DrillDownItem[] } | null>(null);
+  const [loadingDrill, setLoadingDrill] = useState(false);
+
+  const inPeriod = (dateStr: string) => {
+    const d = new Date(dateStr);
+    if (startDate && d < new Date(startDate)) return false;
+    if (endDate && d > new Date(endDate)) return false;
+    return true;
+  };
+
+  async function openDrillDown(kind: 'income' | 'expenses' | 'all') {
+    setLoadingDrill(true);
+    try {
+      const [iRes, eRes] = await Promise.all([
+        kind !== 'expenses' ? api.get('/income', { params: { limit: 500 } }) : Promise.resolve(null),
+        kind !== 'income' ? api.get('/expenses', { params: { limit: 500 } }) : Promise.resolve(null),
+      ]);
+      const incomeRows: RawIncome[] = iRes?.data?.data ?? [];
+      const expenseRows: RawExpense[] = eRes?.data?.data ?? [];
+
+      const incomeItems: DrillDownItem[] = incomeRows
+        .filter(i => inPeriod(i.incomeDate))
+        .map(i => ({
+          id: i.id,
+          date: i.incomeDate.split('T')[0],
+          description: i.description || i.clientName || 'Income',
+          amount: i.amount,
+          currency: i.currency ?? 'ILS',
+          category: i.category?.name ?? null,
+          vendorOrClient: i.clientName ?? null,
+          type: 'income',
+          invoiceStatus: i.invoiceStatus ?? null,
+          pnlCenters: i.pnlCenter?.name ? [i.pnlCenter.name] : undefined,
+        }));
+      const expenseItems: DrillDownItem[] = expenseRows
+        .filter(e => inPeriod(e.expenseDate))
+        .map(e => ({
+          id: e.id,
+          date: e.expenseDate.split('T')[0],
+          description: e.description || e.vendor || 'Expense',
+          amount: e.amount,
+          currency: e.currency ?? 'ILS',
+          category: e.category?.name ?? null,
+          vendorOrClient: e.vendor ?? null,
+          type: 'expense',
+          pnlCenters: e.pnlCenter?.name ? [e.pnlCenter.name] : undefined,
+        }));
+
+      const items = kind === 'income' ? incomeItems : kind === 'expenses' ? expenseItems : [...incomeItems, ...expenseItems];
+      const title = kind === 'income' ? 'Total Income' : kind === 'expenses' ? 'Total Expenses' : 'Net Profit';
+      setDrillDown({ title, subtitle: getPeriodLabel(startDate, endDate), items });
+    } catch (err) {
+      setError(getErrorMessage(err));
+    } finally {
+      setLoadingDrill(false);
+    }
+  }
 
   useEffect(() => {
     fetchCenters();
@@ -119,29 +200,44 @@ export default function PnlCenters() {
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="panel p-6">
+        <button
+          type="button"
+          onClick={() => openDrillDown('income')}
+          disabled={loadingDrill}
+          className="panel p-6 text-left w-full hover:shadow-md transition-shadow cursor-pointer disabled:opacity-60"
+        >
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-500 dark:text-gray-400">Total Income</p>
               <p className="text-2xl font-bold text-green-600">{formatCurrency(totalIncome)}</p>
             </div>
             <div className="p-3 bg-green-100 rounded-lg">
-              <TrendingUp className="w-6 h-6 text-green-600" />
+              {loadingDrill ? <Loader2 className="w-6 h-6 text-green-600 animate-spin" /> : <TrendingUp className="w-6 h-6 text-green-600" />}
             </div>
           </div>
-        </div>
-        <div className="panel p-6">
+        </button>
+        <button
+          type="button"
+          onClick={() => openDrillDown('expenses')}
+          disabled={loadingDrill}
+          className="panel p-6 text-left w-full hover:shadow-md transition-shadow cursor-pointer disabled:opacity-60"
+        >
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-500 dark:text-gray-400">Total Expenses</p>
               <p className="text-2xl font-bold text-red-600">{formatCurrency(totalExpenses)}</p>
             </div>
             <div className="p-3 bg-red-100 rounded-lg">
-              <TrendingDown className="w-6 h-6 text-red-600" />
+              {loadingDrill ? <Loader2 className="w-6 h-6 text-red-600 animate-spin" /> : <TrendingDown className="w-6 h-6 text-red-600" />}
             </div>
           </div>
-        </div>
-        <div className="panel p-6">
+        </button>
+        <button
+          type="button"
+          onClick={() => openDrillDown('all')}
+          disabled={loadingDrill}
+          className="panel p-6 text-left w-full hover:shadow-md transition-shadow cursor-pointer disabled:opacity-60"
+        >
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-500 dark:text-gray-400">Net Profit</p>
@@ -150,14 +246,16 @@ export default function PnlCenters() {
               </p>
             </div>
             <div className={`p-3 rounded-lg ${totalProfit >= 0 ? 'bg-green-100' : 'bg-red-100'}`}>
-              {totalProfit >= 0 ? (
-                <TrendingUp className={`w-6 h-6 ${totalProfit >= 0 ? 'text-green-600' : 'text-red-600'}`} />
+              {loadingDrill ? (
+                <Loader2 className={`w-6 h-6 animate-spin ${totalProfit >= 0 ? 'text-green-600' : 'text-red-600'}`} />
+              ) : totalProfit >= 0 ? (
+                <TrendingUp className="w-6 h-6 text-green-600" />
               ) : (
                 <TrendingDown className="w-6 h-6 text-red-600" />
               )}
             </div>
           </div>
-        </div>
+        </button>
       </div>
 
       {/* P&L Centers Grid */}
@@ -294,6 +392,16 @@ export default function PnlCenters() {
         <PnlCenterDetail
           center={detailCenter}
           onClose={() => setDetailCenter(null)}
+        />
+      )}
+
+      {/* Aggregate Drill-Down Modal */}
+      {drillDown && (
+        <DrillDownModal
+          title={drillDown.title}
+          subtitle={drillDown.subtitle}
+          items={drillDown.items}
+          onClose={() => setDrillDown(null)}
         />
       )}
     </div>
