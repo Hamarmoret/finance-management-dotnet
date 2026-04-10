@@ -41,7 +41,7 @@ export default function ContractsList({ presetClientId }: ContractsListProps) {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>(() =>
     (localStorage.getItem('contractsViewMode') as 'grid' | 'list') ?? 'grid'
   );
-  const [showOverdueModal, setShowOverdueModal] = useState(false);
+  const [activeModal, setActiveModal] = useState<'overdue' | 'outstanding' | 'collected' | null>(null);
 
   const fetchContracts = useCallback(async () => {
     setLoading(true);
@@ -191,13 +191,21 @@ export default function ContractsList({ presetClientId }: ContractsListProps) {
       {/* Stats bar — only when not in preset client mode */}
       {stats && !presetClientId && (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          <div className="card p-4">
+          <button
+            onClick={() => { clearFilters(); }}
+            className="card p-4 text-left w-full hover:shadow-md cursor-pointer transition-shadow"
+            title="Click to view all contracts"
+          >
             <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Total Value</p>
             <p className="text-lg font-bold text-gray-900 dark:text-white">
               {formatCurrency(stats.totalValue, 'ILS')}
             </p>
-          </div>
-          <div className="card p-4">
+          </button>
+          <button
+            onClick={() => setActiveModal('collected')}
+            className="card p-4 text-left w-full hover:shadow-md cursor-pointer transition-shadow"
+            title="Click to see collected payments"
+          >
             <div className="flex items-center gap-1 mb-1">
               <TrendingUp className="w-3.5 h-3.5 text-success-600" />
               <p className="text-xs text-gray-500 dark:text-gray-400">Collected</p>
@@ -205,9 +213,9 @@ export default function ContractsList({ presetClientId }: ContractsListProps) {
             <p className="text-lg font-bold text-success-600 dark:text-success-400">
               {formatCurrency(stats.totalCollected, 'ILS')}
             </p>
-          </div>
+          </button>
           <button
-            onClick={() => stats.overduePayments > 0 && setShowOverdueModal(true)}
+            onClick={() => stats.overduePayments > 0 && setActiveModal('overdue')}
             className={`card p-4 text-left w-full transition-shadow ${stats.overduePayments > 0 ? 'hover:shadow-md cursor-pointer' : 'cursor-default'}`}
             title={stats.overduePayments > 0 ? 'Click to see overdue details' : undefined}
           >
@@ -222,7 +230,11 @@ export default function ContractsList({ presetClientId }: ContractsListProps) {
               <p className="text-xs text-danger-500 dark:text-danger-400">{formatCurrency(stats.overdueAmount, 'ILS')}</p>
             )}
           </button>
-          <div className="card p-4">
+          <button
+            onClick={() => setActiveModal('outstanding')}
+            className="card p-4 text-left w-full hover:shadow-md cursor-pointer transition-shadow"
+            title="Click to see outstanding payments"
+          >
             <div className="flex items-center gap-1 mb-1">
               <Clock className="w-3.5 h-3.5 text-primary-600" />
               <p className="text-xs text-gray-500 dark:text-gray-400">Outstanding</p>
@@ -230,7 +242,7 @@ export default function ContractsList({ presetClientId }: ContractsListProps) {
             <p className="text-lg font-bold text-gray-900 dark:text-white">
               {formatCurrency(stats.totalOutstanding, 'ILS')}
             </p>
-          </div>
+          </button>
         </div>
       )}
 
@@ -439,15 +451,37 @@ export default function ContractsList({ presetClientId }: ContractsListProps) {
         />
       )}
 
-      {showOverdueModal && (
+      {activeModal === 'overdue' && (
         <MilestoneListModal
           title="Overdue Payments"
           icon={AlertTriangle}
           accent="danger"
           fetchUrl="/income-contracts/alerts/overdue"
           emptyMessage="No overdue payments"
-          onClose={() => setShowOverdueModal(false)}
-          onOpenContract={id => { setShowOverdueModal(false); openDetail(id); }}
+          onClose={() => setActiveModal(null)}
+          onOpenContract={id => { setActiveModal(null); openDetail(id); }}
+        />
+      )}
+      {activeModal === 'outstanding' && (
+        <MilestoneListModal
+          title="Outstanding Payments"
+          icon={Clock}
+          accent="primary"
+          fetchUrl="/income-contracts/alerts/outstanding"
+          emptyMessage="No outstanding payments"
+          onClose={() => setActiveModal(null)}
+          onOpenContract={id => { setActiveModal(null); openDetail(id); }}
+        />
+      )}
+      {activeModal === 'collected' && (
+        <MilestoneListModal
+          title="Collected Payments"
+          icon={TrendingUp}
+          accent="success"
+          fetchUrl="/income-contracts/alerts/paid"
+          emptyMessage="No collected payments yet"
+          onClose={() => setActiveModal(null)}
+          onOpenContract={id => { setActiveModal(null); openDetail(id); }}
         />
       )}
     </div>
