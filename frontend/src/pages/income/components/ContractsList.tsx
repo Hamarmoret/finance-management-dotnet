@@ -7,6 +7,7 @@ import { PeriodSelector, getPeriodLabel } from '../../../components/PeriodSelect
 import ContractCard from './ContractCard';
 import ContractModal from './ContractModal';
 import ContractDetailView from './ContractDetailView';
+import MilestoneListModal from './MilestoneListModal';
 import { SERVICE_TYPE_LABELS } from '@finance/shared';
 
 interface ContractsListProps {
@@ -439,89 +440,16 @@ export default function ContractsList({ presetClientId }: ContractsListProps) {
       )}
 
       {showOverdueModal && (
-        <OverdueModal onClose={() => setShowOverdueModal(false)} onOpenContract={id => { setShowOverdueModal(false); openDetail(id); }} />
+        <MilestoneListModal
+          title="Overdue Payments"
+          icon={AlertTriangle}
+          accent="danger"
+          fetchUrl="/income-contracts/alerts/overdue"
+          emptyMessage="No overdue payments"
+          onClose={() => setShowOverdueModal(false)}
+          onOpenContract={id => { setShowOverdueModal(false); openDetail(id); }}
+        />
       )}
-    </div>
-  );
-}
-
-// ── Overdue milestone details modal ─────────────────────────────────────────
-
-interface OverdueMilestone {
-  milestoneId: string;
-  contractId: string;
-  contractTitle: string;
-  clientName: string | null;
-  description: string;
-  amountDue: number;
-  currency: string;
-  dueDate: string;
-}
-
-function OverdueModal({ onClose, onOpenContract }: { onClose: () => void; onOpenContract: (id: string) => void }) {
-  const [items, setItems] = useState<OverdueMilestone[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    api.get('/income-contracts/alerts/overdue')
-      .then(r => setItems(r.data.data ?? []))
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, []);
-
-  const totalByCurrency = items.reduce((acc, m) => {
-    acc[m.currency] = (acc[m.currency] ?? 0) + m.amountDue;
-    return acc;
-  }, {} as Record<string, number>);
-
-  return (
-    <div className="fixed inset-0 z-50 overflow-y-auto">
-      <div className="flex min-h-full items-center justify-center p-4">
-        <div className="fixed inset-0 bg-black/50" onClick={onClose} />
-        <div className="relative bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-lg">
-          <div className="flex items-center justify-between p-4 border-b dark:border-gray-700">
-            <div>
-              <h2 className="text-base font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-                <AlertTriangle className="w-4 h-4 text-danger-600" />
-                Overdue Payments
-              </h2>
-              {Object.entries(totalByCurrency).map(([c, a]) => (
-                <span key={c} className="text-sm text-danger-600 dark:text-danger-400 font-medium mr-3">
-                  {formatCurrency(a, c)}
-                </span>
-              ))}
-            </div>
-            <button onClick={onClose} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
-              <X className="w-5 h-5" />
-            </button>
-          </div>
-          <div className="max-h-[60vh] overflow-y-auto divide-y divide-gray-100 dark:divide-gray-700">
-            {loading ? (
-              <div className="flex justify-center py-10"><Loader2 className="w-6 h-6 animate-spin text-gray-400" /></div>
-            ) : items.length === 0 ? (
-              <p className="text-center text-gray-500 dark:text-gray-400 py-10 text-sm">No overdue payments</p>
-            ) : items.map((m, i) => (
-              <button
-                key={i}
-                onClick={() => onOpenContract(m.contractId)}
-                className="w-full text-left px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700/40 transition-colors"
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{m.contractTitle}</p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{m.description}</p>
-                    {m.clientName && <p className="text-xs text-gray-400 dark:text-gray-500">{m.clientName}</p>}
-                  </div>
-                  <div className="text-right shrink-0">
-                    <p className="text-sm font-semibold text-danger-600 dark:text-danger-400">{formatCurrency(m.amountDue, m.currency)}</p>
-                    <p className="text-xs text-gray-400">{m.dueDate}</p>
-                  </div>
-                </div>
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
     </div>
   );
 }
