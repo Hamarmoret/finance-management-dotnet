@@ -49,6 +49,13 @@ public class ReportsController : ControllerBase
 
         var pdf = ReportPdfBuilder.Render(data);
 
+        await _reports.LogGenerationAsync(
+            userId,
+            request,
+            pdf.Length,
+            aiSummaryUsed: request.IncludeAiSummary,
+            aiSummaryFallback: data.AiSummary?.IsFallback ?? false);
+
         var filename = $"report-{request.Template}-{request.StartDate}-{request.EndDate}.pdf";
         return File(pdf, "application/pdf", filename);
     }

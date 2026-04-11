@@ -1,3 +1,5 @@
+using Dapper;
+using FinanceManagement.Api.Database;
 using FinanceManagement.Api.Middleware;
 using FinanceManagement.Api.Models.Reports;
 using FinanceManagement.Api.Services.Analytics;
@@ -24,6 +26,7 @@ public class ReportsService
     private readonly ExpensesService _expenses;
     private readonly LeadsService _leads;
     private readonly ProposalsService _proposals;
+    private readonly DbContext _db;
     private readonly ILogger<ReportsService> _logger;
 
     public ReportsService(
@@ -34,6 +37,7 @@ public class ReportsService
         ExpensesService expenses,
         LeadsService leads,
         ProposalsService proposals,
+        DbContext db,
         ILogger<ReportsService> logger)
     {
         _analytics = analytics;
@@ -43,6 +47,7 @@ public class ReportsService
         _expenses = expenses;
         _leads = leads;
         _proposals = proposals;
+        _db = db;
         _logger = logger;
     }
 
@@ -187,6 +192,54 @@ public class ReportsService
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "Report section {Section} failed to load; continuing without it", section);
+        }
+    }
+
+    /// <summary>
+    /// Writes an audit_logs entry for a successful report generation. Failures
+    /// are swallowed so a bad audit insert never breaks the download flow.
+    /// </summary>
+    public async Task LogGenerationAsync(
+        Guid userId,
+        ReportRequest request,
+        int pdfSizeBytes,
+        bool aiSummaryUsed,
+        bool aiSummaryFallback)
+    {
+        try
+        {
+            await using var conn = _db.CreateConnection();
+            await conn.OpenAsync();
+
+            var details = new
+            {
+                template = request.Template,
+                startDate = request.StartDate,
+                endDate = request.EndDate,
+                sections = request.Sections,
+                includeAiSummary = request.IncludeAiSummary,
+                hasPrompt = !string.IsNullOrWhiteSpace(request.Prompt),
+                pdfSizeBytes,
+                aiSummaryUsed,
+                aiSummaryFallback,
+            };
+
+            await conn.ExecuteAsync(
+                """
+                INSERT INTO audit_logs (user_id, action, entity_type, new_values)
+                VALUES (@UserId, @Action, @EntityType, @NewValues::jsonb)
+                """,
+                new
+                {
+                    UserId = userId,
+                    Action = "generate",
+                    EntityType = "report",
+                    NewValues = System.Text.Json.JsonSerializer.Serialize(details),
+                });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to write audit log for report generation — continuing");
         }
     }
 }
