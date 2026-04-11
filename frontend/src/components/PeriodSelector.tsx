@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Calendar } from 'lucide-react';
 
-type Preset = '1M' | '3M' | '6M' | '1Y' | 'All';
+type Preset = '1W' | '1M' | '3M' | '6M' | '1Y' | 'All';
 
 interface PeriodSelectorProps {
   startDate: string;
@@ -13,6 +13,14 @@ interface PeriodSelectorProps {
 function getPresetDates(preset: Preset): { start: string; end: string } {
   if (preset === 'All') return { start: '', end: '' };
   const now = new Date();
+  if (preset === '1W') {
+    const start = new Date(now);
+    start.setDate(now.getDate() - 6);
+    return {
+      start: start.toISOString().split('T')[0],
+      end: now.toISOString().split('T')[0],
+    };
+  }
   const months = preset === '1M' ? 1 : preset === '3M' ? 3 : preset === '6M' ? 6 : 12;
   const start = new Date(now.getFullYear(), now.getMonth() - months + 1, 1);
   return {
@@ -22,7 +30,7 @@ function getPresetDates(preset: Preset): { start: string; end: string } {
 }
 
 function matchPreset(startDate: string, endDate: string): Preset | null {
-  for (const p of ['1M', '3M', '6M', '1Y', 'All'] as Preset[]) {
+  for (const p of ['1W', '1M', '3M', '6M', '1Y', 'All'] as Preset[]) {
     const { start, end } = getPresetDates(p);
     if (start === startDate && end === endDate) return p;
   }
@@ -32,6 +40,7 @@ function matchPreset(startDate: string, endDate: string): Preset | null {
 export function getPeriodLabel(startDate: string, endDate: string): string {
   const preset = matchPreset(startDate, endDate);
   if (preset === 'All') return 'All time';
+  if (preset === '1W') return 'Last 7 days';
   if (preset === '1M') return 'Last month';
   if (preset === '3M') return 'Last 3 months';
   if (preset === '6M') return 'Last 6 months';
@@ -71,7 +80,7 @@ export function PeriodSelector({ startDate, endDate, onChange, className = '' }:
     <div className={`flex items-center gap-2 flex-wrap ${className}`}>
       {/* Preset buttons */}
       <div className="flex rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden text-xs font-medium">
-        {(['1M', '3M', '6M', '1Y', 'All'] as Preset[]).map(tf => (
+        {(['1W', '1M', '3M', '6M', '1Y', 'All'] as Preset[]).map(tf => (
           <button
             key={tf}
             type="button"

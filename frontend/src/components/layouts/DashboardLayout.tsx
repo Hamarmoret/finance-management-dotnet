@@ -17,6 +17,7 @@ import {
   Sun,
   Moon,
   Briefcase,
+  FileText,
 } from 'lucide-react';
 
 const navigation = [
@@ -27,6 +28,7 @@ const navigation = [
   { name: 'Sales', href: '/sales', icon: Briefcase },
   { name: 'Business Plan', href: '/business-plan', icon: Target },
   { name: 'Analytics', href: '/analytics', icon: BarChart3 },
+  { name: 'Reports', href: '/reports', icon: FileText },
   { name: 'Settings', href: '/settings', icon: Settings },
 ];
 
