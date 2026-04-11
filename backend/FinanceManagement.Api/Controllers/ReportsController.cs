@@ -19,11 +19,16 @@ namespace FinanceManagement.Api.Controllers;
 public class ReportsController : ControllerBase
 {
     private readonly ReportsService _reports;
+    private readonly AiSummaryService _aiSummary;
     private readonly ILogger<ReportsController> _logger;
 
-    public ReportsController(ReportsService reports, ILogger<ReportsController> logger)
+    public ReportsController(
+        ReportsService reports,
+        AiSummaryService aiSummary,
+        ILogger<ReportsController> logger)
     {
         _reports = reports;
+        _aiSummary = aiSummary;
         _logger = logger;
     }
 
@@ -37,15 +42,9 @@ public class ReportsController : ControllerBase
 
         var data = await _reports.CollectAsync(request, ct);
 
-        // AI summary placeholder until AiSummaryService lands.
         if (request.IncludeAiSummary)
         {
-            data.AiSummary = new AiSummary
-            {
-                ExecutiveSummary = "AI-generated executive summary will be available shortly. " +
-                                   "The report below contains the raw figures for the selected period.",
-                IsFallback = true,
-            };
+            data.AiSummary = await _aiSummary.SummarizeAsync(data, request.Prompt, ct);
         }
 
         var pdf = ReportPdfBuilder.Render(data);

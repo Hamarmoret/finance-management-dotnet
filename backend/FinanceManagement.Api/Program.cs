@@ -194,6 +194,7 @@ builder.Services.AddScoped<CsvImportService>();
 builder.Services.AddScoped<DropdownOptionsService>();
 builder.Services.AddScoped<VendorsService>();
 builder.Services.AddScoped<ReportsService>();
+builder.Services.AddScoped<AiSummaryService>();
 
 // Controllers with JSON options matching Node.js API
 builder.Services.AddControllers()
