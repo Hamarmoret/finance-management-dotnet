@@ -23,6 +23,7 @@ using FinanceManagement.Api.Services;
 using FinanceManagement.Api.Services.Uploads;
 using FinanceManagement.Api.Services.BusinessPlans;
 using FinanceManagement.Api.Services.CsvImport;
+using FinanceManagement.Api.Services.Reports;
 using FinanceManagement.Api.Services.Settings;
 using FinanceManagement.Api.Services.Vendors;
 
@@ -192,6 +193,7 @@ builder.Services.AddScoped<BusinessPlansService>();
 builder.Services.AddScoped<CsvImportService>();
 builder.Services.AddScoped<DropdownOptionsService>();
 builder.Services.AddScoped<VendorsService>();
+builder.Services.AddScoped<ReportsService>();
 
 // Controllers with JSON options matching Node.js API
 builder.Services.AddControllers()
