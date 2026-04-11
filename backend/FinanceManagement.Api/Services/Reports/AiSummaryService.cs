@@ -7,10 +7,13 @@ using FinanceManagement.Api.Models.Reports;
 namespace FinanceManagement.Api.Services.Reports;
 
 /// <summary>
-/// Calls Claude's Messages API to generate an executive summary, key findings,
-/// and recommendations for a report. Always returns an AiSummary — on any
-/// failure (missing key, network error, parse error, rate limit), returns a
-/// fallback summary so the PDF still renders.
+/// Calls Google Gemini's generateContent API to produce an executive summary,
+/// key findings, and recommendations for a report. Always returns an AiSummary —
+/// on any failure (missing key, network error, parse error, rate limit), returns
+/// a fallback summary so the PDF still renders.
+///
+/// Uses Gemini's free tier (gemini-2.5-flash). Gets key from:
+///   https://aistudio.google.com/app/apikey
 /// </summary>
 public class AiSummaryService
 {
@@ -33,10 +36,10 @@ public class AiSummaryService
 
     public async Task<AiSummary> SummarizeAsync(ReportData data, string? userPrompt, CancellationToken ct = default)
     {
-        if (!_settings.Anthropic.IsConfigured)
+        if (!_settings.Gemini.IsConfigured)
         {
-            _logger.LogInformation("ANTHROPIC_API_KEY not configured — using fallback summary");
-            return Fallback("AI summary unavailable — Claude API key not configured.");
+            _logger.LogInformation("GEMINI_API_KEY not configured — using fallback summary");
+            return Fallback("AI summary unavailable — Gemini API key not configured.");
         }
 
         try
@@ -45,20 +48,36 @@ public class AiSummaryService
             var systemPrompt = BuildSystemPrompt(userPrompt);
             var userMessage = BuildUserMessage(compactData, userPrompt);
 
-            var payload = new AnthropicRequest
+            var payload = new GeminiRequest
             {
-                Model = _settings.Anthropic.Model,
-                MaxTokens = MaxOutputTokens,
-                System = systemPrompt,
-                Messages =
+                SystemInstruction = new GeminiContent
+                {
+                    Parts = [new GeminiPart { Text = systemPrompt }],
+                },
+                Contents =
                 [
-                    new AnthropicMessage { Role = "user", Content = userMessage },
+                    new GeminiContent
+                    {
+                        Role = "user",
+                        Parts = [new GeminiPart { Text = userMessage }],
+                    },
                 ],
+                GenerationConfig = new GeminiGenerationConfig
+                {
+                    Temperature = 0.3,
+                    MaxOutputTokens = MaxOutputTokens,
+                    ResponseMimeType = "application/json",
+                },
             };
 
             var json = JsonSerializer.Serialize(payload, SerializerOptions);
-            using var httpClient = _httpFactory.CreateClient("anthropic");
-            using var req = new HttpRequestMessage(HttpMethod.Post, "v1/messages")
+            using var httpClient = _httpFactory.CreateClient("gemini");
+
+            // Endpoint: v1beta/models/{model}:generateContent?key={apiKey}
+            // Gemini accepts either x-goog-api-key header (already set in Program.cs)
+            // or ?key= query param. We use the header.
+            var endpoint = $"v1beta/models/{_settings.Gemini.Model}:generateContent";
+            using var req = new HttpRequestMessage(HttpMethod.Post, endpoint)
             {
                 Content = new StringContent(json, Encoding.UTF8, "application/json"),
             };
@@ -69,23 +88,23 @@ public class AiSummaryService
             if (!response.IsSuccessStatusCode)
             {
                 _logger.LogWarning(
-                    "Claude API returned {Status}: {Body}",
+                    "Gemini API returned {Status}: {Body}",
                     (int)response.StatusCode, Truncate(body, 500));
-                return Fallback($"AI summary unavailable (Claude API returned {(int)response.StatusCode}).");
+                return Fallback($"AI summary unavailable (Gemini API returned {(int)response.StatusCode}).");
             }
 
-            var parsed = JsonSerializer.Deserialize<AnthropicResponse>(body, SerializerOptions);
-            var textBlock = parsed?.Content?.FirstOrDefault(c => c.Type == "text")?.Text;
+            var parsed = JsonSerializer.Deserialize<GeminiResponse>(body, SerializerOptions);
+            var textBlock = parsed?.Candidates?.FirstOrDefault()?.Content?.Parts?.FirstOrDefault()?.Text;
             if (string.IsNullOrWhiteSpace(textBlock))
             {
-                _logger.LogWarning("Claude API response contained no text block: {Body}", Truncate(body, 500));
+                _logger.LogWarning("Gemini API response contained no text: {Body}", Truncate(body, 500));
                 return Fallback("AI summary unavailable (empty response).");
             }
 
             var summary = ParseSummary(textBlock);
             if (summary is null)
             {
-                _logger.LogWarning("Failed to parse JSON summary from Claude response: {Text}", Truncate(textBlock, 500));
+                _logger.LogWarning("Failed to parse JSON summary from Gemini response: {Text}", Truncate(textBlock, 500));
                 return Fallback("AI summary unavailable (could not parse response).");
             }
 
@@ -93,12 +112,12 @@ public class AiSummaryService
         }
         catch (TaskCanceledException)
         {
-            _logger.LogWarning("Claude API call timed out");
+            _logger.LogWarning("Gemini API call timed out");
             return Fallback("AI summary unavailable (request timed out).");
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Unexpected error calling Claude API for report summary");
+            _logger.LogError(ex, "Unexpected error calling Gemini API for report summary");
             return Fallback("AI summary unavailable (unexpected error).");
         }
     }
@@ -117,7 +136,7 @@ public class AiSummaryService
             "\"recommendations\" (array of 3-5 actionable strings). " +
             "Be specific — always cite real figures from the data, never invent numbers. " +
             "Keep the total under 500 words. " +
-            "Return ONLY valid JSON, no markdown, no code fences, no preamble.";
+            "Return ONLY valid JSON matching that shape, no markdown, no code fences, no preamble.";
 
         if (!string.IsNullOrWhiteSpace(userPrompt))
         {
@@ -145,7 +164,7 @@ public class AiSummaryService
 
     /// <summary>
     /// Serializes ReportData to JSON, trimming long row lists to keep the
-    /// payload under Claude's practical context budget.
+    /// payload well within Gemini's context budget.
     /// </summary>
     private static string CompactReportData(ReportData data)
     {
@@ -227,7 +246,6 @@ public class AiSummaryService
 
         if (Encoding.UTF8.GetByteCount(json) > MaxInputBytes)
         {
-            // Shouldn't hit this often given the trimming above, but log it.
             return json[..Math.Min(json.Length, MaxInputBytes)] + "…[truncated]";
         }
 
@@ -240,7 +258,8 @@ public class AiSummaryService
 
     private static AiSummary? ParseSummary(string rawText)
     {
-        // Claude sometimes wraps JSON in a code fence despite instructions. Strip it.
+        // With responseMimeType="application/json" set, Gemini should already return
+        // clean JSON. Defensive cleanup just in case it wraps in a code fence.
         var cleaned = rawText.Trim();
         if (cleaned.StartsWith("```"))
         {
@@ -250,7 +269,6 @@ public class AiSummaryService
             cleaned = cleaned.Trim();
         }
 
-        // Find the outermost JSON object if there's any extra text around it.
         var start = cleaned.IndexOf('{');
         var end = cleaned.LastIndexOf('}');
         if (start < 0 || end <= start) return null;
@@ -288,7 +306,8 @@ public class AiSummaryService
         string.IsNullOrEmpty(s) || s.Length <= max ? s : s[..max] + "…";
 
     // ─────────────────────────────────────────────────────────────────────
-    // Wire types
+    // Wire types — Gemini generateContent API
+    // https://ai.google.dev/api/generate-content
     // ─────────────────────────────────────────────────────────────────────
 
     private static readonly JsonSerializerOptions SerializerOptions = new()
@@ -298,43 +317,58 @@ public class AiSummaryService
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
     };
 
-    private class AnthropicRequest
+    private class GeminiRequest
     {
-        [JsonPropertyName("model")]
-        public string Model { get; set; } = string.Empty;
+        [JsonPropertyName("systemInstruction")]
+        public GeminiContent? SystemInstruction { get; set; }
 
-        [JsonPropertyName("max_tokens")]
-        public int MaxTokens { get; set; }
+        [JsonPropertyName("contents")]
+        public List<GeminiContent> Contents { get; set; } = [];
 
-        [JsonPropertyName("system")]
-        public string System { get; set; } = string.Empty;
-
-        [JsonPropertyName("messages")]
-        public List<AnthropicMessage> Messages { get; set; } = [];
+        [JsonPropertyName("generationConfig")]
+        public GeminiGenerationConfig? GenerationConfig { get; set; }
     }
 
-    private class AnthropicMessage
+    private class GeminiContent
     {
         [JsonPropertyName("role")]
-        public string Role { get; set; } = "user";
+        public string? Role { get; set; }
 
-        [JsonPropertyName("content")]
-        public string Content { get; set; } = string.Empty;
+        [JsonPropertyName("parts")]
+        public List<GeminiPart> Parts { get; set; } = [];
     }
 
-    private class AnthropicResponse
+    private class GeminiPart
     {
-        [JsonPropertyName("content")]
-        public List<AnthropicContentBlock>? Content { get; set; }
-    }
-
-    private class AnthropicContentBlock
-    {
-        [JsonPropertyName("type")]
-        public string? Type { get; set; }
-
         [JsonPropertyName("text")]
-        public string? Text { get; set; }
+        public string Text { get; set; } = string.Empty;
+    }
+
+    private class GeminiGenerationConfig
+    {
+        [JsonPropertyName("temperature")]
+        public double Temperature { get; set; }
+
+        [JsonPropertyName("maxOutputTokens")]
+        public int MaxOutputTokens { get; set; }
+
+        [JsonPropertyName("responseMimeType")]
+        public string? ResponseMimeType { get; set; }
+    }
+
+    private class GeminiResponse
+    {
+        [JsonPropertyName("candidates")]
+        public List<GeminiCandidate>? Candidates { get; set; }
+    }
+
+    private class GeminiCandidate
+    {
+        [JsonPropertyName("content")]
+        public GeminiContent? Content { get; set; }
+
+        [JsonPropertyName("finishReason")]
+        public string? FinishReason { get; set; }
     }
 
     private class AiSummaryPayload

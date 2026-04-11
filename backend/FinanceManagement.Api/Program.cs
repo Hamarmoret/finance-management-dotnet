@@ -151,7 +151,7 @@ builder.Services.AddRateLimiter(options =>
         o.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
     });
 
-    // Reports: 10 per hour per IP — caps Anthropic API spend
+    // Reports: 10 per hour per IP — caps AI API spend
     options.AddFixedWindowLimiter("reports", o =>
     {
         o.Window            = TimeSpan.FromHours(1);
@@ -161,14 +161,13 @@ builder.Services.AddRateLimiter(options =>
     });
 });
 
-// Named HttpClient for Claude (Anthropic) Messages API
-builder.Services.AddHttpClient("anthropic", client =>
+// Named HttpClient for Google Gemini generateContent API
+builder.Services.AddHttpClient("gemini", client =>
 {
-    client.BaseAddress = new Uri("https://api.anthropic.com/");
-    client.DefaultRequestHeaders.Add("anthropic-version", "2023-06-01");
-    if (!string.IsNullOrWhiteSpace(appSettings.Anthropic.ApiKey))
+    client.BaseAddress = new Uri("https://generativelanguage.googleapis.com/");
+    if (!string.IsNullOrWhiteSpace(appSettings.Gemini.ApiKey))
     {
-        client.DefaultRequestHeaders.Add("x-api-key", appSettings.Anthropic.ApiKey);
+        client.DefaultRequestHeaders.Add("x-goog-api-key", appSettings.Gemini.ApiKey);
     }
     client.Timeout = TimeSpan.FromSeconds(30);
 });

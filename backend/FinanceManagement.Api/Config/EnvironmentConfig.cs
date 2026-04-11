@@ -52,11 +52,12 @@ public static class EnvironmentConfig
             {
                 BucketName = Env("GCS_BUCKET", "finance-management-uploads"),
             },
-            Anthropic = new AnthropicSettings
+            Gemini = new GeminiSettings
             {
                 // Optional — if missing, reports still render without AI summary.
-                ApiKey = Env("ANTHROPIC_API_KEY", ""),
-                Model  = Env("ANTHROPIC_MODEL", "claude-sonnet-4-5"),
+                // Free tier key: https://aistudio.google.com/app/apikey
+                ApiKey = Env("GEMINI_API_KEY", ""),
+                Model  = Env("GEMINI_MODEL", "gemini-2.5-flash"),
             },
         };
     }

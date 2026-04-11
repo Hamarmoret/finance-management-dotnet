@@ -9,21 +9,23 @@ public class AppSettings
     public CorsSettings Cors { get; set; } = new();
     public string EncryptionKey { get; set; } = string.Empty;
     public GcsSettings Gcs { get; set; } = new();
-    public AnthropicSettings Anthropic { get; set; } = new();
+    public GeminiSettings Gemini { get; set; } = new();
 }
 
-public class AnthropicSettings
+public class GeminiSettings
 {
     /// <summary>
-    /// Claude API key. Optional — if empty, AI summary generation is disabled and
-    /// reports still render with a "AI summary unavailable" placeholder.
+    /// Google AI Studio (Gemini) API key. Optional — if empty, AI summary generation
+    /// is disabled and reports still render with a "AI summary unavailable" placeholder.
+    /// Get a free-tier key at https://aistudio.google.com/app/apikey
     /// </summary>
     public string ApiKey { get; set; } = string.Empty;
 
     /// <summary>
-    /// Model name for Claude Messages API. Defaults to claude-sonnet-4-5.
+    /// Model name for Gemini generateContent API. Defaults to gemini-2.5-flash
+    /// (free tier, fast, good at structured output).
     /// </summary>
-    public string Model { get; set; } = "claude-sonnet-4-5";
+    public string Model { get; set; } = "gemini-2.5-flash";
 
     public bool IsConfigured => !string.IsNullOrWhiteSpace(ApiKey);
 }

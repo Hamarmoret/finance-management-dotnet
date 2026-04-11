@@ -425,11 +425,11 @@ Stat displays sitting directly above the table they describe (Income, Expenses, 
 
 ## Reports Module (PDF + AI Executive Summary)
 
-The `/reports` page generates a downloadable PDF report of business data for a selected period, optionally with an AI-generated executive summary, key findings, and recommendations produced by Claude.
+The `/reports` page generates a downloadable PDF report of business data for a selected period, optionally with an AI-generated executive summary, key findings, and recommendations produced by Google Gemini.
 
 ### Two report modes
 1. **Templated reports** — user picks one of five pre-built templates (`Full Business Report`, `Dashboard Overview`, `P&L Breakdown`, `Contracts & Milestones`, `Sales Pipeline`). Each template pre-checks a default section list, and the user can toggle any of the 11 section checkboxes to include/exclude specific data. Optional AI summary checkbox.
-2. **AI custom reports** — user types a free-text prompt (max 1000 chars). The full section catalog is always included so Claude has the complete picture, the prompt is prepended to the Claude user message, and the AI summary is always on. Four example prompts are clickable to seed the textarea.
+2. **AI custom reports** — user types a free-text prompt (max 1000 chars). The full section catalog is always included so Gemini has the complete picture, the prompt is prepended to the user message, and the AI summary is always on. Four example prompts are clickable to seed the textarea.
 
 ### Backend architecture
 ```
@@ -440,9 +440,10 @@ POST /api/reports/generate
   │         ProposalsService — each wrapped in SafeFetch so one bad section can't
   │         kill the whole report
   ├── if IncludeAiSummary: AiSummaryService.SummarizeAsync(data, prompt)
-  │     └── compacts data to ≤30KB JSON, POSTs to api.anthropic.com/v1/messages
-  │         (named HttpClient "anthropic"), parses strict-JSON response,
-  │         graceful fallback on any failure
+  │     └── compacts data to ≤30KB JSON, POSTs to
+  │         generativelanguage.googleapis.com/v1beta/models/{model}:generateContent
+  │         (named HttpClient "gemini"), parses strict-JSON response
+  │         (responseMimeType=application/json), graceful fallback on any failure
   ├── ReportPdfBuilder.Render(data) → byte[] (MigraDoc Document → PdfDocumentRenderer)
   └── ReportsService.LogGenerationAsync → audit_logs (entity_type='report')
 ```
@@ -450,7 +451,7 @@ POST /api/reports/generate
 ### Key files
 - `backend/FinanceManagement.Api/Models/Reports/ReportModels.cs` — `ReportRequest`, `ReportData`, `ReportPeriod`, `AiSummary`, `ReportSections` (canonical section keys + per-template defaults).
 - `backend/FinanceManagement.Api/Services/Reports/ReportsService.cs` — orchestrates data collection via existing domain services; no direct SQL. Section-level error isolation via `SafeFetch`. Also owns `LogGenerationAsync` which writes the audit row.
-- `backend/FinanceManagement.Api/Services/Reports/AiSummaryService.cs` — calls Claude Messages API via the named HttpClient. Strict-JSON response parsing with code-fence stripping. Always returns an `AiSummary`, with `IsFallback=true` on any failure so the PDF still renders with a muted italic note.
+- `backend/FinanceManagement.Api/Services/Reports/AiSummaryService.cs` — calls Gemini `generateContent` API via the named HttpClient. Uses `responseMimeType: "application/json"` so Gemini returns strict JSON; defensive code-fence stripping as a fallback. Always returns an `AiSummary`, with `IsFallback=true` on any failure so the PDF still renders with a muted italic note.
 - `backend/FinanceManagement.Api/Services/Reports/ReportPdfBuilder.cs` — static class, static `Render(ReportData) → byte[]`. Cover page → optional AI summary block (left-bordered blue callout) → data sections in canonical order → recommendations page → page-numbered footer. Reusable helpers: `AddSectionHeading`, `CreateDataTable` (zebra striping + right-aligned numeric headers), `AddCurrencyCell`, `AddKpiRow`, `Fmt` (per-currency symbol for USD/EUR/GBP/ILS).
 - `backend/FinanceManagement.Api/Controllers/ReportsController.cs` — thin controller, `[EnableRateLimiting("reports")]` caps to 10/hr per IP. Returns `File(pdf, "application/pdf", filename)`.
 - `frontend/src/pages/reports/Reports.tsx` — main page, hosts the tab switcher, period picker, mode-specific config body, generate button with rolling status message timer, and blob download with JSON-error extraction from blob responses.
@@ -459,21 +460,23 @@ POST /api/reports/generate
 - `frontend/src/pages/reports/components/ReportPreview.tsx` — right-rail live preview summarizing what will be included.
 
 ### Environment variables
-- `ANTHROPIC_API_KEY` — **optional**. When unset, reports still render but the executive summary block displays "AI summary unavailable — Claude API key not configured." Set via Cloud Run secret: `gcloud run services update finance-backend-dotnet --region me-west1 --set-secrets=ANTHROPIC_API_KEY=anthropic-api-key:latest`.
-- `ANTHROPIC_MODEL` — defaults to `claude-sonnet-4-5`. Lets us swap models without code changes.
+- `GEMINI_API_KEY` — **optional**. When unset, reports still render but the executive summary block displays "AI summary unavailable — Gemini API key not configured." Get a free-tier key at https://aistudio.google.com/app/apikey, then bind via Cloud Run secret: `gcloud run services update finance-backend-dotnet --region me-west1 --set-secrets=GEMINI_API_KEY=gemini-api-key:latest`.
+- `GEMINI_MODEL` — defaults to `gemini-2.5-flash` (free tier, fast, good at structured output). Lets us swap models without code changes.
 
-Both are read in `Config/EnvironmentConfig.cs` as part of the `AnthropicSettings` section on `AppSettings`.
+Both are read in `Config/EnvironmentConfig.cs` as part of the `GeminiSettings` section on `AppSettings`.
 
-### Claude API wiring
-- Named HttpClient `"anthropic"` registered in `Program.cs` with base address `https://api.anthropic.com/`, `anthropic-version: 2023-06-01` default header, `x-api-key` attached when configured, and `Timeout = 30s`.
-- `max_tokens: 1500` on the Messages request caps per-report cost at roughly $0.01–0.02 on Sonnet pricing.
-- System prompt instructs Claude to return strict JSON with `executiveSummary`, `keyFindings`, `recommendations` and to only cite numbers that appear in the data.
-- Response parser strips optional code fences, extracts the outermost JSON object, and deserializes. Any parse failure → fallback summary (logged, PDF still renders).
+### Gemini API wiring
+- Named HttpClient `"gemini"` registered in `Program.cs` with base address `https://generativelanguage.googleapis.com/`, `x-goog-api-key` header attached when configured, and `Timeout = 30s`.
+- POST path is `v1beta/models/{model}:generateContent`.
+- Request uses `systemInstruction` for the analyst role/output contract, `contents[].parts[].text` for the user message, and `generationConfig` with `temperature: 0.3`, `maxOutputTokens: 1500`, and **`responseMimeType: "application/json"`** — this is Gemini's native JSON mode, so the model is guaranteed to return a valid JSON object and we don't have to parse around markdown preambles.
+- System prompt instructs Gemini to return strict JSON with `executiveSummary`, `keyFindings`, `recommendations` and to only cite numbers that appear in the data.
+- Response parser deserializes the first candidate's text part. Any parse failure → fallback summary (logged, PDF still renders).
+- **Cost**: `gemini-2.5-flash` has a generous free tier (requests per minute / per day limits published at https://ai.google.dev/pricing). Above the free tier, pricing is pennies per million tokens — combined with the 1500-token cap and the 10/hour rate limit, paid overflow is effectively bounded at a few cents per month.
 
 ### Cost & abuse guardrails
 - **Rate limit**: `reports` fixed-window limiter, 10 requests per hour per IP, applied via `[EnableRateLimiting("reports")]` on the controller.
-- **Input compaction**: `AiSummaryService.CompactReportData` trims long row lists to top 10 + totals before sending to Claude, keeping the payload well under 30KB.
-- **Token cap**: `max_tokens: 1500` on the Messages request.
+- **Input compaction**: `AiSummaryService.CompactReportData` trims long row lists to top 10 + totals before sending to Gemini, keeping the payload well under 30KB.
+- **Token cap**: `maxOutputTokens: 1500` on the generateContent request.
 - **Audit trail**: every successful generation writes to `audit_logs` with `entity_type='report'`, `action='generate'`, and a `new_values` JSON payload containing template, period, section list, `hasPrompt`, `pdfSizeBytes`, `aiSummaryUsed`, `aiSummaryFallback`.
 
 ### Frontend UX for cold starts
