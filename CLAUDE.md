@@ -420,3 +420,70 @@ Stat cards across the app are clickable and open a drill-down modal showing the 
 
 ### Deliberately not clickable
 Stat displays sitting directly above the table they describe (Income, Expenses, Sales tabs) — the "details" are already visible.
+
+---
+
+## Reports Module (PDF + AI Executive Summary)
+
+The `/reports` page generates a downloadable PDF report of business data for a selected period, optionally with an AI-generated executive summary, key findings, and recommendations produced by Claude.
+
+### Two report modes
+1. **Templated reports** — user picks one of five pre-built templates (`Full Business Report`, `Dashboard Overview`, `P&L Breakdown`, `Contracts & Milestones`, `Sales Pipeline`). Each template pre-checks a default section list, and the user can toggle any of the 11 section checkboxes to include/exclude specific data. Optional AI summary checkbox.
+2. **AI custom reports** — user types a free-text prompt (max 1000 chars). The full section catalog is always included so Claude has the complete picture, the prompt is prepended to the Claude user message, and the AI summary is always on. Four example prompts are clickable to seed the textarea.
+
+### Backend architecture
+```
+POST /api/reports/generate
+  ├── ReportsService.CollectAsync(request)
+  │     └── parallel Task.WhenAll fetch from AnalyticsService, PnlCentersService,
+  │         IncomeContractsService, IncomeService, ExpensesService, LeadsService,
+  │         ProposalsService — each wrapped in SafeFetch so one bad section can't
+  │         kill the whole report
+  ├── if IncludeAiSummary: AiSummaryService.SummarizeAsync(data, prompt)
+  │     └── compacts data to ≤30KB JSON, POSTs to api.anthropic.com/v1/messages
+  │         (named HttpClient "anthropic"), parses strict-JSON response,
+  │         graceful fallback on any failure
+  ├── ReportPdfBuilder.Render(data) → byte[] (MigraDoc Document → PdfDocumentRenderer)
+  └── ReportsService.LogGenerationAsync → audit_logs (entity_type='report')
+```
+
+### Key files
+- `backend/FinanceManagement.Api/Models/Reports/ReportModels.cs` — `ReportRequest`, `ReportData`, `ReportPeriod`, `AiSummary`, `ReportSections` (canonical section keys + per-template defaults).
+- `backend/FinanceManagement.Api/Services/Reports/ReportsService.cs` — orchestrates data collection via existing domain services; no direct SQL. Section-level error isolation via `SafeFetch`. Also owns `LogGenerationAsync` which writes the audit row.
+- `backend/FinanceManagement.Api/Services/Reports/AiSummaryService.cs` — calls Claude Messages API via the named HttpClient. Strict-JSON response parsing with code-fence stripping. Always returns an `AiSummary`, with `IsFallback=true` on any failure so the PDF still renders with a muted italic note.
+- `backend/FinanceManagement.Api/Services/Reports/ReportPdfBuilder.cs` — static class, static `Render(ReportData) → byte[]`. Cover page → optional AI summary block (left-bordered blue callout) → data sections in canonical order → recommendations page → page-numbered footer. Reusable helpers: `AddSectionHeading`, `CreateDataTable` (zebra striping + right-aligned numeric headers), `AddCurrencyCell`, `AddKpiRow`, `Fmt` (per-currency symbol for USD/EUR/GBP/ILS).
+- `backend/FinanceManagement.Api/Controllers/ReportsController.cs` — thin controller, `[EnableRateLimiting("reports")]` caps to 10/hr per IP. Returns `File(pdf, "application/pdf", filename)`.
+- `frontend/src/pages/reports/Reports.tsx` — main page, hosts the tab switcher, period picker, mode-specific config body, generate button with rolling status message timer, and blob download with JSON-error extraction from blob responses.
+- `frontend/src/pages/reports/components/TemplatePicker.tsx` — template radio grid + 11-section checkbox catalog with All/None shortcuts. Exports `TEMPLATE_DEFAULTS` and `ALL_SECTIONS` so `Reports.tsx` stays the single source of truth.
+- `frontend/src/pages/reports/components/AiCustomForm.tsx` — textarea with char counter and example prompts.
+- `frontend/src/pages/reports/components/ReportPreview.tsx` — right-rail live preview summarizing what will be included.
+
+### Environment variables
+- `ANTHROPIC_API_KEY` — **optional**. When unset, reports still render but the executive summary block displays "AI summary unavailable — Claude API key not configured." Set via Cloud Run secret: `gcloud run services update finance-backend-dotnet --region me-west1 --set-secrets=ANTHROPIC_API_KEY=anthropic-api-key:latest`.
+- `ANTHROPIC_MODEL` — defaults to `claude-sonnet-4-5`. Lets us swap models without code changes.
+
+Both are read in `Config/EnvironmentConfig.cs` as part of the `AnthropicSettings` section on `AppSettings`.
+
+### Claude API wiring
+- Named HttpClient `"anthropic"` registered in `Program.cs` with base address `https://api.anthropic.com/`, `anthropic-version: 2023-06-01` default header, `x-api-key` attached when configured, and `Timeout = 30s`.
+- `max_tokens: 1500` on the Messages request caps per-report cost at roughly $0.01–0.02 on Sonnet pricing.
+- System prompt instructs Claude to return strict JSON with `executiveSummary`, `keyFindings`, `recommendations` and to only cite numbers that appear in the data.
+- Response parser strips optional code fences, extracts the outermost JSON object, and deserializes. Any parse failure → fallback summary (logged, PDF still renders).
+
+### Cost & abuse guardrails
+- **Rate limit**: `reports` fixed-window limiter, 10 requests per hour per IP, applied via `[EnableRateLimiting("reports")]` on the controller.
+- **Input compaction**: `AiSummaryService.CompactReportData` trims long row lists to top 10 + totals before sending to Claude, keeping the payload well under 30KB.
+- **Token cap**: `max_tokens: 1500` on the Messages request.
+- **Audit trail**: every successful generation writes to `audit_logs` with `entity_type='report'`, `action='generate'`, and a `new_values` JSON payload containing template, period, section list, `hasPrompt`, `pdfSizeBytes`, `aiSummaryUsed`, `aiSummaryFallback`.
+
+### Frontend UX for cold starts
+A rolling status message is driven by a simple `setInterval` timer (pure UX — the frontend doesn't actually know the backend phase):
+- `0–2s`: "Collecting data…"
+- `2–6s`: "Generating AI summary…"
+- `6–15s`: "Rendering PDF…"
+- `15s+`: "Still working… large reports can take up to 30 seconds"
+
+Axios timeout is bumped to 60s on this specific call. When the backend returns a JSON error for a blob request, the frontend reads the blob as text, parses it, and surfaces the message in the red error banner.
+
+### PeriodSelector gained a 1W preset
+A new `1W` ("Last 7 days") preset was added to `frontend/src/components/PeriodSelector.tsx` for the Reports "weekly" use case. All existing callers keep working unchanged — the preset just appears first in the preset button group.
