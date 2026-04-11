@@ -9,6 +9,23 @@ public class AppSettings
     public CorsSettings Cors { get; set; } = new();
     public string EncryptionKey { get; set; } = string.Empty;
     public GcsSettings Gcs { get; set; } = new();
+    public AnthropicSettings Anthropic { get; set; } = new();
+}
+
+public class AnthropicSettings
+{
+    /// <summary>
+    /// Claude API key. Optional — if empty, AI summary generation is disabled and
+    /// reports still render with a "AI summary unavailable" placeholder.
+    /// </summary>
+    public string ApiKey { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Model name for Claude Messages API. Defaults to claude-sonnet-4-5.
+    /// </summary>
+    public string Model { get; set; } = "claude-sonnet-4-5";
+
+    public bool IsConfigured => !string.IsNullOrWhiteSpace(ApiKey);
 }
 
 public class GcsSettings

@@ -52,6 +52,12 @@ public static class EnvironmentConfig
             {
                 BucketName = Env("GCS_BUCKET", "finance-management-uploads"),
             },
+            Anthropic = new AnthropicSettings
+            {
+                // Optional — if missing, reports still render without AI summary.
+                ApiKey = Env("ANTHROPIC_API_KEY", ""),
+                Model  = Env("ANTHROPIC_MODEL", "claude-sonnet-4-5"),
+            },
         };
     }
 

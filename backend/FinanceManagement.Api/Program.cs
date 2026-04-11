@@ -149,6 +149,27 @@ builder.Services.AddRateLimiter(options =>
         o.QueueLimit        = 0;
         o.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
     });
+
+    // Reports: 10 per hour per IP — caps Anthropic API spend
+    options.AddFixedWindowLimiter("reports", o =>
+    {
+        o.Window            = TimeSpan.FromHours(1);
+        o.PermitLimit       = 10;
+        o.QueueLimit        = 0;
+        o.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
+    });
+});
+
+// Named HttpClient for Claude (Anthropic) Messages API
+builder.Services.AddHttpClient("anthropic", client =>
+{
+    client.BaseAddress = new Uri("https://api.anthropic.com/");
+    client.DefaultRequestHeaders.Add("anthropic-version", "2023-06-01");
+    if (!string.IsNullOrWhiteSpace(appSettings.Anthropic.ApiKey))
+    {
+        client.DefaultRequestHeaders.Add("x-api-key", appSettings.Anthropic.ApiKey);
+    }
+    client.Timeout = TimeSpan.FromSeconds(30);
 });
 
 // Services
