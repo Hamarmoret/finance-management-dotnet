@@ -24,24 +24,24 @@ Full-stack financial management web app with expense/income tracking, P&L center
 Finance-Management-dotnet/
 ├── backend/FinanceManagement.Api/
 │   ├── Config/           # EnvironmentConfig, AppSettings
-│   ├── Controllers/      # 16 controllers
-│   ├── Database/         # DbContext.cs, MigrationRunner.cs (22 migrations)
+│   ├── Controllers/      # 17 controllers (includes ReportsController)
+│   ├── Database/         # DbContext.cs, MigrationRunner.cs (23 migrations)
 │   ├── Middleware/        # AuthMiddleware, ErrorHandlingMiddleware
 │   ├── Models/           # DTOs grouped by domain
-│   ├── Services/         # 17 services
+│   ├── Services/         # 17 services + Reports/ (ReportsService, AiSummaryService, ReportPdfBuilder, LinuxFontResolver)
 │   └── FinanceManagement.Api.csproj
 ├── frontend/
 │   ├── src/
 │   │   ├── components/   # DataTable, FileUpload, RecurringToggle, PeriodSelector,
 │   │   │                 # ClientAutocomplete, VendorAutocomplete, layouts
 │   │   ├── pages/        # auth, analytics, dashboard, expenses, income,
-│   │   │                 # pnl-centers, settings, business-plan, sales
+│   │   │                 # pnl-centers, settings, business-plan, sales, reports
 │   │   ├── services/     # api.ts (Axios client), currencyService.ts
 │   │   ├── stores/       # authStore.ts, dataStore.ts (Zustand)
 │   │   ├── shared/       # types.ts
 │   │   └── utils/        # formatters.ts
 │   └── package.json
-├── Dockerfile.backend
+├── Dockerfile.backend      # Includes fonts-liberation for PdfSharp on Linux
 ├── Dockerfile.frontend
 ├── cloudbuild-backend.yaml
 ├── cloudbuild-frontend.yaml
@@ -71,7 +71,7 @@ Frontend scripts: `dev`, `build`, `preview`, `lint`, `lint:fix`, `test`, `test:c
 - **Provider**: PostgreSQL via Supabase
 - **Host**: `db.ogfjdysvqceshqjzijae.supabase.co:5432`
 - **ORM**: Dapper (raw SQL, no EF Core)
-- **Migrations**: Auto-run on startup via `MigrationRunner.cs` (22 migrations, 001–022)
+- **Migrations**: Auto-run on startup via `MigrationRunner.cs` (23 migrations, 001–023)
 - **SQL placeholders**: `@ParamName` style (Dapper/Npgsql convention)
 - **Fatal migration failure**: `Environment.Exit(1)` on outer catch so Cloud Run stays on previous healthy revision
 
@@ -81,7 +81,7 @@ Frontend scripts: `dev`, `build`, `preview`, `lint`, `lint:fix`, `test`, `test:c
 - `pnl_centers`, `expenses`, `income` — core financial data
 - `leads`, `clients`, `proposals`, `attachments` — pipeline
 - `contact_persons` — contacts linked to clients
-- `income_contracts`, `income_milestones` — contract billing
+- `income_contracts`, `income_milestones` — contract billing (status includes `partially_paid`)
 - `vendors` — payees (vendor/employee/other); `idx_vendors_name_lower` unique index on LOWER(TRIM(name))
 - `business_plans` — with drivers & cost categories
 - `audit_logs` — compliance trail
@@ -110,6 +110,7 @@ Frontend scripts: `dev`, `build`, `preview`, `lint`, `lint:fix`, `test`, `test:c
 | Business Plans | BusinessPlansController | BusinessPlansService |
 | Files | UploadsController | UploadsService (GCS) |
 | CSV | CsvImportController | CsvImportService |
+| Reports | ReportsController | ReportsService, AiSummaryService, ReportPdfBuilder |
 
 ## Deployment
 
@@ -142,6 +143,8 @@ Cloud Run keeps all previous revisions. Roll back via:
 | `GMAIL_USER` / `GMAIL_APP_PASSWORD` | Email sending |
 | `CORS_ORIGIN` / `FRONTEND_URL` | Frontend URL for CORS & links |
 | `MAX_CONCURRENT_SESSIONS` | `10` |
+| `GEMINI_API_KEY` | Google Gemini API key (optional — reports still render without AI) |
+| `GEMINI_MODEL` | Gemini model override (default: `gemini-2.5-flash`) |
 
 ## Dark Mode
 Implemented via Tailwind `darkMode: 'class'`. The `.dark` class is added to `<html>` by an inline script in `index.html` (reads from `localStorage.getItem('theme')` or system preference). The toggle lives in `DashboardLayout.tsx` (`useDarkMode` hook).
@@ -490,3 +493,83 @@ Axios timeout is bumped to 60s on this specific call. When the backend returns a
 
 ### PeriodSelector gained a 1W preset
 A new `1W` ("Last 7 days") preset was added to `frontend/src/components/PeriodSelector.tsx` for the Reports "weekly" use case. All existing callers keep working unchanged — the preset just appears first in the preset button group.
+
+### PdfSharp Linux font resolver (Cloud Run fix)
+PdfSharp 6.x has no font discovery on Linux — `GlobalFontSettings.FontResolver` must be set before any PDF rendering. Without it, `OpenTypeFontFace.CetOrCreateFrom` throws `NullReferenceException`.
+
+- **`LinuxFontResolver.cs`** — implements `IFontResolver`, maps "Arial" and "Liberation Sans" (Regular/Bold/Italic/BoldItalic) to `/usr/share/fonts/truetype/liberation/LiberationSans-*.ttf`. Falls back to any available Liberation Sans font for unknown families.
+- **`ReportPdfBuilder.cs`** — thread-safe double-check lock registers the resolver once: `if (GlobalFontSettings.FontResolver is null) GlobalFontSettings.FontResolver = new LinuxFontResolver();`
+- **`Dockerfile.backend`** — installs `fonts-liberation fontconfig` and runs `fc-cache -f -v` before the non-root user creation step.
+
+### Gemini 2.5 Flash thinking-parts gotcha
+Gemini 2.5 Flash returns "thought" parts (`"thought": true`) in the response before the actual content part. Using `FirstOrDefault()` on `parts` will grab the thinking text (not JSON) and fail to parse. The fix in `AiSummaryService.cs`:
+```csharp
+var textBlock = parts?.LastOrDefault(p => p.Thought != true)?.Text
+             ?? parts?.LastOrDefault()?.Text;
+```
+The `GeminiPart` class includes `[JsonPropertyName("thought")] public bool? Thought { get; set; }` to deserialize this flag.
+
+---
+
+## Partial Payments on Milestones
+
+### Migration 023
+`023_milestone_partially_paid` — adds `'partially_paid'` to the `valid_milestone_status` CHECK constraint on `income_milestones`.
+
+### Backend changes (`IncomeContractsService.cs`)
+- `MarkMilestonePaidAsync` now supports cumulative partial payments:
+  - Guard changed: rejects only `status == 'paid'` (not `partially_paid`)
+  - Computes `previouslyPaid = milestone.actual_amount_paid ?? 0`, `remaining = amount_due - previouslyPaid`, `thisPayment = request.ActualAmountPaid ?? remaining`
+  - `cumulativePaid = previouslyPaid + thisPayment`; new status = `'paid'` if `cumulativePaid >= amount_due`, else `'partially_paid'`
+  - Each partial payment creates its own income record (amount = `thisPayment`, not cumulative)
+  - Income description includes "(partial payment)" suffix when applicable
+  - UPDATE writes `@Status` and `@CumulativePaid` instead of hardcoded `'paid'` and single amount
+
+### Frontend changes
+- **`shared/types.ts`** — `MilestoneStatus` union includes `'partially_paid'`
+- **`MilestoneStatusBadge.tsx`** — amber badge config for `partially_paid`
+- **`MilestoneRow.tsx`** — helper booleans `isPaidOrPartial` / `isFullyPaid` control button visibility:
+  - Edit/delete: `!isPaidOrPartial` (hidden once any payment recorded)
+  - Mark-paid: `!isFullyPaid` (visible for partially_paid — allows recording additional payments)
+  - Revert: `isPaidOrPartial`
+  - Payment info line shows "Partially paid ($X of $Y) · Remaining: $Z" for partial status
+  - Row tint: `border-l-amber-400` for `partially_paid`
+- **`MarkPaidModal.tsx`** — detects `isAdditionalPayment` (status === 'partially_paid'), defaults amount to remaining, shows "Previously paid" + "Remaining" breakdown, header changes to "Record Additional Payment"
+- **`ContractDetailView.tsx`** — `totalPaid` includes partially_paid milestones; `totalOutstanding` subtracts actual_amount_paid from partially_paid milestones
+
+---
+
+## P&L Auto-Allocation from Contracts
+
+When `MarkMilestonePaidAsync` creates an income record and the frontend sends an empty `allocations` array, the service now auto-allocates 100% to the contract's `pnl_center_id` (if set). Without this, income records from milestones had no `income_allocations` rows, and P&L centers showed $0 for contract-derived income.
+
+**Fix location**: `IncomeContractsService.cs` line ~1313:
+```csharp
+Allocations = request.Allocations.Count > 0
+    ? request.Allocations
+    : contract.pnl_center_id.HasValue
+        ? [new AllocationInput { PnlCenterId = contract.pnl_center_id.Value, Percentage = 100 }]
+        : [],
+```
+
+---
+
+## GCS File Viewing Architecture
+
+Attachments are stored in Google Cloud Storage (`finance-management-uploads` bucket, not publicly readable). The file viewing chain in `DocumentsPanel.tsx`:
+
+1. **Signed URL** — `POST /api/uploads/get-signed-url` with `{ url }` body. Backend uses `UrlSigner.FromCredential()` to generate a 1-hour signed read URL. If returned URL starts with `http`, navigate the pre-opened tab to it.
+2. **Proxy blob download** — if the signed URL is relative (proxy fallback), download via authenticated axios as a blob (`responseType: 'blob'`), create `URL.createObjectURL`, and navigate the tab to the blob URL. Important: strip leading `/api/` from the proxy path since the axios base URL already includes `/api`.
+3. **Raw URL fallback** — on any error, navigate the tab to the original raw URL.
+
+**Popup blocker avoidance**: `window.open('about:blank', '_blank')` is called synchronously inside the click handler (preserving user-gesture context), then the tab's `location.href` is updated after the async fetch completes.
+
+---
+
+## Known Backend Gotchas (Recent)
+
+### IncomeService date parameter types
+`IncomeService.GetAllAsync` filters `DateFrom`/`DateTo` must be parsed to `DateTime` before passing to Dapper. PostgreSQL `date >= text` operator doesn't exist — passing strings causes "operator does not exist" errors. Fixed by `DateTime.TryParse` + adding `DateTime` parameters (matching the pattern in `ExpensesService`).
+
+### Dapper + PostgreSQL date columns
+Always pass `DateTime` objects (not strings) for `date`-type columns. Dapper maps `DateTime` to the correct PostgreSQL `date` type, but strings need explicit casting which Dapper doesn't do.
