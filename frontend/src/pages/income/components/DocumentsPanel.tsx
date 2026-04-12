@@ -43,6 +43,26 @@ export default function DocumentsPanel({
     allowedTypes?.[0] ?? 'other'
   );
   const [error, setError] = useState<string | null>(null);
+  const [openingFile, setOpeningFile] = useState<number | null>(null);
+
+  const handleOpenFile = async (url: string, index: number) => {
+    setOpeningFile(index);
+    try {
+      const res = await api.post('/uploads/get-signed-url', { url });
+      const signedUrl = res.data?.data?.url;
+      if (signedUrl) {
+        window.open(signedUrl, '_blank', 'noopener,noreferrer');
+      } else {
+        // Fallback: try the proxy endpoint
+        window.open(url, '_blank', 'noopener,noreferrer');
+      }
+    } catch {
+      // Fallback: open the raw URL (will work if bucket is public)
+      window.open(url, '_blank', 'noopener,noreferrer');
+    } finally {
+      setOpeningFile(null);
+    }
+  };
 
   const patchEndpoint = entityType === 'contract'
     ? `/income-contracts/${entityId}/attachments`
@@ -128,9 +148,15 @@ export default function DocumentsPanel({
               <span className={`text-xs px-1.5 py-0.5 rounded font-medium shrink-0 ${DOC_TYPE_COLORS[att.documentType]}`}>
                 {DOC_TYPES.find(d => d.value === att.documentType)?.label ?? att.documentType}
               </span>
-              <a href={att.url} target="_blank" rel="noreferrer" className="p-1 text-gray-400 hover:text-primary-600 dark:hover:text-primary-400">
-                <ExternalLink className="w-3.5 h-3.5" />
-              </a>
+              <button
+                onClick={() => handleOpenFile(att.url, i)}
+                disabled={openingFile === i}
+                className="p-1 text-gray-400 hover:text-primary-600 dark:hover:text-primary-400 disabled:opacity-50"
+              >
+                {openingFile === i
+                  ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  : <ExternalLink className="w-3.5 h-3.5" />}
+              </button>
               <button onClick={() => handleDelete(i)} className="p-1 text-gray-400 hover:text-danger-600 dark:hover:text-danger-400 opacity-0 group-hover:opacity-100 transition-opacity">
                 <Trash2 className="w-3.5 h-3.5" />
               </button>
