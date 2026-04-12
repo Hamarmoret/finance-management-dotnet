@@ -60,8 +60,11 @@ export default function DocumentsPanel({
       } else {
         // Relative proxy URL (signing failed on backend) — download as
         // blob through the authenticated axios client, then display it.
-        const proxyPath = fileUrl || url;
-        const blobRes = await api.get(proxyPath.startsWith('/') ? proxyPath : `/uploads/proxy?path=${encodeURIComponent(proxyPath)}`, {
+        // Backend returns "/api/uploads/proxy?path=..." but axios base
+        // URL already includes "/api", so strip the prefix to avoid
+        // doubling to "/api/api/...".
+        const proxyPath = (fileUrl || '').replace(/^\/api\//, '/');
+        const blobRes = await api.get(proxyPath || `/uploads/proxy?path=${encodeURIComponent(url)}`, {
           responseType: 'blob',
         });
         const blobUrl = URL.createObjectURL(blobRes.data);
