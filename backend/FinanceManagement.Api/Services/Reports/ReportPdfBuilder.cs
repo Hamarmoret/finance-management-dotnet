@@ -4,6 +4,7 @@ using MigraDoc.DocumentObjectModel;
 using MigraDoc.DocumentObjectModel.Shapes;
 using MigraDoc.DocumentObjectModel.Tables;
 using MigraDoc.Rendering;
+using PdfSharp.Fonts;
 
 namespace FinanceManagement.Api.Services.Reports;
 
@@ -15,6 +16,8 @@ namespace FinanceManagement.Api.Services.Reports;
 /// </summary>
 public static class ReportPdfBuilder
 {
+    private static bool _fontResolverRegistered;
+    private static readonly object _lock = new();
     // ── Color palette (kept in sync with Tailwind tokens used in the UI) ──
     private static readonly Color Primary  = new(37, 99, 235);    // blue-600
     private static readonly Color Success  = new(22, 163, 74);    // green-600
@@ -28,6 +31,10 @@ public static class ReportPdfBuilder
 
     public static byte[] Render(ReportData data)
     {
+        // PdfSharp 6.x on Linux needs a custom font resolver — there's no
+        // GDI+/fontconfig integration. Register once on first call.
+        EnsureFontResolver();
+
         var doc = BuildDocument(data);
 
         var renderer = new PdfDocumentRenderer { Document = doc };
@@ -36,6 +43,25 @@ public static class ReportPdfBuilder
         using var ms = new MemoryStream();
         renderer.PdfDocument.Save(ms, false);
         return ms.ToArray();
+    }
+
+    /// <summary>
+    /// Registers the Linux font resolver exactly once. On Windows (dev) this is
+    /// harmless — PdfSharp will still find system fonts via the resolver's fallback.
+    /// On Linux (Cloud Run), this is required or PdfSharp throws NullReferenceException.
+    /// </summary>
+    private static void EnsureFontResolver()
+    {
+        if (_fontResolverRegistered) return;
+        lock (_lock)
+        {
+            if (_fontResolverRegistered) return;
+            if (GlobalFontSettings.FontResolver is null)
+            {
+                GlobalFontSettings.FontResolver = new LinuxFontResolver();
+            }
+            _fontResolverRegistered = true;
+        }
     }
 
     private static Document BuildDocument(ReportData data)

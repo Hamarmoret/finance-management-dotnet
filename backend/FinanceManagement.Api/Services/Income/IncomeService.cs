@@ -460,13 +460,17 @@ public class IncomeService
 
         if (!string.IsNullOrEmpty(filters.DateFrom))
         {
+            if (!DateTime.TryParse(filters.DateFrom, out var dtFrom))
+                throw new AppException("Invalid dateFrom format", 400, "VALIDATION_ERROR");
             conditions.Add("i.income_date >= @DateFrom");
-            parameters.Add("DateFrom", filters.DateFrom);
+            parameters.Add("DateFrom", dtFrom);
         }
         if (!string.IsNullOrEmpty(filters.DateTo))
         {
+            if (!DateTime.TryParse(filters.DateTo, out var dtTo))
+                throw new AppException("Invalid dateTo format", 400, "VALIDATION_ERROR");
             conditions.Add("i.income_date <= @DateTo");
-            parameters.Add("DateTo", filters.DateTo);
+            parameters.Add("DateTo", dtTo);
         }
         if (filters.CategoryId.HasValue)
         {
