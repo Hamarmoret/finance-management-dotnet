@@ -40,7 +40,7 @@ export function ReportPreview({ mode, startDate, endDate, sections, aiPrompt, in
           <Sparkles className="w-4 h-4 text-primary-600 mt-0.5 shrink-0" />
           <div className="text-xs text-gray-700 dark:text-gray-300">
             <div className="font-medium text-primary-900 dark:text-primary-100 mb-0.5">AI Executive Summary</div>
-            Claude will generate a summary, key findings, and recommendations based on the data in this report.
+            AI will generate a summary, key findings, and recommendations based on the data in this report.
           </div>
         </div>
       )}

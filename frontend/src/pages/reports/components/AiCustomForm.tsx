@@ -35,7 +35,7 @@ export function AiCustomForm({ prompt, onPromptChange }: AiCustomFormProps) {
         />
         <div className="flex justify-between mt-1">
           <p className="text-xs text-gray-500 dark:text-gray-400">
-            Claude will analyze your data for the selected period and write the full report around this prompt.
+            AI will analyze your data for the selected period and write the full report around this prompt.
           </p>
           <p className={`text-xs ${tooLong ? 'text-red-600' : 'text-gray-400 dark:text-gray-500'}`}>
             {count} / {MAX_PROMPT_LENGTH}

@@ -94,7 +94,12 @@ public class AiSummaryService
             }
 
             var parsed = JsonSerializer.Deserialize<GeminiResponse>(body, SerializerOptions);
-            var textBlock = parsed?.Candidates?.FirstOrDefault()?.Content?.Parts?.FirstOrDefault()?.Text;
+            // Gemini 2.5 Flash has "thinking" enabled by default — the response
+            // may contain a thought part (internal reasoning) followed by the
+            // actual content part. We need the LAST non-thought part.
+            var parts = parsed?.Candidates?.FirstOrDefault()?.Content?.Parts;
+            var textBlock = parts?.LastOrDefault(p => p.Thought != true)?.Text
+                         ?? parts?.LastOrDefault()?.Text;
             if (string.IsNullOrWhiteSpace(textBlock))
             {
                 _logger.LogWarning("Gemini API response contained no text: {Body}", Truncate(body, 500));
@@ -342,6 +347,13 @@ public class AiSummaryService
     {
         [JsonPropertyName("text")]
         public string Text { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Gemini 2.5 models may include "thinking" parts (internal reasoning)
+        /// before the actual response. These have thought=true and should be skipped.
+        /// </summary>
+        [JsonPropertyName("thought")]
+        public bool? Thought { get; set; }
     }
 
     private class GeminiGenerationConfig

@@ -97,7 +97,7 @@ export default function Reports() {
               startDate,
               endDate,
               template: 'ai-custom',
-              // Send the full section catalog so Claude has the complete picture.
+              // Send the full section catalog so the AI has the complete picture.
               sections: ALL_SECTIONS.map((s) => s.key),
               prompt: aiPrompt.trim(),
               // AI custom reports always use the AI summary — that's the whole point.
@@ -234,7 +234,7 @@ export default function Reports() {
                     <span className="text-sm font-medium text-gray-900 dark:text-white">Include AI executive summary</span>
                   </div>
                   <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                    Claude analyzes the data and adds an executive summary, key findings, and recommendations
+                    AI analyzes the data and adds an executive summary, key findings, and recommendations
                   </p>
                 </div>
               </label>
