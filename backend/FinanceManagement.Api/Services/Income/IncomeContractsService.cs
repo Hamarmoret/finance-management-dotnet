@@ -1310,7 +1310,14 @@ public class IncomeContractsService
             TaxInvoiceDate = taxInvoiceDate,
             VatApplicable = contract.vat_applicable,
             VatPercentage = contract.vat_percentage,
-            Allocations = request.Allocations,
+            // If no allocations were explicitly provided but the contract is
+            // linked to a P&L center, auto-allocate 100% to that center so the
+            // income shows up in the P&L breakdown.
+            Allocations = request.Allocations.Count > 0
+                ? request.Allocations
+                : contract.pnl_center_id.HasValue
+                    ? [new AllocationInput { PnlCenterId = contract.pnl_center_id.Value, Percentage = 100 }]
+                    : [],
         };
 
         var incomeDto = await _incomeService.CreateAsync(incomeRequest, userId);
