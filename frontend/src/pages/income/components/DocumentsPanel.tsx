@@ -46,19 +46,18 @@ export default function DocumentsPanel({
   const [openingFile, setOpeningFile] = useState<number | null>(null);
 
   const handleOpenFile = async (url: string, index: number) => {
+    // Open the tab synchronously (in the click handler stack) so the
+    // browser doesn't treat it as a popup and block/close it.
+    const tab = window.open('about:blank', '_blank');
     setOpeningFile(index);
     try {
       const res = await api.post('/uploads/get-signed-url', { url });
       const signedUrl = res.data?.data?.url;
-      if (signedUrl) {
-        window.open(signedUrl, '_blank', 'noopener,noreferrer');
-      } else {
-        // Fallback: try the proxy endpoint
-        window.open(url, '_blank', 'noopener,noreferrer');
+      if (tab) {
+        tab.location.href = signedUrl || url;
       }
     } catch {
-      // Fallback: open the raw URL (will work if bucket is public)
-      window.open(url, '_blank', 'noopener,noreferrer');
+      if (tab) tab.location.href = url;
     } finally {
       setOpeningFile(null);
     }
