@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { CheckCircle, Trash2, Loader2, ExternalLink, Paperclip, Pencil, Check, RotateCcw } from 'lucide-react';
+import { CheckCircle, Trash2, Loader2, Paperclip, Pencil, Check, RotateCcw } from 'lucide-react';
 import type { IncomeMilestone, MilestoneStatus, ContractAttachment } from '@finance/shared';
 import DocumentsPanel from './DocumentsPanel';
 import { api, getErrorMessage } from '../../../services/api';
@@ -18,6 +18,7 @@ interface MilestoneRowProps {
 
 const ROW_TINT: Partial<Record<MilestoneStatus, string>> = {
   paid: 'border-l-4 border-l-success-400',
+  partially_paid: 'border-l-4 border-l-amber-400',
   overdue: 'border-l-4 border-l-danger-500 bg-danger-50/30 dark:bg-danger-900/10',
 };
 
@@ -78,8 +79,11 @@ export default function MilestoneRow({
     }
   };
 
+  const isPaidOrPartial = milestone.status === 'paid' || milestone.status === 'partially_paid';
+  const isFullyPaid = milestone.status === 'paid';
+
   const isUpcoming =
-    milestone.status !== 'paid' &&
+    !isPaidOrPartial &&
     milestone.status !== 'overdue' &&
     new Date(milestone.dueDate) <= new Date(Date.now() + 7 * 86400000);
 
@@ -99,7 +103,7 @@ export default function MilestoneRow({
               <MilestoneStatusBadge status={milestone.status} />
               <InlineText
                 value={milestone.description}
-                disabled={milestone.status === 'paid'}
+                disabled={isFullyPaid}
                 editMode={editMode}
                 saving={saving === 'description'}
                 onSave={v => saveField('description', v)}
@@ -112,7 +116,7 @@ export default function MilestoneRow({
               <InlineField
                 label="Proforma #"
                 value={milestone.proformaInvoiceNumber ?? ''}
-                disabled={milestone.status === 'paid'}
+                disabled={isFullyPaid}
                 editMode={editMode}
                 saving={saving === 'proformaInvoiceNumber'}
                 onSave={v => saveField('proformaInvoiceNumber', v || null)}
@@ -121,7 +125,7 @@ export default function MilestoneRow({
                 label="Proforma Date"
                 type="date"
                 value={milestone.proformaInvoiceDate ?? ''}
-                disabled={milestone.status === 'paid'}
+                disabled={isFullyPaid}
                 editMode={editMode}
                 saving={saving === 'proformaInvoiceDate'}
                 onSave={v => saveField('proformaInvoiceDate', v || null)}
@@ -129,7 +133,7 @@ export default function MilestoneRow({
               <InlineField
                 label="Tax Invoice #"
                 value={milestone.taxInvoiceNumber ?? ''}
-                disabled={milestone.status === 'paid'}
+                disabled={isFullyPaid}
                 editMode={editMode}
                 saving={saving === 'taxInvoiceNumber'}
                 onSave={v => saveField('taxInvoiceNumber', v || null)}
@@ -138,19 +142,23 @@ export default function MilestoneRow({
                 label="Tax Invoice Date"
                 type="date"
                 value={milestone.taxInvoiceDate ?? ''}
-                disabled={milestone.status === 'paid'}
+                disabled={isFullyPaid}
                 editMode={editMode}
                 saving={saving === 'taxInvoiceDate'}
                 onSave={v => saveField('taxInvoiceDate', v || null)}
               />
             </div>
 
-            {milestone.status === 'paid' && milestone.incomeId && (
-              <p className="mt-1 text-xs text-success-600 dark:text-success-400 flex items-center gap-1">
+            {isPaidOrPartial && milestone.incomeId && (
+              <p className={`mt-1 text-xs flex items-center gap-1 ${isFullyPaid ? 'text-success-600 dark:text-success-400' : 'text-amber-600 dark:text-amber-400'}`}>
                 <CheckCircle className="w-3 h-3" />
-                Paid {milestone.paymentReceivedDate} · {milestone.paymentMethod ?? ''} ·{' '}
-                {formatCurrency(milestone.actualAmountPaid ?? milestone.amountDue, milestone.currency)}
-                <ExternalLink className="w-3 h-3 ml-1 opacity-60" />
+                {isFullyPaid ? 'Paid' : `Partially paid (${formatCurrency(milestone.actualAmountPaid ?? 0, milestone.currency)} of ${formatCurrency(milestone.amountDue, milestone.currency)})`}
+                {' '}{milestone.paymentReceivedDate} · {milestone.paymentMethod ?? ''}
+                {!isFullyPaid && (
+                  <span className="ml-1 font-medium">
+                    · Remaining: {formatCurrency(milestone.amountDue - (milestone.actualAmountPaid ?? 0), milestone.currency)}
+                  </span>
+                )}
               </p>
             )}
           </div>
@@ -161,7 +169,7 @@ export default function MilestoneRow({
               <div className="flex items-center gap-1.5 justify-end">
                 <InlineAmount
                   value={milestone.amountDue}
-                  disabled={milestone.status === 'paid'}
+                  disabled={isFullyPaid}
                   editMode={editMode}
                   saving={saving === 'amountDue'}
                   onSave={v => saveField('amountDue', v)}
@@ -177,7 +185,7 @@ export default function MilestoneRow({
                 label="Due"
                 type="date"
                 value={milestone.dueDate}
-                disabled={milestone.status === 'paid'}
+                disabled={isFullyPaid}
                 editMode={editMode}
                 saving={saving === 'dueDate'}
                 onSave={v => saveField('dueDate', v)}
@@ -198,7 +206,7 @@ export default function MilestoneRow({
                   </span>
                 )}
               </button>
-              {milestone.status !== 'paid' && (
+              {!isPaidOrPartial && (
                 <button
                   onClick={() => setEditMode(v => !v)}
                   className={`btn btn-ghost btn-sm ${editMode ? 'text-primary-600 dark:text-primary-400 bg-primary-50 dark:bg-primary-900/20' : 'text-gray-400 hover:text-gray-600'}`}
@@ -207,16 +215,16 @@ export default function MilestoneRow({
                   {editMode ? <Check className="w-4 h-4" /> : <Pencil className="w-4 h-4" />}
                 </button>
               )}
-              {milestone.status !== 'paid' && (
+              {!isFullyPaid && (
                 <button
                   onClick={() => setShowMarkPaid(true)}
                   className="btn btn-ghost btn-sm text-success-600 dark:text-success-400 hover:bg-success-50 dark:hover:bg-success-900/20"
-                  title="Mark as paid"
+                  title={milestone.status === 'partially_paid' ? 'Record additional payment' : 'Mark as paid'}
                 >
                   <CheckCircle className="w-4 h-4" />
                 </button>
               )}
-              {milestone.status === 'paid' && (
+              {isPaidOrPartial && (
                 <button
                   onClick={handleUnmarkPaid}
                   disabled={unmarking}
@@ -226,7 +234,7 @@ export default function MilestoneRow({
                   {unmarking ? <Loader2 className="w-4 h-4 animate-spin" /> : <RotateCcw className="w-4 h-4" />}
                 </button>
               )}
-              {milestone.status !== 'paid' && (
+              {!isPaidOrPartial && (
                 <button
                   onClick={handleDelete}
                   disabled={deleting}

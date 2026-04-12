@@ -1270,7 +1270,7 @@ public class IncomeContractsService
             throw new AppException("Milestone not found", 404, "NOT_FOUND");
 
         if (milestone.status == "paid")
-            throw new AppException("Milestone is already marked as paid", 400, "BAD_REQUEST");
+            throw new AppException("Milestone is already fully paid", 400, "BAD_REQUEST");
 
         var contract = await conn.QuerySingleOrDefaultAsync<DbContractRow>(
             """
@@ -1283,7 +1283,13 @@ public class IncomeContractsService
         if (contract == null)
             throw new AppException("Contract not found", 404, "NOT_FOUND");
 
-        var actualAmount = request.ActualAmountPaid ?? milestone.amount_due;
+        // For additional payments on a partially_paid milestone, default
+        // to the remaining balance instead of the full amount_due.
+        var previouslyPaid = milestone.actual_amount_paid ?? 0m;
+        var remaining = milestone.amount_due - previouslyPaid;
+        var thisPayment = request.ActualAmountPaid ?? remaining;
+        var cumulativePaid = previouslyPaid + thisPayment;
+        var newStatus = cumulativePaid >= milestone.amount_due ? "paid" : "partially_paid";
 
         // Merge invoice data: request values take precedence over what was already on the milestone
         var proformaInvoiceNumber = request.ProformaInvoiceNumber ?? milestone.proforma_invoice_number;
@@ -1291,11 +1297,14 @@ public class IncomeContractsService
         var taxInvoiceNumber      = request.TaxInvoiceNumber      ?? milestone.tax_invoice_number;
         var taxInvoiceDate        = request.TaxInvoiceDate        ?? milestone.tax_invoice_date?.ToString("yyyy-MM-dd");
 
-        // Create the income record
+        // Create the income record for this payment
+        var paymentLabel = previouslyPaid > 0
+            ? $"{contract.title} – {milestone.description} (partial payment)"
+            : $"{contract.title} – {milestone.description}";
         var incomeRequest = new CreateIncomeRequest
         {
-            Description = $"{contract.title} – {milestone.description}",
-            Amount = actualAmount,
+            Description = paymentLabel,
+            Amount = thisPayment,
             Currency = milestone.currency,
             CategoryId = contract.category_id,
             ClientId = contract.client_id,
@@ -1322,15 +1331,16 @@ public class IncomeContractsService
 
         var incomeDto = await _incomeService.CreateAsync(incomeRequest, userId);
 
-        // Update the milestone — also write back invoice fields if supplied in the request
+        // Update the milestone — cumulative paid amount, status, and invoice fields.
+        // income_id always points to the latest payment's income record.
         var updated = await conn.QuerySingleAsync<DbMilestoneRow>(
             """
             UPDATE income_milestones SET
-                status = 'paid',
+                status = @Status,
                 income_id = @IncomeId,
                 payment_received_date = @PaymentReceivedDate::date,
                 payment_method = @PaymentMethod,
-                actual_amount_paid = @ActualAmountPaid,
+                actual_amount_paid = @CumulativePaid,
                 proforma_invoice_number = COALESCE(@ProformaInvoiceNumber, proforma_invoice_number),
                 proforma_invoice_date   = COALESCE(@ProformaInvoiceDate::date, proforma_invoice_date),
                 tax_invoice_number      = COALESCE(@TaxInvoiceNumber, tax_invoice_number),
@@ -1340,10 +1350,11 @@ public class IncomeContractsService
             """,
             new
             {
+                Status = newStatus,
                 IncomeId = incomeDto.Id,
                 PaymentReceivedDate = request.PaymentReceivedDate,
                 PaymentMethod = request.PaymentMethod,
-                ActualAmountPaid = actualAmount,
+                CumulativePaid = cumulativePaid,
                 ProformaInvoiceNumber = proformaInvoiceNumber,
                 ProformaInvoiceDate = proformaInvoiceDate,
                 TaxInvoiceNumber = taxInvoiceNumber,
@@ -1352,8 +1363,8 @@ public class IncomeContractsService
             });
 
         _logger.LogInformation(
-            "Milestone {MilestoneId} marked paid, income record {IncomeId} created",
-            milestoneId, incomeDto.Id);
+            "Milestone {MilestoneId} marked {Status} ({ThisPayment}/{AmountDue}), income record {IncomeId} created",
+            milestoneId, newStatus, thisPayment, milestone.amount_due, incomeDto.Id);
 
         return MapMilestone(updated, contract.title, contract.client_name);
     }

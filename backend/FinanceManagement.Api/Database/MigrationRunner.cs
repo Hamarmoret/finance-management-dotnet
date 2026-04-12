@@ -84,6 +84,8 @@ public class MigrationRunner
         ("021_invalidate_argon2_reset_tokens", Sql021InvalidateArgon2ResetTokens),
         // Prevents duplicate vendor rows when two requests race to create the same vendor name.
         ("022_vendor_name_unique_idx", Sql022VendorNameUniqueIdx),
+        // Support partial payments: allow milestones to be 'partially_paid'.
+        ("023_milestone_partially_paid", Sql023MilestonePartiallyPaid),
     ];
 
     #region SQL Migrations
@@ -870,6 +872,13 @@ public class MigrationRunner
     // requests both call GetOrCreateVendorAsync with the same name (was a TOCTOU race).
     private const string Sql022VendorNameUniqueIdx =
         "CREATE UNIQUE INDEX IF NOT EXISTS idx_vendors_name_lower ON vendors (LOWER(TRIM(name)))";
+
+    private const string Sql023MilestonePartiallyPaid = """
+        ALTER TABLE income_milestones
+          DROP CONSTRAINT IF EXISTS valid_milestone_status,
+          ADD CONSTRAINT valid_milestone_status
+            CHECK (status IN ('pending','proforma_issued','invoice_sent','paid','partially_paid','overdue'))
+        """;
 
     #endregion
 }

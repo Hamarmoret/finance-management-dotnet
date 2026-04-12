@@ -13,9 +13,15 @@ interface MarkPaidModalProps {
 
 export default function MarkPaidModal({ milestone, onClose, onPaid }: MarkPaidModalProps) {
   const today = new Date().toISOString().split('T')[0];
+  const isAdditionalPayment = milestone.status === 'partially_paid';
+  const previouslyPaid = milestone.actualAmountPaid ?? 0;
+  const remaining = milestone.amountDue - previouslyPaid;
+
   const [paymentReceivedDate, setPaymentReceivedDate] = useState(today);
   const [paymentMethod, setPaymentMethod] = useState('');
-  const [actualAmountPaid, setActualAmountPaid] = useState(milestone.amountDue.toString());
+  const [actualAmountPaid, setActualAmountPaid] = useState(
+    isAdditionalPayment ? remaining.toString() : milestone.amountDue.toString()
+  );
 
   // Invoice fields — pre-fill from milestone if already set
   const [proformaInvoiceNumber, setProformaInvoiceNumber] = useState(milestone.proformaInvoiceNumber ?? '');
@@ -61,7 +67,7 @@ export default function MarkPaidModal({ milestone, onClose, onPaid }: MarkPaidMo
           <div className="flex items-center justify-between p-4 border-b dark:border-gray-700">
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
               <CheckCircle className="w-5 h-5 text-success-600" />
-              Mark as Paid
+              {isAdditionalPayment ? 'Record Additional Payment' : 'Mark as Paid'}
             </h2>
             <button onClick={onClose} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
               <X className="w-5 h-5" />
@@ -82,6 +88,16 @@ export default function MarkPaidModal({ milestone, onClose, onPaid }: MarkPaidMo
                   {formatCurrency(milestone.amountDue, milestone.currency)}
                 </p>
                 <p className="text-xs text-gray-400 dark:text-gray-500">Due: {milestone.dueDate}</p>
+                {isAdditionalPayment && (
+                  <div className="mt-2 pt-2 border-t border-gray-200 dark:border-gray-600 space-y-0.5">
+                    <p className="text-xs text-amber-600 dark:text-amber-400 font-medium">
+                      Previously paid: {formatCurrency(previouslyPaid, milestone.currency)}
+                    </p>
+                    <p className="text-xs text-gray-600 dark:text-gray-300 font-medium">
+                      Remaining: {formatCurrency(remaining, milestone.currency)}
+                    </p>
+                  </div>
+                )}
               </div>
 
               <div>
@@ -105,9 +121,9 @@ export default function MarkPaidModal({ milestone, onClose, onPaid }: MarkPaidMo
                   onChange={e => setActualAmountPaid(e.target.value)}
                   className="input mt-1 w-full dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                 />
-                {parseFloat(actualAmountPaid) !== milestone.amountDue && (
+                {parseFloat(actualAmountPaid) !== (isAdditionalPayment ? remaining : milestone.amountDue) && (
                   <p className="mt-1 text-xs text-warning-600 dark:text-warning-400">
-                    Differs from due amount ({formatCurrency(milestone.amountDue, milestone.currency)})
+                    Differs from {isAdditionalPayment ? 'remaining' : 'due'} amount ({formatCurrency(isAdditionalPayment ? remaining : milestone.amountDue, milestone.currency)})
                   </p>
                 )}
               </div>

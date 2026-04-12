@@ -136,11 +136,14 @@ export default function ContractDetailView({ contract: initialContract, onBack, 
 
   // Derived stats from local milestone state
   const totalPaid = milestones
-    .filter(m => m.status === 'paid')
-    .reduce((s, m) => s + (m.actualAmountPaid ?? m.amountDue), 0);
+    .filter(m => m.status === 'paid' || m.status === 'partially_paid')
+    .reduce((s, m) => s + (m.actualAmountPaid ?? (m.status === 'paid' ? m.amountDue : 0)), 0);
   const totalOutstanding = milestones
-    .filter(m => m.status !== 'paid')
-    .reduce((s, m) => s + m.amountDue, 0);
+    .reduce((s, m) => {
+      if (m.status === 'paid') return s;
+      if (m.status === 'partially_paid') return s + (m.amountDue - (m.actualAmountPaid ?? 0));
+      return s + m.amountDue;
+    }, 0);
   const overdueCount = milestones.filter(m => m.status === 'overdue').length;
   const paidCount = milestones.filter(m => m.status === 'paid').length;
   const progressPct = contract.totalValue > 0 ? (totalPaid / contract.totalValue) * 100 : 0;

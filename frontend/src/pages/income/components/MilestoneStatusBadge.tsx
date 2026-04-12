@@ -17,6 +17,10 @@ const STATUS_CONFIG: Record<MilestoneStatus, { label: string; className: string 
     label: 'Paid',
     className: 'bg-success-100 text-success-700 dark:bg-success-900/20 dark:text-success-400',
   },
+  partially_paid: {
+    label: 'Partially Paid',
+    className: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300',
+  },
   overdue: {
     label: 'Overdue',
     className: 'bg-danger-100 text-danger-700 dark:bg-danger-900/20 dark:text-danger-400',

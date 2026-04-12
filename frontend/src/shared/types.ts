@@ -893,7 +893,7 @@ export interface Proposal {
 
 export type ContractType = 'project' | 'retainer';
 export type ContractStatus = 'active' | 'completed' | 'cancelled' | 'on_hold';
-export type MilestoneStatus = 'pending' | 'proforma_issued' | 'invoice_sent' | 'paid' | 'overdue';
+export type MilestoneStatus = 'pending' | 'proforma_issued' | 'invoice_sent' | 'paid' | 'partially_paid' | 'overdue';
 export type DocumentType = 'contract' | 'proposal' | 'proforma_invoice' | 'tax_invoice' | 'payment_receipt' | 'other';
 
 export interface ContractAttachment {
