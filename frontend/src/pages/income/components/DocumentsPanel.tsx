@@ -52,11 +52,23 @@ export default function DocumentsPanel({
     setOpeningFile(index);
     try {
       const res = await api.post('/uploads/get-signed-url', { url });
-      const signedUrl = res.data?.data?.url;
-      if (tab) {
-        tab.location.href = signedUrl || url;
+      const fileUrl: string | undefined = res.data?.data?.url;
+
+      if (fileUrl && fileUrl.startsWith('http')) {
+        // Full signed GCS URL — navigate directly
+        if (tab) tab.location.href = fileUrl;
+      } else {
+        // Relative proxy URL (signing failed on backend) — download as
+        // blob through the authenticated axios client, then display it.
+        const proxyPath = fileUrl || url;
+        const blobRes = await api.get(proxyPath.startsWith('/') ? proxyPath : `/uploads/proxy?path=${encodeURIComponent(proxyPath)}`, {
+          responseType: 'blob',
+        });
+        const blobUrl = URL.createObjectURL(blobRes.data);
+        if (tab) tab.location.href = blobUrl;
       }
     } catch {
+      // Last resort — open raw URL (will show AccessDenied if bucket is private)
       if (tab) tab.location.href = url;
     } finally {
       setOpeningFile(null);
