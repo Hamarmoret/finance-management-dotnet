@@ -59,6 +59,17 @@ public class ExpenseDto
     [JsonPropertyName("allocations")]
     public List<ExpenseAllocationDto> Allocations { get; set; } = [];
 
+    [JsonPropertyName("dueDate")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? DueDate { get; set; }
+
+    [JsonPropertyName("paymentStatus")]
+    public string PaymentStatus { get; set; } = "paid";
+
+    [JsonPropertyName("paymentDate")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? PaymentDate { get; set; }
+
     [JsonPropertyName("createdBy")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? CreatedBy { get; set; }
@@ -149,6 +160,15 @@ public class CreateExpenseRequest
     [JsonPropertyName("tags")]
     public List<string>? Tags { get; set; }
 
+    [JsonPropertyName("dueDate")]
+    public string? DueDate { get; set; }
+
+    [JsonPropertyName("paymentStatus")]
+    public string? PaymentStatus { get; set; }
+
+    [JsonPropertyName("paymentDate")]
+    public string? PaymentDate { get; set; }
+
     [JsonPropertyName("allocations")]
     public List<AllocationInput> Allocations { get; set; } = [];
 }
@@ -191,8 +211,23 @@ public class UpdateExpenseRequest
     [JsonPropertyName("tags")]
     public List<string>? Tags { get; set; }
 
+    [JsonPropertyName("dueDate")]
+    public string? DueDate { get; set; }
+
+    [JsonPropertyName("paymentStatus")]
+    public string? PaymentStatus { get; set; }
+
+    [JsonPropertyName("paymentDate")]
+    public string? PaymentDate { get; set; }
+
     [JsonPropertyName("allocations")]
     public List<AllocationInput>? Allocations { get; set; }
+}
+
+public class MarkExpensePaidRequest
+{
+    [JsonPropertyName("paymentDate")]
+    public string? PaymentDate { get; set; }
 }
 
 public class AllocationInput
@@ -250,6 +285,9 @@ public class ExpenseRow
     public string? Notes { get; set; }
     public string? Attachments { get; set; }
     public string[]? Tags { get; set; }
+    public DateTime? DueDate { get; set; }
+    public string PaymentStatus { get; set; } = "paid";
+    public DateTime? PaymentDate { get; set; }
     public Guid? CreatedBy { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }

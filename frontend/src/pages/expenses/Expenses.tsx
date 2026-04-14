@@ -33,6 +33,7 @@ export default function Expenses() {
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
   const [pnlCenterFilter, setPnlCenterFilter] = useState('');
+  const [paymentStatusFilter, setPaymentStatusFilter] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
 
@@ -55,6 +56,7 @@ export default function Expenses() {
       if (search) params.append('search', search);
       if (categoryFilter) params.append('categoryId', categoryFilter);
       if (pnlCenterFilter) params.append('pnlCenterId', pnlCenterFilter);
+      if (paymentStatusFilter) params.append('paymentStatus', paymentStatusFilter);
       if (startDate) params.append('startDate', startDate);
       if (endDate) params.append('endDate', endDate);
 
@@ -74,7 +76,7 @@ export default function Expenses() {
     } finally {
       if (!controller.signal.aborted) setLoading(false);
     }
-  }, [page, search, categoryFilter, pnlCenterFilter, startDate, endDate]);
+  }, [page, search, categoryFilter, pnlCenterFilter, paymentStatusFilter, startDate, endDate]);
 
   useEffect(() => {
     fetchExpenses();
@@ -105,6 +107,18 @@ export default function Expenses() {
     fetchMetadata();
   }, []);
 
+  async function handleMarkPaid(id: string) {
+    try {
+      await api.post(`/expenses/${id}/mark-paid`, {
+        paymentDate: new Date().toISOString().split('T')[0],
+      });
+      fetchExpenses();
+      bump();
+    } catch (err) {
+      setError(getErrorMessage(err));
+    }
+  }
+
   async function handleDelete(id: string) {
     try {
       await api.delete(`/expenses/${id}`);
@@ -126,6 +140,8 @@ export default function Expenses() {
       id: '',
       description: `Copy of ${expense.description}`,
       expenseDate: new Date().toISOString().split('T')[0],
+      paymentStatus: expense.paymentStatus,
+      paymentDate: null,
     });
     setShowModal(true);
   }
@@ -145,12 +161,13 @@ export default function Expenses() {
     setSearch('');
     setCategoryFilter('');
     setPnlCenterFilter('');
+    setPaymentStatusFilter('');
     setStartDate('');
     setEndDate('');
     setPage(1);
   }
 
-  const hasFilters = search || categoryFilter || pnlCenterFilter || startDate || endDate;
+  const hasFilters = search || categoryFilter || pnlCenterFilter || paymentStatusFilter || startDate || endDate;
   const totalsByCurrency = expenses.reduce((acc, e) => {
     acc[e.currency] = (acc[e.currency] ?? 0) + e.amount;
     return acc;
@@ -367,7 +384,7 @@ export default function Expenses() {
 
         {/* Expanded Filters */}
         {showFilters && (
-          <div className="mt-4 pt-4 border-t dark:border-gray-700 grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="mt-4 pt-4 border-t dark:border-gray-700 grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Category</label>
               <select
@@ -402,6 +419,22 @@ export default function Expenses() {
                     {center.name}
                   </option>
                 ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Payment Status</label>
+              <select
+                value={paymentStatusFilter}
+                onChange={(e) => {
+                  setPaymentStatusFilter(e.target.value);
+                  setPage(1);
+                }}
+                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500"
+              >
+                <option value="">All</option>
+                <option value="paid">Paid</option>
+                <option value="unpaid">Unpaid</option>
+                <option value="overdue">Overdue</option>
               </select>
             </div>
           </div>
@@ -439,6 +472,7 @@ export default function Expenses() {
             onEdit={handleEdit}
             onDelete={handleDelete}
             onDuplicate={handleDuplicate}
+            onMarkPaid={handleMarkPaid}
           />
 
           {/* Pagination */}

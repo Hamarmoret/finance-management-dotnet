@@ -107,6 +107,8 @@ export interface Attachment {
   size?: number;
 }
 
+export type ExpensePaymentStatus = 'paid' | 'unpaid';
+
 export interface Expense {
   id: string;
   description: string;
@@ -119,6 +121,9 @@ export interface Expense {
   recurringPattern: RecurringPattern | null;
   vendorId: string | null;
   vendor: string | null;
+  dueDate: string | null;
+  paymentStatus: ExpensePaymentStatus;
+  paymentDate: string | null;
   notes: string | null;
   attachments: Attachment[];
   tags: string[];

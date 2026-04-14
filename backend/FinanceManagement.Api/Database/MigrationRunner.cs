@@ -86,6 +86,8 @@ public class MigrationRunner
         ("022_vendor_name_unique_idx", Sql022VendorNameUniqueIdx),
         // Support partial payments: allow milestones to be 'partially_paid'.
         ("023_milestone_partially_paid", Sql023MilestonePartiallyPaid),
+        // Accounts payable: track due dates & payment status on expenses.
+        ("024_expense_payment_tracking", Sql024ExpensePaymentTracking),
     ];
 
     #region SQL Migrations
@@ -878,6 +880,16 @@ public class MigrationRunner
           DROP CONSTRAINT IF EXISTS valid_milestone_status,
           ADD CONSTRAINT valid_milestone_status
             CHECK (status IN ('pending','proforma_issued','invoice_sent','paid','partially_paid','overdue'))
+        """;
+
+    private const string Sql024ExpensePaymentTracking = """
+        ALTER TABLE expenses
+          ADD COLUMN IF NOT EXISTS due_date DATE,
+          ADD COLUMN IF NOT EXISTS payment_status VARCHAR(20) NOT NULL DEFAULT 'paid',
+          ADD COLUMN IF NOT EXISTS payment_date DATE;
+
+        CREATE INDEX IF NOT EXISTS idx_expenses_payment_status ON expenses(payment_status);
+        CREATE INDEX IF NOT EXISTS idx_expenses_due_date ON expenses(due_date);
         """;
 
     #endregion

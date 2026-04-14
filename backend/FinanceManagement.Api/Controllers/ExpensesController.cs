@@ -35,11 +35,12 @@ public class ExpensesController : ControllerBase
         [FromQuery] decimal? maxAmount = null,
         [FromQuery] string? search = null,
         [FromQuery] string? sortBy = null,
-        [FromQuery] string? sortOrder = null)
+        [FromQuery] string? sortOrder = null,
+        [FromQuery] string? paymentStatus = null)
     {
         var (expenses, total) = await _expensesService.GetAllAsync(
             page, limit, dateFrom, dateTo, categoryId, vendor,
-            isRecurring, minAmount, maxAmount, search, sortBy, sortOrder);
+            isRecurring, minAmount, maxAmount, search, sortBy, sortOrder, paymentStatus);
 
         return Ok(new PaginatedResponse<ExpenseDto>
         {
@@ -95,6 +96,17 @@ public class ExpensesController : ControllerBase
         var userId = HttpContext.GetRequiredUserId().ToString();
         await _expensesService.DeleteAsync(id, userId);
         return Ok(ApiResponse<object>.Ok(new { message = "Expense deleted successfully" }));
+    }
+
+    /// <summary>
+    /// Mark an unpaid expense as paid.
+    /// </summary>
+    [HttpPost("{id}/mark-paid")]
+    public async Task<IActionResult> MarkPaid(string id, [FromBody] MarkExpensePaidRequest request)
+    {
+        var userId = HttpContext.GetRequiredUserId().ToString();
+        var expense = await _expensesService.MarkPaidAsync(id, request.PaymentDate, userId);
+        return Ok(ApiResponse<ExpenseDto>.Ok(expense));
     }
 
     // =============================================

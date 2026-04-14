@@ -39,6 +39,10 @@ export function ExpenseModal({
   const [showCreateVendor, setShowCreateVendor] = useState(false);
   const [quickCreateVendorName, setQuickCreateVendorName] = useState('');
   const [vendorError, setVendorError] = useState('');
+  const [dueDate, setDueDate] = useState(expense?.dueDate || '');
+  const [paymentPending, setPaymentPending] = useState(
+    expense ? expense.paymentStatus === 'unpaid' : false
+  );
   const [notes, setNotes] = useState(expense?.notes || '');
   const [isRecurring, setIsRecurring] = useState(expense?.isRecurring || false);
   const [recurringPattern, setRecurringPattern] = useState<RecurringPattern | null>(
@@ -159,6 +163,9 @@ export function ExpenseModal({
         categoryId: categoryId || null,
         vendorId: vendorId || null,
         vendor: vendorName.trim() || null,
+        dueDate: paymentPending && dueDate ? dueDate : null,
+        paymentStatus: paymentPending ? 'unpaid' : 'paid',
+        paymentDate: paymentPending ? null : expenseDate,
         notes: notes.trim() || null,
         isRecurring,
         recurringPattern: isRecurring ? recurringPattern : null,
@@ -287,6 +294,40 @@ export function ExpenseModal({
                 error={vendorError}
               />
             </div>
+          </div>
+
+          {/* Payment Status */}
+          <div className="p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg space-y-3">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={paymentPending}
+                onChange={(e) => {
+                  setPaymentPending(e.target.checked);
+                  if (!e.target.checked) setDueDate('');
+                }}
+                className="w-4 h-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+              />
+              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                Payment pending (not yet paid)
+              </span>
+            </label>
+            {paymentPending && (
+              <div className="ml-6">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Due Date
+                </label>
+                <input
+                  type="date"
+                  value={dueDate}
+                  onChange={(e) => setDueDate(e.target.value)}
+                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                />
+                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                  When is this payment due? Leave empty if no specific due date.
+                </p>
+              </div>
+            )}
           </div>
 
           {/* P&L Allocations */}

@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { Pencil, Trash2, RefreshCw, Copy } from 'lucide-react';
+import { Pencil, Trash2, RefreshCw, Copy, CheckCircle } from 'lucide-react';
 import type { Expense } from '@finance/shared';
 import { formatDate, formatCurrencyPrecise } from '../../../utils/formatters';
 import { DataTable, ColumnDef, VisibilityState } from '../../../components/DataTable';
@@ -9,6 +9,7 @@ interface ExpenseTableProps {
   onEdit: (expense: Expense) => void;
   onDelete: (id: string) => void;
   onDuplicate: (expense: Expense) => void;
+  onMarkPaid?: (id: string) => void;
   loading?: boolean;
 }
 
@@ -25,20 +26,27 @@ const defaultColumnVisibility: VisibilityState = {
   description: true,
   category: true,
   vendor: true,
+  paymentStatus: true,
   pnlCenters: true,
   amount: true,
   actions: true,
   // Hidden by default
+  dueDate: false,
   isRecurring: false,
   tags: false,
   notes: false,
 };
+
+function isOverdue(expense: Expense): boolean {
+  return expense.paymentStatus === 'unpaid' && !!expense.dueDate && expense.dueDate < new Date().toISOString().split('T')[0];
+}
 
 export function ExpenseTable({
   expenses,
   onEdit,
   onDelete,
   onDuplicate,
+  onMarkPaid,
   loading = false,
 }: ExpenseTableProps) {
   const columns = useMemo<ColumnDef<Expense, unknown>[]>(
@@ -106,6 +114,44 @@ export function ExpenseTable({
         cell: ({ row }) => (
           <span className="whitespace-nowrap text-sm text-gray-600 dark:text-gray-400">
             {row.original.vendor || <span className="text-gray-400">—</span>}
+          </span>
+        ),
+      },
+      {
+        id: 'paymentStatus',
+        accessorKey: 'paymentStatus',
+        header: 'Status',
+        cell: ({ row }) => {
+          const e = row.original;
+          const overdue = isOverdue(e);
+          if (e.paymentStatus === 'paid') {
+            return (
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-success-100 text-success-700 dark:bg-success-900/20 dark:text-success-400">
+                Paid
+              </span>
+            );
+          }
+          if (overdue) {
+            return (
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-danger-100 text-danger-700 dark:bg-danger-900/20 dark:text-danger-400">
+                Overdue
+              </span>
+            );
+          }
+          return (
+            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
+              Unpaid
+            </span>
+          );
+        },
+      },
+      {
+        id: 'dueDate',
+        accessorKey: 'dueDate',
+        header: 'Due Date',
+        cell: ({ row }) => (
+          <span className={`whitespace-nowrap text-sm ${isOverdue(row.original) ? 'text-danger-600 dark:text-danger-400 font-medium' : 'text-gray-900 dark:text-gray-100'}`}>
+            {row.original.dueDate ? formatDate(row.original.dueDate) : <span className="text-gray-400">—</span>}
           </span>
         ),
       },
@@ -205,6 +251,15 @@ export function ExpenseTable({
         header: 'Actions',
         cell: ({ row }) => (
           <div className="flex justify-end gap-1">
+            {row.original.paymentStatus === 'unpaid' && onMarkPaid && (
+              <button
+                onClick={(e) => { e.stopPropagation(); onMarkPaid(row.original.id); }}
+                className="p-2 text-gray-400 hover:text-success-600 hover:bg-success-50 dark:hover:bg-success-900/20 rounded-lg transition-colors"
+                title="Mark as paid"
+              >
+                <CheckCircle className="w-4 h-4" />
+              </button>
+            )}
             <button
               onClick={(e) => { e.stopPropagation(); onEdit(row.original); }}
               className="p-2 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
@@ -237,7 +292,7 @@ export function ExpenseTable({
         meta: { align: 'right' },
       },
     ],
-    [onEdit, onDelete, onDuplicate]
+    [onEdit, onDelete, onDuplicate, onMarkPaid]
   );
 
   return (

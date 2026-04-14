@@ -64,6 +64,9 @@ public class ExpensesService
             : null,
         VendorId = row.VendorId?.ToString(),
         Vendor = row.Vendor,
+        DueDate = row.DueDate?.ToString("yyyy-MM-dd"),
+        PaymentStatus = row.PaymentStatus,
+        PaymentDate = row.PaymentDate?.ToString("yyyy-MM-dd"),
         Notes = row.Notes,
         Attachments = row.Attachments != null
             ? JsonSerializer.Deserialize<List<object>>(row.Attachments) ?? []
@@ -91,7 +94,8 @@ public class ExpensesService
         decimal? maxAmount = null,
         string? search = null,
         string? sortBy = null,
-        string? sortOrder = null)
+        string? sortOrder = null,
+        string? paymentStatus = null)
     {
         await using var conn = _db.CreateConnection();
         await conn.OpenAsync();
@@ -145,6 +149,19 @@ public class ExpensesService
             conditions.Add("(e.description ILIKE @Search OR e.vendor ILIKE @Search)");
             parameters.Add("Search", $"%{search}%");
         }
+        if (!string.IsNullOrEmpty(paymentStatus))
+        {
+            if (paymentStatus == "overdue")
+            {
+                // Overdue = unpaid + due_date in the past
+                conditions.Add("e.payment_status = 'unpaid' AND e.due_date < CURRENT_DATE");
+            }
+            else
+            {
+                conditions.Add("e.payment_status = @PaymentStatus");
+                parameters.Add("PaymentStatus", paymentStatus);
+            }
+        }
 
         var whereClause = conditions.Count > 0 ? $"WHERE {string.Join(" AND ", conditions)}" : "";
         var offset = (page - 1) * limit;
@@ -159,6 +176,7 @@ public class ExpensesService
             "amount" => "e.amount",
             "description" => "e.description",
             "vendor" => "e.vendor",
+            "duedate" or "due_date" => "e.due_date",
             "created_at" or "createdat" => "e.created_at",
             _ => "e.expense_date",
         };
@@ -174,6 +192,7 @@ public class ExpensesService
                 e.id, e.description, e.amount, e.currency, e.category_id,
                 e.expense_date, e.is_recurring, e.recurring_pattern,
                 e.vendor_id, COALESCE(v.name, e.vendor) AS vendor,
+                e.due_date, e.payment_status, e.payment_date,
                 e.notes, e.attachments::text, e.tags,
                 e.created_by, e.created_at, e.updated_at,
                 ec.name as category_name,
@@ -237,6 +256,7 @@ public class ExpensesService
                 e.id, e.description, e.amount, e.currency, e.category_id,
                 e.expense_date, e.is_recurring, e.recurring_pattern,
                 e.vendor_id, COALESCE(v.name, e.vendor) AS vendor,
+                e.due_date, e.payment_status, e.payment_date,
                 e.notes, e.attachments::text, e.tags,
                 e.created_by, e.created_at, e.updated_at,
                 ec.name as category_name,
@@ -290,16 +310,25 @@ public class ExpensesService
             var expenseSql = """
                 INSERT INTO expenses (
                     description, amount, currency, category_id, expense_date,
-                    is_recurring, recurring_pattern, vendor, vendor_id, notes, attachments, tags, created_by
+                    is_recurring, recurring_pattern, vendor, vendor_id,
+                    due_date, payment_status, payment_date,
+                    notes, attachments, tags, created_by
                 )
                 VALUES (
                     @Description, @Amount, @Currency, @CategoryId, @ExpenseDate,
-                    @IsRecurring, @RecurringPattern::jsonb, @Vendor, @VendorId, @Notes, @Attachments::jsonb, @Tags, @CreatedBy
+                    @IsRecurring, @RecurringPattern::jsonb, @Vendor, @VendorId,
+                    @DueDate, @PaymentStatus, @PaymentDate,
+                    @Notes, @Attachments::jsonb, @Tags, @CreatedBy
                 )
                 RETURNING id, description, amount, currency, category_id, expense_date,
-                          is_recurring, recurring_pattern, vendor_id, vendor, notes, attachments::text, tags,
+                          is_recurring, recurring_pattern, vendor_id, vendor,
+                          due_date, payment_status, payment_date,
+                          notes, attachments::text, tags,
                           created_by, created_at, updated_at
                 """;
+
+            // Determine payment status: if due_date is set and no paymentStatus provided, default to 'unpaid'
+            var paymentStatus = request.PaymentStatus ?? (request.DueDate != null ? "unpaid" : "paid");
 
             var expenseRow = await conn.QuerySingleAsync<ExpenseRow>(expenseSql, new
             {
@@ -314,6 +343,9 @@ public class ExpensesService
                     : null,
                 request.Vendor,
                 VendorId = resolvedVendorId,
+                DueDate = !string.IsNullOrEmpty(request.DueDate) && DateTime.TryParse(request.DueDate, out var dueDate) ? (DateTime?)dueDate : null,
+                PaymentStatus = paymentStatus,
+                PaymentDate = !string.IsNullOrEmpty(request.PaymentDate) && DateTime.TryParse(request.PaymentDate, out var payDate) ? (DateTime?)payDate : null,
                 request.Notes,
                 Attachments = JsonSerializer.Serialize(request.Attachments ?? []),
                 Tags = request.Tags?.ToArray() ?? Array.Empty<string>(),
@@ -459,6 +491,35 @@ public class ExpensesService
                 fields.Add("tags = @Tags");
                 parameters.Add("Tags", request.Tags.ToArray());
             }
+            if (request.DueDate != null)
+            {
+                if (request.DueDate == "")
+                {
+                    fields.Add("due_date = NULL");
+                }
+                else if (DateTime.TryParse(request.DueDate, out var updDueDate))
+                {
+                    fields.Add("due_date = @DueDate");
+                    parameters.Add("DueDate", updDueDate);
+                }
+            }
+            if (request.PaymentStatus != null)
+            {
+                fields.Add("payment_status = @PaymentStatus");
+                parameters.Add("PaymentStatus", request.PaymentStatus);
+            }
+            if (request.PaymentDate != null)
+            {
+                if (request.PaymentDate == "")
+                {
+                    fields.Add("payment_date = NULL");
+                }
+                else if (DateTime.TryParse(request.PaymentDate, out var updPayDate))
+                {
+                    fields.Add("payment_date = @PaymentDate");
+                    parameters.Add("PaymentDate", updPayDate);
+                }
+            }
 
             if (fields.Count > 0)
             {
@@ -558,6 +619,35 @@ public class ExpensesService
             await tx.RollbackAsync();
             throw;
         }
+    }
+
+    public async Task<ExpenseDto> MarkPaidAsync(string id, string? paymentDate, string userId)
+    {
+        await using var conn = _db.CreateConnection();
+        await conn.OpenAsync();
+
+        var expenseId = Guid.Parse(id);
+        var pDate = !string.IsNullOrEmpty(paymentDate) && DateTime.TryParse(paymentDate, out var pd)
+            ? (DateTime?)pd
+            : DateTime.UtcNow.Date;
+
+        var rowsAffected = await conn.ExecuteAsync(
+            """
+            UPDATE expenses
+            SET payment_status = 'paid', payment_date = @PaymentDate, updated_at = NOW()
+            WHERE id = @Id AND payment_status = 'unpaid'
+            """,
+            new { Id = expenseId, PaymentDate = pDate });
+
+        if (rowsAffected == 0)
+            throw new AppException("Expense not found or already paid", 404, "NOT_FOUND");
+
+        await LogAuditAsync(conn, null, Guid.Parse(userId), "mark_paid", "expense", expenseId,
+            new { paymentDate = pDate?.ToString("yyyy-MM-dd") });
+
+        _logger.LogInformation("Expense {ExpenseId} marked as paid by user {UserId}", id, userId);
+
+        return await GetByIdAsync(id);
     }
 
     // =============================================
