@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { X, Loader2, FileText, Info, CheckCircle, Paperclip } from 'lucide-react';
 import type { IncomeContract, ServiceType, DropdownOption, Client, PnlCenter, ContractAttachment } from '@finance/shared';
 import { SERVICE_TYPE_LABELS } from '@finance/shared';
@@ -33,10 +33,37 @@ export default function ContractModal({ contract, onClose, onSaved }: ContractMo
   const [retainerBillingDay, setRetainerBillingDay] = useState(
     contract?.retainerBillingDay?.toString() ?? ''
   );
+  const [retainerDurationMonths, setRetainerDurationMonths] = useState(() => {
+    if (contract?.contractType !== 'retainer' || !contract?.startDate || !contract?.endDate) return '';
+    const start = new Date(contract.startDate + 'T00:00:00');
+    const end = new Date(contract.endDate + 'T00:00:00');
+    const months = (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth()) + 1;
+    return months > 0 ? months.toString() : '';
+  });
   const [vatApplicable, setVatApplicable] = useState(contract?.vatApplicable ?? true);
   const [vatPercentage, setVatPercentage] = useState(contract?.vatPercentage?.toString() ?? '18');
   const [pnlCenterId, setPnlCenterId] = useState(contract?.pnlCenterId ?? '');
   const [notes, setNotes] = useState(contract?.notes ?? '');
+
+  // Retainer: compute end date and total value from start + duration + monthly amount
+  const computedEndDate = useMemo(() => {
+    if (contractType !== 'retainer' || !startDate || !retainerDurationMonths) return '';
+    const months = parseInt(retainerDurationMonths);
+    if (isNaN(months) || months <= 0) return '';
+    const d = new Date(startDate + 'T00:00:00');
+    d.setDate(1);
+    d.setMonth(d.getMonth() + months);
+    d.setDate(0); // last day of previous month = end of period
+    return d.toISOString().split('T')[0];
+  }, [contractType, startDate, retainerDurationMonths]);
+
+  const computedTotalValue = useMemo(() => {
+    if (contractType !== 'retainer' || !retainerMonthlyAmount || !retainerDurationMonths) return '';
+    const monthly = parseFloat(retainerMonthlyAmount);
+    const months = parseInt(retainerDurationMonths);
+    if (isNaN(monthly) || isNaN(months) || months <= 0) return '';
+    return (monthly * months).toFixed(2);
+  }, [contractType, retainerMonthlyAmount, retainerDurationMonths]);
 
   const [clientError, setClientError] = useState('');
   const [pnlCenters, setPnlCenters] = useState<PnlCenter[]>([]);
@@ -72,6 +99,10 @@ export default function ContractModal({ contract, onClose, onSaved }: ContractMo
       setClientError('Client is required');
       return;
     }
+    if (contractType === 'retainer' && (!retainerMonthlyAmount || !retainerDurationMonths)) {
+      setError('Monthly amount and duration are required for retainer contracts.');
+      return;
+    }
     setIsSubmitting(true);
     setError(null);
 
@@ -83,10 +114,14 @@ export default function ContractModal({ contract, onClose, onSaved }: ContractMo
       clientId: clientId || null,
       clientName: clientName || null,
       currency,
-      totalValue: parseFloat(totalValue),
+      totalValue: contractType === 'retainer'
+        ? parseFloat(computedTotalValue || '0')
+        : parseFloat(totalValue),
       paymentTermsDays: parseInt(paymentTermsDays) || 30,
       startDate: startDate || null,
-      endDate: endDate || null,
+      endDate: contractType === 'retainer'
+        ? (computedEndDate || endDate || null)
+        : (endDate || null),
       retainerMonthlyAmount: contractType === 'retainer' && retainerMonthlyAmount ? parseFloat(retainerMonthlyAmount) : null,
       retainerBillingDay: contractType === 'retainer' && retainerBillingDay ? parseInt(retainerBillingDay) : null,
       vatApplicable,
@@ -265,54 +300,142 @@ export default function ContractModal({ contract, onClose, onSaved }: ContractMo
                 </div>
               )}
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="label dark:text-gray-300">Total Value *</label>
-                  <input
-                    required
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={totalValue}
-                    onChange={e => setTotalValue(e.target.value)}
-                    className="input mt-1 w-full dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                  />
-                </div>
-                <div>
-                  <label className="label dark:text-gray-300">Currency</label>
-                  <select
-                    value={currency}
-                    onChange={e => setCurrency(e.target.value)}
-                    className="input mt-1 w-full dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                  >
-                    <option value="ILS">ILS ₪</option>
-                    <option value="USD">USD $</option>
-                    <option value="EUR">EUR €</option>
-                    <option value="GBP">GBP £</option>
-                  </select>
-                </div>
-              </div>
+              {contractType === 'retainer' ? (
+                /* ── Retainer: start date + duration + monthly → computed end + total ── */
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="label dark:text-gray-300">Start Date</label>
+                      <input
+                        type="date"
+                        value={startDate}
+                        onChange={e => setStartDate(e.target.value)}
+                        className="input mt-1 w-full dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="label dark:text-gray-300">Duration (months) *</label>
+                      <input
+                        type="number"
+                        min="1"
+                        max="120"
+                        value={retainerDurationMonths}
+                        onChange={e => setRetainerDurationMonths(e.target.value)}
+                        className="input mt-1 w-full dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                        placeholder="e.g. 12"
+                      />
+                    </div>
+                  </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="label dark:text-gray-300">Start Date</label>
-                  <input
-                    type="date"
-                    value={startDate}
-                    onChange={e => setStartDate(e.target.value)}
-                    className="input mt-1 w-full dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                  />
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="label dark:text-gray-300">Monthly Amount *</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={retainerMonthlyAmount}
+                        onChange={e => setRetainerMonthlyAmount(e.target.value)}
+                        className="input mt-1 w-full dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                        placeholder="e.g. 5000"
+                      />
+                    </div>
+                    <div>
+                      <label className="label dark:text-gray-300">Currency</label>
+                      <select
+                        value={currency}
+                        onChange={e => setCurrency(e.target.value)}
+                        className="input mt-1 w-full dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                      >
+                        <option value="ILS">ILS ₪</option>
+                        <option value="USD">USD $</option>
+                        <option value="EUR">EUR €</option>
+                        <option value="GBP">GBP £</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {computedEndDate && computedTotalValue && (
+                    <div className="grid grid-cols-2 gap-4 p-3 bg-primary-50 dark:bg-primary-900/20 rounded-lg border border-primary-100 dark:border-primary-800">
+                      <div>
+                        <p className="text-xs text-primary-600 dark:text-primary-400 font-medium uppercase tracking-wide">End Date</p>
+                        <p className="mt-0.5 font-semibold text-gray-900 dark:text-white">{computedEndDate}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-primary-600 dark:text-primary-400 font-medium uppercase tracking-wide">Total Value</p>
+                        <p className="mt-0.5 font-semibold text-gray-900 dark:text-white">
+                          {parseFloat(computedTotalValue).toLocaleString()} {currency}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  <div>
+                    <label className="label dark:text-gray-300">Billing Day (1–28)</label>
+                    <input
+                      type="number"
+                      min="1"
+                      max="28"
+                      value={retainerBillingDay}
+                      onChange={e => setRetainerBillingDay(e.target.value)}
+                      className="input mt-1 w-full dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                      placeholder="e.g. 1 (day of month invoice is due)"
+                    />
+                  </div>
                 </div>
-                <div>
-                  <label className="label dark:text-gray-300">End Date</label>
-                  <input
-                    type="date"
-                    value={endDate}
-                    onChange={e => setEndDate(e.target.value)}
-                    className="input mt-1 w-full dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                  />
+              ) : (
+                /* ── Project: total value + start/end dates ── */
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="label dark:text-gray-300">Total Value *</label>
+                      <input
+                        required
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={totalValue}
+                        onChange={e => setTotalValue(e.target.value)}
+                        className="input mt-1 w-full dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="label dark:text-gray-300">Currency</label>
+                      <select
+                        value={currency}
+                        onChange={e => setCurrency(e.target.value)}
+                        className="input mt-1 w-full dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                      >
+                        <option value="ILS">ILS ₪</option>
+                        <option value="USD">USD $</option>
+                        <option value="EUR">EUR €</option>
+                        <option value="GBP">GBP £</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="label dark:text-gray-300">Start Date</label>
+                      <input
+                        type="date"
+                        value={startDate}
+                        onChange={e => setStartDate(e.target.value)}
+                        className="input mt-1 w-full dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="label dark:text-gray-300">End Date</label>
+                      <input
+                        type="date"
+                        value={endDate}
+                        onChange={e => setEndDate(e.target.value)}
+                        className="input mt-1 w-full dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                      />
+                    </div>
+                  </div>
                 </div>
-              </div>
+              )}
 
               <div>
                 <label className="label dark:text-gray-300">Payment Terms (days)</label>
@@ -325,36 +448,6 @@ export default function ContractModal({ contract, onClose, onSaved }: ContractMo
                   className="input mt-1 w-full dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                 />
               </div>
-
-              {/* Retainer-specific fields */}
-              {contractType === 'retainer' && (
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="label dark:text-gray-300">Monthly Amount</label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      value={retainerMonthlyAmount}
-                      onChange={e => setRetainerMonthlyAmount(e.target.value)}
-                      className="input mt-1 w-full dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                      placeholder="Same as total if blank"
-                    />
-                  </div>
-                  <div>
-                    <label className="label dark:text-gray-300">Billing Day (1–28)</label>
-                    <input
-                      type="number"
-                      min="1"
-                      max="28"
-                      value={retainerBillingDay}
-                      onChange={e => setRetainerBillingDay(e.target.value)}
-                      className="input mt-1 w-full dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                      placeholder="e.g. 1"
-                    />
-                  </div>
-                </div>
-              )}
 
               {/* VAT */}
               <div>
@@ -398,8 +491,10 @@ export default function ContractModal({ contract, onClose, onSaved }: ContractMo
               {!isEdit && (
                 <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1.5 mb-3">
                   <Info className="w-3.5 h-3.5 shrink-0" />
-                  {contractType === 'retainer' && startDate && endDate
-                    ? 'Monthly milestones will be auto-generated for the date range.'
+                  {contractType === 'retainer' && computedEndDate && retainerDurationMonths
+                    ? `${retainerDurationMonths} monthly milestones will be auto-generated (${startDate} → ${computedEndDate}).`
+                    : contractType === 'retainer'
+                    ? 'Fill in start date, duration, and monthly amount to preview the schedule.'
                     : 'Milestones and payment schedules are added after creating the contract.'}
                 </p>
               )}
