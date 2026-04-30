@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
-import { X, Building2, Mail, Phone, Globe, MapPin, Tag, DollarSign, FileText, TrendingUp, ExternalLink } from 'lucide-react';
+import { X, Building2, Mail, Phone, Globe, MapPin, Tag, DollarSign, FileText, TrendingUp, ExternalLink, Users, Star } from 'lucide-react';
 import { api, getErrorMessage } from '../../../services/api';
 import { useDataStore } from '../../../stores/dataStore';
-import type { Client, Income, Proposal, Lead } from '@finance/shared';
+import type { Client, Income, Proposal, Lead, ContactPerson } from '@finance/shared';
 import { formatCurrency } from '../../../utils/formatters';
 import ContractsList from '../../income/components/ContractsList';
 
@@ -53,6 +53,7 @@ export function ClientDetailDrawer({ client, onClose, onEdit }: ClientDetailDraw
   const [income, setIncome] = useState<Income[]>([]);
   const [proposals, setProposals] = useState<Proposal[]>([]);
   const [leads, setLeads] = useState<Lead[]>([]);
+  const [contacts, setContacts] = useState<ContactPerson[]>([]);
   const [contractCount, setContractCount] = useState(0);
   const [loadingData, setLoadingData] = useState(false);
   const [dataError, setDataError] = useState<string | null>(null);
@@ -70,16 +71,18 @@ export function ClientDetailDrawer({ client, onClose, onEdit }: ClientDetailDraw
       setLoadingData(true);
       setDataError(null);
       try {
-        const [incomeRes, proposalsRes, leadsRes, contractsRes] = await Promise.all([
+        const [incomeRes, proposalsRes, leadsRes, contractsRes, contactsRes] = await Promise.all([
           api.get(`/income?clientName=${encodeURIComponent(displayName)}&limit=100`, { signal }),
           api.get(`/proposals?clientId=${client.id}&limit=100`, { signal }),
           api.get(`/leads?clientId=${client.id}&limit=100`, { signal }),
           api.get(`/income-contracts?clientId=${client.id}&limit=1`, { signal }),
+          api.get(`/clients/${client.id}/contacts`, { signal }),
         ]);
         setIncome(incomeRes.data.data ?? []);
         setProposals(proposalsRes.data.data ?? []);
         setLeads(leadsRes.data.data ?? []);
         setContractCount(contractsRes.data.pagination?.total ?? 0);
+        setContacts(contactsRes.data.data ?? []);
       } catch (err) {
         if ((err as { name?: string }).name === 'CanceledError') return;
         setDataError(getErrorMessage(err));
@@ -228,6 +231,62 @@ export function ClientDetailDrawer({ client, onClose, onEdit }: ClientDetailDraw
                   </div>
                 )}
               </div>
+
+              {contacts.length > 0 && (
+                <div>
+                  <div className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400 mb-2">
+                    <Users className="w-3.5 h-3.5" /> Contacts ({contacts.length})
+                  </div>
+                  <div className="space-y-2">
+                    {[...contacts]
+                      .sort((a, b) => Number(b.isPrimary) - Number(a.isPrimary))
+                      .map((c) => (
+                        <div
+                          key={c.id}
+                          className="border border-gray-200 dark:border-gray-700 rounded-lg p-3 bg-gray-50 dark:bg-gray-800/50"
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-1.5">
+                                <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{c.name}</p>
+                                {c.isPrimary && (
+                                  <span title="Primary contact" className="text-warning-600 dark:text-warning-400">
+                                    <Star className="w-3.5 h-3.5 fill-current" />
+                                  </span>
+                                )}
+                              </div>
+                              {c.role && (
+                                <p className="text-xs text-gray-500 dark:text-gray-400">{c.role}</p>
+                              )}
+                            </div>
+                          </div>
+                          {(c.email || c.phone) && (
+                            <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-1.5 text-xs">
+                              {c.email && (
+                                <a
+                                  href={`mailto:${c.email}`}
+                                  className="flex items-center gap-1.5 text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 truncate"
+                                >
+                                  <Mail className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                                  <span className="truncate">{c.email}</span>
+                                </a>
+                              )}
+                              {c.phone && (
+                                <a
+                                  href={`tel:${c.phone}`}
+                                  className="flex items-center gap-1.5 text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 truncate"
+                                >
+                                  <Phone className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                                  <span className="truncate">{c.phone}</span>
+                                </a>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                  </div>
+                </div>
+              )}
 
               {client.tags && client.tags.length > 0 && (
                 <div>

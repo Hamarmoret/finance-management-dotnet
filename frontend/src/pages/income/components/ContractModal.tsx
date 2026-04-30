@@ -398,7 +398,9 @@ export default function ContractModal({ contract, onClose, onSaved }: ContractMo
               {!isEdit && (
                 <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1.5 mb-3">
                   <Info className="w-3.5 h-3.5 shrink-0" />
-                  Milestones and payment schedules are added after creating the contract.
+                  {contractType === 'retainer' && startDate && endDate
+                    ? 'Monthly milestones will be auto-generated for the date range.'
+                    : 'Milestones and payment schedules are added after creating the contract.'}
                 </p>
               )}
               <div className="flex justify-end gap-3">

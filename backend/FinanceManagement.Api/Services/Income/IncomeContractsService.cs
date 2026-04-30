@@ -805,6 +805,28 @@ public class IncomeContractsService
         {
             var resolvedClientId = await GetOrCreateClientIdAsync(conn, tx, request.ClientId, request.ClientName, userId);
 
+            // For retainers with a date range and no explicit monthly amount, derive
+            // monthly = totalValue / monthCount and store it on the row so subsequent
+            // "Generate more retainer months" works without re-prompting.
+            DateOnly? autoStartDate = null;
+            int autoMonthCount = 0;
+            decimal? effectiveMonthlyAmount = request.RetainerMonthlyAmount;
+            if (request.ContractType == "retainer"
+                && !string.IsNullOrEmpty(request.StartDate)
+                && !string.IsNullOrEmpty(request.EndDate)
+                && DateOnly.TryParse(request.StartDate, out var sd)
+                && DateOnly.TryParse(request.EndDate, out var ed))
+            {
+                var months = (ed.Year - sd.Year) * 12 + (ed.Month - sd.Month) + 1;
+                if (months > 0 && months <= 60)
+                {
+                    autoStartDate = sd;
+                    autoMonthCount = months;
+                    if (effectiveMonthlyAmount == null && request.TotalValue > 0)
+                        effectiveMonthlyAmount = Math.Round(request.TotalValue / months, 2);
+                }
+            }
+
             var row = await conn.QuerySingleAsync<DbContractRow>(
                 """
                 INSERT INTO income_contracts (
@@ -842,7 +864,7 @@ public class IncomeContractsService
                     PaymentTermsDays = request.PaymentTermsDays,
                     StartDate = request.StartDate,
                     EndDate = request.EndDate,
-                    RetainerMonthlyAmount = request.RetainerMonthlyAmount,
+                    RetainerMonthlyAmount = effectiveMonthlyAmount,
                     RetainerBillingDay = request.RetainerBillingDay,
                     Notes = request.Notes,
                     Tags = request.Tags ?? [],
@@ -851,7 +873,33 @@ public class IncomeContractsService
 
             var milestones = new List<IncomeMilestoneDto>();
             if (request.Milestones.Count > 0)
+            {
                 milestones = await InsertMilestonesAsync(conn, tx, row.id, request.Milestones, row.currency);
+            }
+            else if (autoMonthCount > 0 && effectiveMonthlyAmount.HasValue && autoStartDate.HasValue)
+            {
+                // Auto-generate one milestone per month for the retainer's date range.
+                var startDate = autoStartDate.Value;
+                var billingDay = request.RetainerBillingDay ?? startDate.Day;
+                var toInsert = new List<CreateMilestoneRequest>();
+                for (var i = 0; i < autoMonthCount; i++)
+                {
+                    var totalMonths = startDate.Month - 1 + i;
+                    var year = startDate.Year + totalMonths / 12;
+                    var month = totalMonths % 12 + 1;
+                    var day = Math.Min(billingDay, DateTime.DaysInMonth(year, month));
+                    var billingDate = new DateOnly(year, month, day);
+                    var dueDate = billingDate.AddDays(request.PaymentTermsDays);
+                    toInsert.Add(new CreateMilestoneRequest
+                    {
+                        Description = $"Retainer – {billingDate:MMMM yyyy}",
+                        AmountDue = effectiveMonthlyAmount.Value,
+                        DueDate = dueDate.ToString("yyyy-MM-dd"),
+                        SortOrder = i + 1,
+                    });
+                }
+                milestones = await InsertMilestonesAsync(conn, tx, row.id, toInsert, row.currency);
+            }
 
             await conn.ExecuteAsync(
                 "INSERT INTO audit_logs (user_id, action, entity_type, entity_id) VALUES (@UserId, @Action, @EntityType, @EntityId)",

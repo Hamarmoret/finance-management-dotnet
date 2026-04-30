@@ -23,11 +23,12 @@ export default function MarkPaidModal({ milestone, onClose, onPaid }: MarkPaidMo
     isAdditionalPayment ? remaining.toString() : milestone.amountDue.toString()
   );
 
-  // Invoice fields — pre-fill from milestone if already set
+  // Invoice fields — pre-fill from milestone if already set.
+  // Tax invoice date is always the same as the payment received date, so we
+  // don't ask the user for it separately (sent on submit).
   const [proformaInvoiceNumber, setProformaInvoiceNumber] = useState(milestone.proformaInvoiceNumber ?? '');
   const [proformaInvoiceDate, setProformaInvoiceDate] = useState(milestone.proformaInvoiceDate ?? '');
   const [taxInvoiceNumber, setTaxInvoiceNumber] = useState(milestone.taxInvoiceNumber ?? '');
-  const [taxInvoiceDate, setTaxInvoiceDate] = useState(milestone.taxInvoiceDate ?? '');
   const [showInvoice, setShowInvoice] = useState(
     !!(milestone.proformaInvoiceNumber || milestone.taxInvoiceNumber)
   );
@@ -49,7 +50,8 @@ export default function MarkPaidModal({ milestone, onClose, onPaid }: MarkPaidMo
         proformaInvoiceNumber: proformaInvoiceNumber || null,
         proformaInvoiceDate: proformaInvoiceDate || null,
         taxInvoiceNumber: taxInvoiceNumber || null,
-        taxInvoiceDate: taxInvoiceDate || null,
+        // Tax invoice date == payment received date (no separate input).
+        taxInvoiceDate: taxInvoiceNumber ? paymentReceivedDate : null,
       });
       onPaid(res.data.data);
     } catch (err) {
@@ -178,26 +180,18 @@ export default function MarkPaidModal({ milestone, onClose, onPaid }: MarkPaidMo
                         />
                       </div>
                     </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="label dark:text-gray-300">Tax Invoice #</label>
-                        <input
-                          type="text"
-                          value={taxInvoiceNumber}
-                          onChange={e => setTaxInvoiceNumber(e.target.value)}
-                          className="input mt-1 w-full dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                          placeholder="e.g. INV-001"
-                        />
-                      </div>
-                      <div>
-                        <label className="label dark:text-gray-300">Tax Invoice Date</label>
-                        <input
-                          type="date"
-                          value={taxInvoiceDate}
-                          onChange={e => setTaxInvoiceDate(e.target.value)}
-                          className="input mt-1 w-full dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                        />
-                      </div>
+                    <div>
+                      <label className="label dark:text-gray-300">Tax Invoice #</label>
+                      <input
+                        type="text"
+                        value={taxInvoiceNumber}
+                        onChange={e => setTaxInvoiceNumber(e.target.value)}
+                        className="input mt-1 w-full dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                        placeholder="e.g. INV-001"
+                      />
+                      <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                        Tax invoice date will match the payment received date.
+                      </p>
                     </div>
                   </div>
                 )}

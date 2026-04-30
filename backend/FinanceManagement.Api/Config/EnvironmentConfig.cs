@@ -24,8 +24,8 @@ public static class EnvironmentConfig
             {
                 AccessSecret = Env("JWT_ACCESS_SECRET", ""),
                 RefreshSecret = Env("JWT_REFRESH_SECRET", ""),
-                AccessExpiration = Env("JWT_ACCESS_EXPIRATION", "30m"),
-                RefreshExpiration = Env("JWT_REFRESH_EXPIRATION", "7d"),
+                AccessExpiration = Env("JWT_ACCESS_EXPIRATION", "24h"),
+                RefreshExpiration = Env("JWT_REFRESH_EXPIRATION", "30d"),
             },
             Password = new PasswordSettings
             {

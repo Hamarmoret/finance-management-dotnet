@@ -55,8 +55,8 @@ public class JwtSettings
 {
     public string AccessSecret { get; set; } = string.Empty;
     public string RefreshSecret { get; set; } = string.Empty;
-    public string AccessExpiration { get; set; } = "15m";
-    public string RefreshExpiration { get; set; } = "7d";
+    public string AccessExpiration { get; set; } = "24h";
+    public string RefreshExpiration { get; set; } = "30d";
 
     public TimeSpan AccessExpirationTimeSpan => ParseDuration(AccessExpiration);
     public TimeSpan RefreshExpirationTimeSpan => ParseDuration(RefreshExpiration);
