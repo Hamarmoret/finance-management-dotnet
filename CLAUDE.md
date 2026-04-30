@@ -359,6 +359,84 @@ Used in: Dashboard, Expenses, Income, P&L Centers, Sales (Leads + Proposals tabs
 
 ---
 
+## Clickable Stats & Drill-Down (Complete)
+
+Dashboard, P&L Centers, and Contracts pages all have clickable aggregate stat cards:
+
+- **Dashboard** — Total Income / Total Expenses (opens sorted list modal), Pending Invoices card (opens pending list), "X overdue" text (opens overdue list). Each list row opens `TransactionDetailModal`. Implemented via `DashboardListModal` + `DrillDownModal`.
+- **P&L Centers** — Total Income / Total Expenses → `DrillDownModal` fetching actual income/expense records for the period; Net Profit card also clickable (shows all).
+- **Contracts** — Overdue stat → `MilestoneListModal` (fetches from `/alerts/overdue`); Outstanding stat → `MilestoneListModal` (fetches from `/alerts/outstanding`); Collected stat → `MilestoneListModal` (fetches from `/alerts/paid`); Total Value → contract list modal.
+
+### Key Components
+- `frontend/src/pages/analytics/components/DrillDownModal.tsx` — reusable drill-down list modal (used by Dashboard and P&L Centers)
+- `frontend/src/pages/income/components/MilestoneListModal.tsx` — reusable milestone list modal (used by Contracts page)
+
+---
+
+## P&L Report Page (Complete)
+
+New page at `/profit-loss` with "P&L Report" nav item (FileBarChart2 icon).
+
+- **File**: `frontend/src/pages/profit-loss/ProfitLoss.tsx`
+- **Default period**: current year Jan 1 → today
+- **GroupBy toggle**: Monthly / Quarterly
+- **6 summary cards**: Revenue (accrual), Collected, Outstanding, Expenses, Net P&L, Net Cash
+- **Breakdown table**: period rows + bold totals footer row
+- **Collapsible category tables**: Revenue by Category (Revenue/Collected/Outstanding), Expenses by Category (Amount/%)
+- **Accrual rules**: `draft` and `cancelled` income excluded from Revenue; Collected = `invoiceStatus==='paid'` OR `paymentReceivedDate` set
+
+---
+
+## Reports Page (Complete, by separate session)
+
+New `/reports` page with PDF generation, AI summaries (Google Gemini), and templated + custom report modes.
+
+### Backend
+- **`ReportsService.cs`** — data collection (income, expenses, P&L centers, contracts, leads)
+- **`ReportPdfBuilder.cs`** — PdfSharp/MigraDoc PDF rendering with `LinuxFontResolver`
+- **`AiSummaryService.cs`** — Google Gemini API integration for narrative summaries
+- **`ReportsController.cs`** — `POST /api/reports/generate` (returns PDF stream)
+- **`LinuxFontResolver.cs`** — fixes PdfSharp font crash on Linux/Cloud Run
+- Migration 023: `audit_logs` reports entry
+
+### Frontend
+- `frontend/src/pages/reports/Reports.tsx` — main page (templated + AI custom modes)
+- `frontend/src/pages/reports/components/TemplatePicker.tsx` — period + template selection
+- `frontend/src/pages/reports/components/AiCustomForm.tsx` — free-text prompt input
+- `frontend/src/pages/reports/components/ReportPreview.tsx` — PDF preview + download
+
+### Env Vars
+- `ANTHROPIC_API_KEY` — required for AI summaries (falls back gracefully if missing)
+- Gemini model used: `gemini-2.5-pro-exp-03-25`
+
+### Known Gotchas (Reports)
+- Gemini returns a "thinking" part before the text response — `AiSummaryService` must skip parts where `Part.Text == null` to avoid null parse errors
+- PdfSharp requires `LinuxFontResolver` on Cloud Run; must be registered before any PDF rendering
+- The `/reports/generate` endpoint streams a PDF; frontend uses `URL.createObjectURL` + iframe for preview
+
+---
+
+## Expense Payment Tracking (Complete, by separate session)
+
+Migration 024 adds `due_date`, `payment_status`, `payment_date` columns to `expenses`.
+
+- Existing expenses default to `payment_status = 'paid'` (backward-compatible)
+- New "Payment pending" checkbox in `ExpenseModal` reveals `due_date` field
+- `ExpenseTable` shows Paid/Unpaid/Overdue status badges; mark-as-paid action button
+- `Expenses.tsx` filter dropdown for payment status
+- Backend: `GET /expenses?paymentStatus=overdue` filter, `POST /expenses/:id/mark-paid`
+
+---
+
+## Income Contract Enhancements (Complete, by separate session)
+
+- **Partial payments** on milestones: `paid_amount` column, `POST /income-milestones/:id/partial-payment`
+- **Milestone alerts** endpoints: `/income-contracts/alerts/outstanding` and `/income-contracts/alerts/paid`
+- `MilestoneRow.tsx` shows partial payment progress bar
+- `MarkPaidModal.tsx` updated with partial amount input
+
+---
+
 ## Income Contracts Module — Recent Enhancements
 
 ### Milestone amount validation (front + back)
