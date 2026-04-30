@@ -18,6 +18,7 @@ import {
   Moon,
   Briefcase,
   FileText,
+  FileBarChart2,
 } from 'lucide-react';
 
 const navigation = [
@@ -26,6 +27,7 @@ const navigation = [
   { name: 'Income', href: '/income', icon: Wallet },
   { name: 'P&L Centers', href: '/pnl', icon: PieChart },
   { name: 'Sales', href: '/sales', icon: Briefcase },
+  { name: 'P&L Report', href: '/profit-loss', icon: FileBarChart2 },
   { name: 'Business Plan', href: '/business-plan', icon: Target },
   { name: 'Analytics', href: '/analytics', icon: BarChart3 },
   { name: 'Reports', href: '/reports', icon: FileText },
