@@ -115,11 +115,26 @@ Frontend scripts: `dev`, `build`, `preview`, `lint`, `lint:fix`, `test`, `test:c
 ## Deployment
 
 ### Automatic (normal workflow)
-Push to `master` on GitHub → Cloud Build trigger fires → builds Docker image → deploys to Cloud Run automatically.
+Push to `master` on GitHub → Cloud Build triggers fire → build Docker images → deploy to Cloud Run automatically.
 Both `cloudbuild-frontend.yaml` and `cloudbuild-backend.yaml` include the `gcloud run deploy` step.
+
+#### Cloud Build Triggers (region: me-west1)
+| Trigger name | Config file | Branch |
+|---|---|---|
+| `deploy-frontend-on-push` | `cloudbuild-frontend.yaml` | `^master$` |
+| `deploy-backend-on-push` | `cloudbuild-backend.yaml` | `^master$` |
+
+Both use **Cloud Build repositories (1st gen)**, repo `Hamarmoret/finance-management-dotnet` (GitHub App), service account `233195483413-compute@developer.gserviceaccount.com`.
+
+**If triggers stop firing:** check Cloud Build → Triggers (region me-west1). Common causes:
+- Trigger deleted or disabled → recreate using the table above
+- Wrong `filename` in trigger config → must match exactly (`cloudbuild-frontend.yaml` / `cloudbuild-backend.yaml`)
+- GitHub App authorization expired → GitHub repo Settings → Integrations → Google Cloud Build → reconfigure
+- Manual fallback: `gcloud builds submit --config cloudbuild-backend.yaml` (run from repo root after `gcloud auth login`)
 
 ### Manual (if needed)
 ```bash
+# Must be run from the repo root (where the yaml files live)
 # Frontend
 gcloud builds submit --config cloudbuild-frontend.yaml
 
