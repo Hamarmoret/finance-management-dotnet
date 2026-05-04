@@ -1043,3 +1043,25 @@ export const DROPDOWN_CATEGORIES: Record<string, string> = {
   contract_type: 'Contract Types',
   lead_status: 'Lead Statuses',
 };
+
+// ── Alerts ────────────────────────────────────────────────────────────────
+
+export type AlertType = 'proforma_due' | 'payment_overdue' | 'lead_stale';
+export type AlertSeverity = 'warning' | 'danger' | 'info';
+
+export interface Alert {
+  id: string;
+  alertType: AlertType;
+  entityId: string;
+  entityType: 'milestone' | 'lead';
+  title: string;
+  description: string;
+  severity: AlertSeverity;
+  dueDate: string | null;
+  daysUntilDue: number | null;
+  contractId: string | null;
+  clientName: string | null;
+  contractTitle: string | null;
+  amount: number | null;
+  currency: string | null;
+}

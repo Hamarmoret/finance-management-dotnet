@@ -20,6 +20,7 @@ import {
   FileText,
   FileBarChart2,
 } from 'lucide-react';
+import AlertsBell from '../AlertsBell';
 
 const navigation = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
@@ -161,6 +162,9 @@ export default function DashboardLayout() {
           </button>
 
           <div className="flex-1" />
+
+          {/* Alerts bell */}
+          <AlertsBell />
 
           {/* Dark mode toggle */}
           <button

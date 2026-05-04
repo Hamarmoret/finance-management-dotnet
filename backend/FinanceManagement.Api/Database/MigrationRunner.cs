@@ -88,6 +88,8 @@ public class MigrationRunner
         ("023_milestone_partially_paid", Sql023MilestonePartiallyPaid),
         // Accounts payable: track due dates & payment status on expenses.
         ("024_expense_payment_tracking", Sql024ExpensePaymentTracking),
+        // Alert snooze/dismiss state — lets users snooze or permanently dismiss computed alerts.
+        ("025_alert_dismissals", Sql025AlertDismissals),
     ];
 
     #region SQL Migrations
@@ -890,6 +892,21 @@ public class MigrationRunner
 
         CREATE INDEX IF NOT EXISTS idx_expenses_payment_status ON expenses(payment_status);
         CREATE INDEX IF NOT EXISTS idx_expenses_due_date ON expenses(due_date);
+        """;
+
+    private const string Sql025AlertDismissals = """
+        CREATE TABLE IF NOT EXISTS alert_dismissals (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            alert_type VARCHAR(100) NOT NULL,
+            entity_id UUID NOT NULL,
+            action VARCHAR(20) NOT NULL DEFAULT 'dismiss',
+            snooze_until TIMESTAMPTZ,
+            justification TEXT,
+            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        );
+        CREATE INDEX IF NOT EXISTS idx_alert_dismissals_lookup
+            ON alert_dismissals(user_id, alert_type, entity_id);
         """;
 
     #endregion
