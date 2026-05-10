@@ -174,7 +174,7 @@ export function ExpenseModal({
       };
 
       if (isEditing) {
-        await api.patch(`/expenses/${expense.id}`, data);
+        await api.put(`/expenses/${expense.id}`, data);
       } else {
         await api.post('/expenses', data);
       }
