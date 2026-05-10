@@ -97,10 +97,10 @@ public class AlertsService(DbContext db)
                 NULL                                          AS ContractId,
                 l.company_name                                AS ClientName,
                 NULL                                          AS ContractTitle,
-                l.deal_value                                  AS Amount,
-                NULL                                          AS Currency
+                l.estimated_value                             AS Amount,
+                l.currency                                    AS Currency
             FROM leads l
-            WHERE l.status NOT IN ('closed_won', 'closed_lost', 'cancelled')
+            WHERE l.status NOT IN ('won', 'lost')
               AND l.updated_at < NOW() - INTERVAL '14 days'
               AND NOT EXISTS (
                   SELECT 1 FROM alert_dismissals d
