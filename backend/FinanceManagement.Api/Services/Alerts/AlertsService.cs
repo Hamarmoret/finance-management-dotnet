@@ -10,7 +10,8 @@ public class AlertsService(DbContext db)
 
     public async Task<List<AlertDto>> GetAlertsAsync(Guid userId)
     {
-        using var conn = await _db.OpenAsync();
+        await using var conn = _db.CreateConnection();
+        await conn.OpenAsync();
         var alerts = new List<AlertDto>();
 
         // ── Proforma invoice not sent (due within 7 days or up to 3 days overdue) ──
@@ -119,7 +120,8 @@ public class AlertsService(DbContext db)
 
     public async Task DismissAsync(Guid userId, string alertType, Guid entityId, string? justification)
     {
-        using var conn = await _db.OpenAsync();
+        await using var conn = _db.CreateConnection();
+        await conn.OpenAsync();
         await conn.ExecuteAsync(@"
             INSERT INTO alert_dismissals (user_id, alert_type, entity_id, action, justification)
             VALUES (@UserId, @AlertType, @EntityId, 'dismiss', @Justification)",
@@ -128,7 +130,8 @@ public class AlertsService(DbContext db)
 
     public async Task SnoozeAsync(Guid userId, string alertType, Guid entityId, DateTime snoozeUntil)
     {
-        using var conn = await _db.OpenAsync();
+        await using var conn = _db.CreateConnection();
+        await conn.OpenAsync();
         await conn.ExecuteAsync(@"
             INSERT INTO alert_dismissals (user_id, alert_type, entity_id, action, snooze_until)
             VALUES (@UserId, @AlertType, @EntityId, 'snooze', @SnoozeUntil)",
