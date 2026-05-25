@@ -5,6 +5,7 @@ Full-stack financial management web app with expense/income tracking, P&L center
 
 ## Repository
 - **GitHub**: https://github.com/Hamarmoret/finance-management-dotnet
+- **Local (Windows)**: `C:\Dev\Finance-Management-dotnet`
 
 ## Deployed URLs
 - **Backend**: https://finance-backend-dotnet-233195483413.me-west1.run.app
@@ -130,22 +131,45 @@ Both use **Cloud Build repositories (1st gen)**, repo `Hamarmoret/finance-manage
 - Trigger deleted or disabled → recreate using the table above
 - Wrong `filename` in trigger config → must match exactly (`cloudbuild-frontend.yaml` / `cloudbuild-backend.yaml`)
 - GitHub App authorization expired → GitHub repo Settings → Integrations → Google Cloud Build → reconfigure
-- Manual fallback: `gcloud builds submit --config cloudbuild-backend.yaml` (run from repo root after `gcloud auth login`)
+- Manual fallback: run from `C:\Dev\Finance-Management-dotnet` on Windows (see below)
 
 ### Manual (if needed)
 ```bash
-# Must be run from the repo root (where the yaml files live)
+# Must be run from the repo root: C:\Dev\Finance-Management-dotnet (Windows)
+# Always git pull first — gcloud builds submit uploads LOCAL files, not GitHub HEAD
+git pull
+
 # Frontend
-gcloud builds submit --config cloudbuild-frontend.yaml
+gcloud builds submit --config cloudbuild-frontend.yaml --region me-west1
 
 # Backend
-gcloud builds submit --config cloudbuild-backend.yaml
+gcloud builds submit --config cloudbuild-backend.yaml --region me-west1
 ```
 
 ### Rollback
 Cloud Run keeps all previous revisions. Roll back via:
 - **Cloud Console**: Cloud Run → service → Revisions tab → route 100% traffic to previous revision
 - **CLI**: `gcloud run services update-traffic finance-frontend-dotnet --to-revisions=REVISION_NAME=100 --region me-west1`
+
+### Troubleshooting: Backend down / "Network Error" on login
+
+**Symptom**: Frontend shows "Network Error" when logging in; `curl` to the backend returns 429 or 503 from `server: Google Frontend`.
+
+**Cause**: Cloud Run is crash-looping (failing health checks) — usually because the deployed image has a startup error (migration failure, DB unreachable, or compilation error that slipped through).
+
+**Diagnosis**:
+```bash
+curl -s -o /dev/null -w "%{http_code}" https://finance-backend-dotnet-233195483413.me-west1.run.app/
+# 200 = healthy, 429/503 = crash-looping
+```
+
+**Fix sequence**:
+1. Check Cloud Build console (region me-west1) for a recent failed build — the error will be in the `dotnet publish` step
+2. Fix the compilation error in the code
+3. `git pull` on Windows, then `gcloud builds submit --config cloudbuild-backend.yaml --region me-west1` from `C:\Dev\Finance-Management-dotnet`
+4. Wait ~3–5 min for the build + deploy to complete
+
+**Known past instance (May 2026)**: `AlertsService.cs` called `_db.OpenAsync()` which doesn't exist on `DbContext` (only `CreateConnection()` exists). Fix: replace with `await using var conn = _db.CreateConnection(); await conn.OpenAsync();` — the pattern used in every other service.
 
 ## Environment Variables (env.yaml)
 | Variable | Purpose |
